@@ -9,6 +9,7 @@ const userSchema = new mongoose.Schema(
       lastName: { type: String, required: true },
       Bio: { type: String, default: "" },
       profileUrl: { type: String },
+      refreshToken: { type: String },
     },
     AccountStatus: {
       isVerified: { type: Boolean, default: false },
@@ -53,7 +54,7 @@ const userSchema = new mongoose.Schema(
       SavedMessagesChatId: { type: Array },
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 module.exports = mongoose.model("User", userSchema);

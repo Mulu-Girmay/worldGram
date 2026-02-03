@@ -1,5 +1,6 @@
 const User = require("../Models/User");
 const bcrypt = require("bcrypt");
+const { generateAccessToken, generateRefreshToken } = require("../utils/token");
 let hashPassword = async (plainPassword) => {
   const saltRounds = 10;
   const hash = await bcrypt.hash(plainPassword, saltRounds);
@@ -40,7 +41,18 @@ exports.login = async (req, res) => {
     if (!isMatch) {
       return res.status(200).json({ users: user, message: "Wrong Password" });
     }
-    return res.status(200).json({ users: user, message: "Login Successful" });
+    const accessToken = generateAccessToken(user._id);
+    const refreshToken = generateRefreshToken(user._id);
+    user.refreshToken = refreshToken;
+    await user.save();
+    res.cookie("refreshToken", refreshToken, {
+      httpOnly: true,
+      secure: false,
+      sameSite: "strict",
+    });
+    return res
+      .status(200)
+      .json({ accessToken, users: user, message: "Login Successful" });
   } catch (err) {
     return res.status(400).json({ error: err.message });
   }
