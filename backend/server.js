@@ -5,8 +5,11 @@ require("dotenv").config();
 const PORT = process.env.PORT;
 const URI = process.env.MONGO_URI;
 const userRouter = require("./Routes/userRoute");
+const channelRouter = require("./Routes/channelRoute");
 app.use(cookieParser());
 app.use("/api", userRouter);
+app.use("/api", channelRouter);
+
 const connectdb = async (uri) => {
   try {
     await mongoose.connect(uri);

@@ -13,7 +13,7 @@ const channelSchema = new mongoose.Schema(
     },
     audience: {
       subscribers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
-      subscriberCount: { type: number },
+      subscriberCount: { type: Number },
     },
     settings: {
       isPublic: { type: Boolean, default: true },
@@ -21,6 +21,6 @@ const channelSchema = new mongoose.Schema(
       discussionGroupId: { type: mongoose.Schema.Types.ObjectId, ref: "Group" },
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 module.exports = mongoose.model("Channel", channelSchema);
