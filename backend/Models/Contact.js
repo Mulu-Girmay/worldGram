@@ -15,10 +15,16 @@ const ContactSchema = new mongoose.Schema(
     nameOverride: {
       type: String,
     },
+    isBlocked: {
+      type: Boolean,
+    },
     isFavorite: {
       type: Boolean,
     },
+    phone: {
+      type: String,
+    },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 module.exports = mongoose.model("Contact", ContactSchema);

@@ -7,10 +7,12 @@ const URI = process.env.MONGO_URI;
 const userRouter = require("./Routes/userRoute");
 const channelRouter = require("./Routes/channelRoute");
 const groupRouter = require("./Routes/groupRouter");
+const postRouter = require("./Routes/postRouter");
 app.use(cookieParser());
 app.use("/api", userRouter);
 app.use("/api", channelRouter);
 app.use("/api", groupRouter);
+app.use("/api", postRouter);
 
 const connectdb = async (uri) => {
   try {
