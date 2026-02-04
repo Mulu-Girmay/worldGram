@@ -3,7 +3,8 @@ const groupSchema = new mongoose.Schema(
   {
     basicInfo: {
       chatId: { type: mongoose.Schema.Types.ObjectId, ref: "Chat" },
-      name: { type: String },
+      groupName: { type: String },
+      groupUsername: { type: String },
       description: { type: String },
       groupPhoto: { type: String },
     },
@@ -25,6 +26,6 @@ const groupSchema = new mongoose.Schema(
       MaxMembers: { type: Number },
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 module.exports = mongoose.model("Group", groupSchema);
