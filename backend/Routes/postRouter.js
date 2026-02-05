@@ -1,6 +1,11 @@
 const express = require("express");
 const upload = require("../Middleware/multer");
-const { addPost } = require("../Controllers/channelPostController");
+const {
+  addPost,
+  editPost,
+  reactToPost,
+  addViewToPost,
+} = require("../Controllers/channelPostController");
 const postRouter = express.Router();
 
 postRouter.post(
@@ -8,5 +13,21 @@ postRouter.post(
   require("../Middleware/authMiddleware"),
   upload.single("media"),
   addPost,
+);
+postRouter.patch(
+  "/editPost/:channelId/:postId",
+  require("../Middleware/authMiddleware"),
+  upload.single("media"),
+  editPost,
+);
+postRouter.post(
+  "/updateReaction/:channelId/:postId",
+  require("../Middleware/authMiddleware"),
+  reactToPost,
+);
+postRouter.post(
+  "/updateView/:channelId/:postId",
+  require("../Middleware/authMiddleware"),
+  addViewToPost,
 );
 module.exports = postRouter;

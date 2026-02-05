@@ -10,9 +10,25 @@ const channelPostSchema = new mongoose.Schema(
     authorId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     text: { type: String },
     media: [{ url: String, type: String, size: Number }],
-    views: { type: Number, default: 0 },
-    forward: { type: Number, default: 0 },
-    reactions: [{ emoji: String, count: Number }],
+    views: [
+      {
+        viewNumber: { type: Number, default: 0 },
+        viewers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+      },
+    ],
+    forward: {
+      forwardNumber: { type: Number, default: 0 },
+      forwarders: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+
+      forwardedTo: { type: mongoose.Schema.Types.ObjectId },
+    },
+    reactions: [
+      {
+        emoji: String,
+        count: Number,
+        reactors: [{ type: mongoose.Schema.Types.ObjectId }],
+      },
+    ],
     isPinned: { type: Boolean, default: false },
     schedulesAt: Date,
   },
