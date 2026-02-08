@@ -7,11 +7,6 @@ const activitySchema = new mongoose.Schema(
       required: true,
       index: true,
     },
-    status: {
-      type: String,
-      enum: ["online", "offline", "recording", "uploading"],
-      default: "offline",
-    },
     lastSeenAt: { type: Date, default: Date.now },
     activeChatId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     device: { type: String },

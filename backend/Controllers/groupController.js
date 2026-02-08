@@ -248,3 +248,10 @@ exports.removeAdmin = async (req, res) => {
     res.status(500).json({ err: "Failed to remove admin" });
   }
 };
+exports.addChat = async (req, res) => {
+  try {
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ err: "Failed to add chat" });
+  }
+};

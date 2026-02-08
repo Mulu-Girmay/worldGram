@@ -23,11 +23,13 @@ const userRouter = require("./Routes/userRoute");
 const channelRouter = require("./Routes/channelRoute");
 const groupRouter = require("./Routes/groupRouter");
 const postRouter = require("./Routes/postRouter");
+const storyRouter = require("./Routes/storyRouter");
 app.use(cookieParser());
 app.use("/api", userRouter);
 app.use("/api", channelRouter);
 app.use("/api", groupRouter);
 app.use("/api", postRouter);
+app.use("/api", storyRouter);
 
 const connectdb = async (uri) => {
   try {
@@ -60,7 +62,7 @@ io.on("connection", (socket) => {
       if (!chatId) return;
       const chat = await Chat.findById(chatId).select("participants");
       const isParticipant = chat?.participants?.some(
-        (id) => id.toString() === socket.userId
+        (id) => id.toString() === socket.userId,
       );
       if (!isParticipant) return;
 
@@ -78,7 +80,7 @@ io.on("connection", (socket) => {
 
       const chat = await Chat.findById(chatId).select("participants");
       const isParticipant = chat?.participants?.some(
-        (id) => id.toString() === socket.userId
+        (id) => id.toString() === socket.userId,
       );
       if (!isParticipant) return;
 

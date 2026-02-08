@@ -17,10 +17,25 @@ const channelPostSchema = new mongoose.Schema(
       },
     ],
     forward: {
-      forwardNumber: { type: Number, default: 0 },
-      forwarders: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-
-      forwardedTo: { type: mongoose.Schema.Types.ObjectId },
+      count: { type: Number, default: 0 },
+      lastForwardedAt: Date,
+      lastForwardedTo: { type: mongoose.Schema.Types.ObjectId },
+      forwardedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+      forwardedAt: Date,
+      original: {
+        type: { type: String, enum: ["message", "post", "story"] },
+        id: { type: mongoose.Schema.Types.ObjectId },
+        authorId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+      },
+      snapshot: {
+        text: String,
+        media: [{ url: String, type: String, size: Number }],
+        mediaType: String,
+        fileName: String,
+        fileSize: Number,
+        duration: Number,
+        caption: String,
+      },
     },
     reactions: [
       {

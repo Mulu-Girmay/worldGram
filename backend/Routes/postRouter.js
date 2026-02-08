@@ -5,6 +5,7 @@ const {
   editPost,
   reactToPost,
   addViewToPost,
+  forwardPost,
 } = require("../Controllers/channelPostController");
 const postRouter = express.Router();
 
@@ -21,7 +22,7 @@ postRouter.patch(
   editPost,
 );
 postRouter.post(
-  "/updateReaction/:channelId/:postId",
+  "/reactToPost/:channelId/:postId",
   require("../Middleware/authMiddleware"),
   reactToPost,
 );
@@ -29,5 +30,10 @@ postRouter.post(
   "/updateView/:channelId/:postId",
   require("../Middleware/authMiddleware"),
   addViewToPost,
+);
+postRouter.post(
+  "/forwardPost/:channelId/:postId",
+  require("../Middleware/authMiddleware"),
+  forwardPost,
 );
 module.exports = postRouter;
