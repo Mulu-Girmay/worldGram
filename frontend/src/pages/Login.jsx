@@ -1,6 +1,6 @@
 import React from "react";
 
-const Signup = () => {
+const Login = () => {
   return (
     <div className="min-h-screen bg-[#eaf4e2] text-[rgba(23,3,3,0.87)] flex items-center justify-center px-4 py-8">
       <div className="w-full max-w-[480px] rounded-2xl border border-[#6fa63a]/25 bg-[#f3f9ee] p-6 shadow-[0_10px_30px_rgba(74,127,74,0.15)]">
@@ -11,48 +11,6 @@ const Signup = () => {
           </p>
         </div>
         <form className="grid gap-4 rounded-xl bg-[#6fa63a]/10 p-4">
-          <div className="grid gap-1.5">
-            <label
-              className="text-[13px] font-semibold text-[rgba(23,3,3,0.8)]"
-              htmlFor="fname"
-            >
-              First Name
-            </label>
-            <input
-              className="rounded-[10px] border border-[#6fa63a]/35 bg-white px-3 py-2 outline-none"
-              type="text"
-              id="fname"
-              placeholder="Abebe"
-            />
-          </div>
-          <div className="grid gap-1.5">
-            <label
-              className="text-[13px] font-semibold text-[rgba(23,3,3,0.8)]"
-              htmlFor="lname"
-            >
-              Last Name
-            </label>
-            <input
-              className="rounded-[10px] border border-[#6fa63a]/35 bg-white px-3 py-2 outline-none"
-              type="text"
-              id="lname"
-              placeholder="Kebede"
-            />
-          </div>
-          <div className="grid gap-1.5">
-            <label
-              className="text-[13px] font-semibold text-[rgba(23,3,3,0.8)]"
-              htmlFor="username"
-            >
-              User Name
-            </label>
-            <input
-              className="rounded-[10px] border border-[#6fa63a]/35 bg-white px-3 py-2 outline-none"
-              type="text"
-              id="username"
-              placeholder="abe21"
-            />
-          </div>
           <div className="grid gap-1.5">
             <label
               className="text-[13px] font-semibold text-[rgba(23,3,3,0.8)]"
@@ -85,12 +43,12 @@ const Signup = () => {
             className="rounded-[10px] bg-[#4a7f4a] px-4 py-3 font-semibold text-white"
             type="submit"
           >
-            Sign up
+            Log in
           </button>
           <p className="text-center mt-2">
-            Already have an account?{" "}
-            <a href="/login" className="text-[#4a7f4a] font-semibold">
-              Login
+            Don't have an account?{" "}
+            <a href="/signup" className="text-[#4a7f4a] font-semibold">
+              Sign up
             </a>
           </p>
         </form>
@@ -99,4 +57,4 @@ const Signup = () => {
   );
 };
 
-export default Signup;
+export default Login;
