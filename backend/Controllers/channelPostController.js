@@ -1,6 +1,7 @@
 const User = require("../Models/User");
 const Channel = require("../Models/Channel");
 const ChannelPost = require("../Models/ChannelPost");
+const mongoose = require("mongoose");
 const { reactToEntity } = require("../utils/reaction");
 const { addViewToEntity } = require("../utils/view");
 const { forwardEntity } = require("../utils/forward");
@@ -150,5 +151,149 @@ exports.forwardPost = async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ err: err.message });
+  }
+};
+
+const parseLimit = (value, fallback = 20, max = 50) => {
+  const n = parseInt(value, 10);
+  if (Number.isNaN(n) || n <= 0) return fallback;
+  return Math.min(n, max);
+};
+
+const canViewChannel = (channel, userId) => {
+  const isSubscriber = channel.audience.subscribers
+    .map((id) => id.toString())
+    .includes(userId);
+  const isAdmin = channel.ownership.admins
+    .map((id) => id.toString())
+    .includes(userId);
+  return channel.settings.isPublic || isSubscriber || isAdmin;
+};
+
+exports.getChannelPosts = async (req, res) => {
+  try {
+    const { channelId } = req.params;
+    const { cursor } = req.query;
+    const limit = parseLimit(req.query.limit);
+
+    const channel = await Channel.findById(channelId);
+    if (!channel) return res.status(404).json({ err: "Channel not found" });
+    if (!canViewChannel(channel, req.userId)) {
+      return res.status(403).json({ err: "Not allowed to view posts" });
+    }
+
+    const query = { channelId };
+    if (cursor && mongoose.Types.ObjectId.isValid(cursor)) {
+      query._id = { $lt: cursor };
+    }
+
+    const posts = await ChannelPost.find(query)
+      .sort({ _id: -1 })
+      .limit(limit);
+    const nextCursor =
+      posts.length === limit ? posts[posts.length - 1]._id : null;
+
+    res.json({ items: posts, nextCursor });
+  } catch (err) {
+    res.status(500).json({ err: "Failed to fetch posts" });
+  }
+};
+
+exports.getChannelPostById = async (req, res) => {
+  try {
+    const { channelId, postId } = req.params;
+    const channel = await Channel.findById(channelId);
+    if (!channel) return res.status(404).json({ err: "Channel not found" });
+    if (!canViewChannel(channel, req.userId)) {
+      return res.status(403).json({ err: "Not allowed to view post" });
+    }
+
+    const post = await ChannelPost.findById(postId);
+    if (!post) return res.status(404).json({ err: "Post not found" });
+    if (post.channelId.toString() !== channelId) {
+      return res.status(400).json({ err: "Post not in this channel" });
+    }
+
+    res.json(post);
+  } catch (err) {
+    res.status(500).json({ err: "Failed to fetch post" });
+  }
+};
+
+exports.deletePost = async (req, res) => {
+  try {
+    const { channelId, postId } = req.params;
+    const channel = await Channel.findById(channelId);
+    if (!channel) return res.status(404).json({ err: "Channel not found" });
+
+    const isAdmin = channel.ownership.admins
+      .map((id) => id.toString())
+      .includes(req.userId);
+    if (!isAdmin) {
+      return res.status(403).json({ err: "You are not admin here" });
+    }
+
+    const post = await ChannelPost.findById(postId);
+    if (!post) return res.status(404).json({ err: "Post not found" });
+    if (post.channelId.toString() !== channelId) {
+      return res.status(400).json({ err: "Post not in this channel" });
+    }
+
+    await ChannelPost.findByIdAndDelete(postId);
+    res.json({ message: "Post deleted" });
+  } catch (err) {
+    res.status(500).json({ err: "Failed to delete post" });
+  }
+};
+
+exports.pinPost = async (req, res) => {
+  try {
+    const { channelId, postId } = req.params;
+    const channel = await Channel.findById(channelId);
+    if (!channel) return res.status(404).json({ err: "Channel not found" });
+
+    const isAdmin = channel.ownership.admins
+      .map((id) => id.toString())
+      .includes(req.userId);
+    if (!isAdmin) {
+      return res.status(403).json({ err: "You are not admin here" });
+    }
+
+    const post = await ChannelPost.findByIdAndUpdate(
+      postId,
+      { isPinned: true },
+      { new: true },
+    );
+    if (!post) return res.status(404).json({ err: "Post not found" });
+
+    res.json({ message: "Post pinned", post });
+  } catch (err) {
+    res.status(500).json({ err: "Failed to pin post" });
+  }
+};
+
+exports.unpinPost = async (req, res) => {
+  try {
+    const { channelId, postId } = req.params;
+    const channel = await Channel.findById(channelId);
+    if (!channel) return res.status(404).json({ err: "Channel not found" });
+
+    const isAdmin = channel.ownership.admins
+      .map((id) => id.toString())
+      .includes(req.userId);
+    if (!isAdmin) {
+      return res.status(403).json({ err: "You are not admin here" });
+    }
+
+    const post = await ChannelPost.findByIdAndUpdate(
+      postId,
+      { isPinned: false },
+      { new: true },
+    );
+    if (!post) return res.status(404).json({ err: "Post not found" });
+
+    res.json({ message: "Post unpinned", post });
+  } catch (err) {
+    res.status(500).json({ err: "Failed to unpin post" });
   }
 };

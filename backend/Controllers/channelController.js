@@ -1,5 +1,6 @@
 const Channel = require("../Models/Channel");
 const User = require("../Models/User");
+const mongoose = require("mongoose");
 exports.addChannel = async (req, res) => {
   let { name, userName, description, channelPhoto } = req.body;
   try {
@@ -203,5 +204,118 @@ exports.removeAdmin = async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ err: "Failed to remove admin" });
+  }
+};
+
+const parseLimit = (value, fallback = 20, max = 50) => {
+  const n = parseInt(value, 10);
+  if (Number.isNaN(n) || n <= 0) return fallback;
+  return Math.min(n, max);
+};
+
+exports.getChannelById = async (req, res) => {
+  try {
+    const channel = await Channel.findById(req.params.id);
+    if (!channel) return res.status(404).json({ err: "Channel not found" });
+
+    const isSubscriber = channel.audience.subscribers
+      .map((id) => id.toString())
+      .includes(req.userId);
+    const isAdmin = channel.ownership.admins
+      .map((id) => id.toString())
+      .includes(req.userId);
+
+    if (!channel.settings.isPublic && !isSubscriber && !isAdmin) {
+      return res.status(403).json({ err: "Not allowed to view channel" });
+    }
+
+    res.json(channel);
+  } catch (error) {
+    res.status(500).json({ err: "Failed to fetch channel" });
+  }
+};
+
+exports.listChannels = async (req, res) => {
+  try {
+    const { cursor, q } = req.query;
+    const limit = parseLimit(req.query.limit);
+    const query = {};
+    if (q) {
+      query["basicInfo.name"] = { $regex: q, $options: "i" };
+    }
+    if (cursor && mongoose.Types.ObjectId.isValid(cursor)) {
+      query._id = { $lt: cursor };
+    }
+
+    const channels = await Channel.find(query).sort({ _id: -1 }).limit(limit);
+    const nextCursor =
+      channels.length === limit ? channels[channels.length - 1]._id : null;
+
+    res.json({ items: channels, nextCursor });
+  } catch (error) {
+    res.status(500).json({ err: "Failed to list channels" });
+  }
+};
+
+exports.listMyChannels = async (req, res) => {
+  try {
+    const { cursor } = req.query;
+    const limit = parseLimit(req.query.limit);
+    const query = {
+      $or: [
+        { "ownership.ownerId": req.userId },
+        { "ownership.admins": req.userId },
+      ],
+    };
+    if (cursor && mongoose.Types.ObjectId.isValid(cursor)) {
+      query._id = { $lt: cursor };
+    }
+
+    const channels = await Channel.find(query).sort({ _id: -1 }).limit(limit);
+    const nextCursor =
+      channels.length === limit ? channels[channels.length - 1]._id : null;
+
+    res.json({ items: channels, nextCursor });
+  } catch (error) {
+    res.status(500).json({ err: "Failed to list channels" });
+  }
+};
+
+exports.subscribeChannel = async (req, res) => {
+  try {
+    const channel = await Channel.findById(req.params.id);
+    if (!channel) return res.status(404).json({ err: "Channel not found" });
+
+    const subscribers = channel.audience.subscribers.map((id) =>
+      id.toString(),
+    );
+    if (subscribers.includes(req.userId)) {
+      return res.status(409).json({ err: "Already subscribed" });
+    }
+
+    channel.audience.subscribers.push(req.userId);
+    channel.audience.subscriberCount = channel.audience.subscribers.length;
+    await channel.save();
+
+    res.json({ message: "Subscribed" });
+  } catch (error) {
+    res.status(500).json({ err: "Failed to subscribe" });
+  }
+};
+
+exports.unsubscribeChannel = async (req, res) => {
+  try {
+    const channel = await Channel.findById(req.params.id);
+    if (!channel) return res.status(404).json({ err: "Channel not found" });
+
+    channel.audience.subscribers = channel.audience.subscribers.filter(
+      (id) => id.toString() !== req.userId,
+    );
+    channel.audience.subscriberCount = channel.audience.subscribers.length;
+    await channel.save();
+
+    res.json({ message: "Unsubscribed" });
+  } catch (error) {
+    res.status(500).json({ err: "Failed to unsubscribe" });
   }
 };

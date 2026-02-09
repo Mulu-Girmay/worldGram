@@ -1,5 +1,7 @@
 const express = require("express");
 const router = express.Router();
+const upload = require("../Middleware/multer");
+const auth = require("../Middleware/authMiddleware");
 
 const {
   createChat,
@@ -8,6 +10,15 @@ const {
   reactToMessage,
   addViewToMessage,
   forwardMessage,
+  listChats,
+  getChatById,
+  getMessagesPaged,
+  editMessage,
+  deleteMessage,
+  sendMediaMessage,
+  markChatRead,
+  getUnreadCount,
+  updateChatSettings,
 } = require("../Controllers/chatController");
 
 router.post("/create", createChat);
@@ -15,19 +26,33 @@ router.post("/create/:groupId", createChat);
 
 router.post("/:chatId/message", sendMessage);
 router.get("/:chatId/messages", getMessages);
+router.get("/", auth, listChats);
+router.get("/:chatId", auth, getChatById);
+router.get("/:chatId/messages/paged", auth, getMessagesPaged);
+router.patch("/:chatId/message/:messageId", auth, editMessage);
+router.delete("/:chatId/message/:messageId", auth, deleteMessage);
 router.post(
-  "/reactMessage",
-  require("../Middleware/authMiddleware"),
+  "/:chatId/message/media",
+  auth,
+  upload.single("media"),
+  sendMediaMessage,
+);
+router.post("/:chatId/read", auth, markChatRead);
+router.get("/:chatId/unread-count", auth, getUnreadCount);
+router.patch("/:chatId/settings", auth, updateChatSettings);
+router.post(
+  "/reactMessage/:chatId/:messageId",
+  auth,
   reactToMessage,
 );
 router.post(
   "/:chatId/messages/:messageId/view",
-  require("../Middleware/authMiddleware"),
+  auth,
   addViewToMessage,
 );
 router.post(
   "/forwardMessage/:chatId/:messageId",
-  require("../Middleware/authMiddleware"),
+  auth,
   forwardMessage,
 );
 module.exports = router;

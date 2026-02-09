@@ -5,33 +5,45 @@ const {
   deleteChannel,
   addAdmin,
   removeAdmin,
+  getChannelById,
+  listChannels,
+  listMyChannels,
+  subscribeChannel,
+  unsubscribeChannel,
 } = require("../Controllers/channelController");
 const channelRouter = express.Router();
+const auth = require("../Middleware/authMiddleware");
+
+channelRouter.get("/channels", auth, listChannels);
+channelRouter.get("/channels/me", auth, listMyChannels);
+channelRouter.get("/channels/:id", auth, getChannelById);
+channelRouter.post("/channels/:id/subscribe", auth, subscribeChannel);
+channelRouter.post("/channels/:id/unsubscribe", auth, unsubscribeChannel);
 
 channelRouter.post(
   "/addChannel",
-  require("../Middleware/authMiddleware"),
+  auth,
   addChannel,
 );
 channelRouter.patch(
   "/updateChannel/:id",
-  require("../Middleware/authMiddleware"),
+  auth,
   updateChannel,
 );
 channelRouter.delete(
   "/deleteChannel/:id",
-  require("../Middleware/authMiddleware"),
+  auth,
   deleteChannel,
 );
 channelRouter.post(
   "/addAdmin/:id",
-  require("../Middleware/authMiddleware"),
+  auth,
   addAdmin,
 );
 
 channelRouter.delete(
   "/removeAdmin/:id",
-  require("../Middleware/authMiddleware"),
+  auth,
   removeAdmin,
 );
 module.exports = channelRouter;

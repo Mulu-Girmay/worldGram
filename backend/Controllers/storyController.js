@@ -1,4 +1,6 @@
 const Story = require("../Models/Story");
+const Contact = require("../Models/Contact");
+const mongoose = require("mongoose");
 const { reactToEntity } = require("../utils/reaction");
 const { addViewToEntity } = require("../utils/view");
 
@@ -57,5 +59,114 @@ exports.addViewToStory = async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ err: err.message });
+  }
+};
+
+const parseLimit = (value, fallback = 20, max = 50) => {
+  const n = parseInt(value, 10);
+  if (Number.isNaN(n) || n <= 0) return fallback;
+  return Math.min(n, max);
+};
+
+const canViewStory = async (story, userId) => {
+  if (story.authorId?.toString() === userId) return true;
+  if (story.privacy === "public") return true;
+  if (story.privacy === "contacts") {
+    const contact = await Contact.findOne({
+      ownerUserId: story.authorId,
+      contactUserId: userId,
+    });
+    return Boolean(contact);
+  }
+  if (story.privacy === "closeFriends") {
+    const contact = await Contact.findOne({
+      ownerUserId: story.authorId,
+      contactUserId: userId,
+      isFavorite: true,
+    });
+    return Boolean(contact);
+  }
+  return false;
+};
+
+exports.getStoryById = async (req, res) => {
+  try {
+    const story = await Story.findById(req.params.storyId);
+    if (!story) return res.status(404).json({ err: "Story not found" });
+
+    const allowed = await canViewStory(story, req.userId);
+    if (!allowed) return res.status(403).json({ err: "Not allowed" });
+
+    res.json(story);
+  } catch (err) {
+    res.status(500).json({ err: "Failed to fetch story" });
+  }
+};
+
+exports.listStories = async (req, res) => {
+  try {
+    const { cursor } = req.query;
+    const limit = parseLimit(req.query.limit);
+    const query = {};
+    if (cursor && mongoose.Types.ObjectId.isValid(cursor)) {
+      query._id = { $lt: cursor };
+    }
+    if (!query.expiredAt) {
+      query.$or = [{ expiredAt: { $gt: new Date() } }, { expiredAt: null }];
+    }
+
+    const stories = await Story.find(query).sort({ _id: -1 }).limit(limit);
+    const visible = [];
+    for (const story of stories) {
+      if (await canViewStory(story, req.userId)) visible.push(story);
+    }
+
+    const nextCursor =
+      stories.length === limit ? stories[stories.length - 1]._id : null;
+
+    res.json({ items: visible, nextCursor });
+  } catch (err) {
+    res.status(500).json({ err: "Failed to list stories" });
+  }
+};
+
+exports.listUserStories = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { cursor } = req.query;
+    const limit = parseLimit(req.query.limit);
+    const query = { authorId: userId };
+    if (cursor && mongoose.Types.ObjectId.isValid(cursor)) {
+      query._id = { $lt: cursor };
+    }
+    query.$or = [{ expiredAt: { $gt: new Date() } }, { expiredAt: null }];
+
+    const stories = await Story.find(query).sort({ _id: -1 }).limit(limit);
+    const visible = [];
+    for (const story of stories) {
+      if (await canViewStory(story, req.userId)) visible.push(story);
+    }
+
+    const nextCursor =
+      stories.length === limit ? stories[stories.length - 1]._id : null;
+
+    res.json({ items: visible, nextCursor });
+  } catch (err) {
+    res.status(500).json({ err: "Failed to list user stories" });
+  }
+};
+
+exports.deleteStory = async (req, res) => {
+  try {
+    const story = await Story.findById(req.params.storyId);
+    if (!story) return res.status(404).json({ err: "Story not found" });
+    if (story.authorId?.toString() !== req.userId) {
+      return res.status(403).json({ err: "Not allowed" });
+    }
+
+    await Story.findByIdAndDelete(req.params.storyId);
+    res.json({ message: "Story deleted" });
+  } catch (err) {
+    res.status(500).json({ err: "Failed to delete story" });
   }
 };

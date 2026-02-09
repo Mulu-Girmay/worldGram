@@ -1,5 +1,6 @@
 const Group = require("../Models/Group");
 const User = require("../Models/User");
+const mongoose = require("mongoose");
 exports.createGroup = async (req, res) => {
   let { name, userName, description, groupPhoto } = req.body;
   try {
@@ -248,10 +249,182 @@ exports.removeAdmin = async (req, res) => {
     res.status(500).json({ err: "Failed to remove admin" });
   }
 };
-exports.addChat = async (req, res) => {
+
+const parseLimit = (value, fallback = 20, max = 50) => {
+  const n = parseInt(value, 10);
+  if (Number.isNaN(n) || n <= 0) return fallback;
+  return Math.min(n, max);
+};
+
+exports.getGroupById = async (req, res) => {
   try {
+    const group = await Group.findById(req.params.id);
+    if (!group) return res.status(404).json({ err: "Group not found" });
+
+    const isMember = group.members.members
+      .map((id) => id.toString())
+      .includes(req.userId);
+
+    if (!group.settings.isPublic && !isMember) {
+      return res.status(403).json({ err: "Not allowed to view this group" });
+    }
+
+    res.json(group);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ err: "Failed to add chat" });
+    res.status(500).json({ err: "Failed to fetch group" });
+  }
+};
+
+exports.listGroups = async (req, res) => {
+  try {
+    const { cursor, q } = req.query;
+    const limit = parseLimit(req.query.limit);
+    const query = {};
+    if (q) {
+      query["basicInfo.groupName"] = { $regex: q, $options: "i" };
+    }
+    if (cursor && mongoose.Types.ObjectId.isValid(cursor)) {
+      query._id = { $lt: cursor };
+    }
+
+    const groups = await Group.find(query).sort({ _id: -1 }).limit(limit);
+    const nextCursor =
+      groups.length === limit ? groups[groups.length - 1]._id : null;
+
+    res.json({ items: groups, nextCursor });
+  } catch (error) {
+    res.status(500).json({ err: "Failed to list groups" });
+  }
+};
+
+exports.listMyGroups = async (req, res) => {
+  try {
+    const { cursor } = req.query;
+    const limit = parseLimit(req.query.limit);
+    const query = { "members.members": req.userId };
+    if (cursor && mongoose.Types.ObjectId.isValid(cursor)) {
+      query._id = { $lt: cursor };
+    }
+
+    const groups = await Group.find(query).sort({ _id: -1 }).limit(limit);
+    const nextCursor =
+      groups.length === limit ? groups[groups.length - 1]._id : null;
+
+    res.json({ items: groups, nextCursor });
+  } catch (error) {
+    res.status(500).json({ err: "Failed to list groups" });
+  }
+};
+
+exports.listGroupMembers = async (req, res) => {
+  try {
+    const group = await Group.findById(req.params.id).populate(
+      "members.members",
+    );
+    if (!group) return res.status(404).json({ err: "Group not found" });
+
+    const isMember = group.members.members
+      .map((u) => u._id.toString())
+      .includes(req.userId);
+
+    if (!group.settings.isPublic && !isMember) {
+      return res.status(403).json({ err: "Not allowed to view members" });
+    }
+
+    res.json({ members: group.members.members });
+  } catch (error) {
+    res.status(500).json({ err: "Failed to fetch members" });
+  }
+};
+
+exports.joinGroup = async (req, res) => {
+  try {
+    const group = await Group.findById(req.params.id);
+    if (!group) return res.status(404).json({ err: "Group not found" });
+
+    if (!group.settings.isPublic) {
+      return res.status(403).json({ err: "Group is private" });
+    }
+
+    const members = group.members.members.map((id) => id.toString());
+    if (members.includes(req.userId)) {
+      return res.status(409).json({ err: "Already a member" });
+    }
+
+    group.members.members.push(req.userId);
+    await group.save();
+    res.json({ message: "Joined group" });
+  } catch (error) {
+    res.status(500).json({ err: "Failed to join group" });
+  }
+};
+
+exports.leaveGroup = async (req, res) => {
+  try {
+    const group = await Group.findById(req.params.id);
+    if (!group) return res.status(404).json({ err: "Group not found" });
+
+    group.members.members = group.members.members.filter(
+      (id) => id.toString() !== req.userId,
+    );
+    group.members.admins = group.members.admins.filter(
+      (id) => id.toString() !== req.userId,
+    );
+    if (group.members.ownerId?.toString() === req.userId) {
+      return res.status(403).json({ err: "Owner cannot leave group" });
+    }
+    await group.save();
+    res.json({ message: "Left group" });
+  } catch (error) {
+    res.status(500).json({ err: "Failed to leave group" });
+  }
+};
+
+exports.removeMember = async (req, res) => {
+  try {
+    const { memberId } = req.body;
+    const group = await Group.findById(req.params.id);
+    if (!group) return res.status(404).json({ err: "Group not found" });
+
+    const admins = group.members.admins.map((id) => id.toString());
+    if (!admins.includes(req.userId)) {
+      return res
+        .status(403)
+        .json({ err: "You are not authorized to remove members" });
+    }
+
+    group.members.members = group.members.members.filter(
+      (id) => id.toString() !== memberId,
+    );
+    group.members.admins = group.members.admins.filter(
+      (id) => id.toString() !== memberId,
+    );
+    await group.save();
+
+    res.json({ message: "Member removed" });
+  } catch (error) {
+    res.status(500).json({ err: "Failed to remove member" });
+  }
+};
+
+exports.updateGroupPermissions = async (req, res) => {
+  try {
+    const { permissions } = req.body;
+    const group = await Group.findById(req.params.id);
+    if (!group) return res.status(404).json({ err: "Group not found" });
+
+    const admins = group.members.admins.map((id) => id.toString());
+    if (!admins.includes(req.userId)) {
+      return res
+        .status(403)
+        .json({ err: "You are not authorized to update permissions" });
+    }
+
+    group.permissions = { ...group.permissions, ...permissions };
+    await group.save();
+
+    res.json({ message: "Permissions updated", permissions: group.permissions });
+  } catch (error) {
+    res.status(500).json({ err: "Failed to update permissions" });
   }
 };

@@ -24,12 +24,18 @@ const channelRouter = require("./Routes/channelRoute");
 const groupRouter = require("./Routes/groupRouter");
 const postRouter = require("./Routes/postRouter");
 const storyRouter = require("./Routes/storyRouter");
+const contactRouter = require("./Routes/contactRouter");
+const notificationRouter = require("./Routes/notificationRouter");
+const activityRouter = require("./Routes/activityRouter");
 app.use(cookieParser());
 app.use("/api", userRouter);
 app.use("/api", channelRouter);
 app.use("/api", groupRouter);
 app.use("/api", postRouter);
 app.use("/api", storyRouter);
+app.use("/api", contactRouter);
+app.use("/api", notificationRouter);
+app.use("/api", activityRouter);
 
 const connectdb = async (uri) => {
   try {
