@@ -2,6 +2,7 @@ import { ArrowLeft, Backpack, Dot, Search, SearchAlert } from "lucide-react";
 import { MoreVertical } from "lucide-react";
 
 import React from "react";
+import { useNavigate } from "react-router-dom";
 
 const Profile = () => {
   return (
@@ -19,12 +20,19 @@ const Profile = () => {
 };
 
 const ProfileNav = () => {
+  const navigate = useNavigate();
+
+  const handleSidebar = (e) => {
+    e.preventDefault();
+    navigate("/home");
+  };
   return (
     <div className="flex items-center justify-between rounded-2xl border border-[#6fa63a]/25 bg-[#f3f9ee] px-2 py-1 text-[rgba(23,3,3,0.87)] shadow-[0_10px_30px_rgba(74,127,74,0.12)]">
       <ArrowLeft
         className="flex  w-9 items-center justify-center rounded-xl bg-[#6fa63a]/10 text-[#4a7f4a]"
         aria-label="dot menu"
         size={12}
+        onClick={handleSidebar}
       />
       <div className="flex flex-row gap-4">
         <img

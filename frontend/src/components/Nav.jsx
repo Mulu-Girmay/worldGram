@@ -1,8 +1,15 @@
 import React from "react";
 import { Menu, Search } from "lucide-react";
 import { LayoutGrid, FolderLock, FolderKey, FolderOpen } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 const Nav = () => {
+  const navigate = useNavigate();
+
+  const handleSidebar = (e) => {
+    e.preventDefault();
+    navigate("/sidebar");
+  };
   return (
     <div>
       <nav className="flex items-center gap-4 rounded-2xl border border-[#6fa63a]/25 bg-[#f3f9ee] px-4 py-3 text-[rgba(23,3,3,0.87)] shadow-[0_10px_30px_rgba(74,127,74,0.12)]">
@@ -10,6 +17,7 @@ const Nav = () => {
           size={16}
           className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#6fa63a]/10 text-[#4a7f4a]"
           aria-label="Open menu"
+          onClick={handleSidebar}
         />
 
         <h3 className="text-lg font-semibold">WorldGram</h3>

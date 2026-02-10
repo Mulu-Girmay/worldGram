@@ -1,12 +1,13 @@
 import React from "react";
 import { Volume2, VolumeX } from "lucide-react";
-import { Navigate, useNavigate } from "react-router-dom";
-const ContentList = () => {
+import { useNavigate } from "react-router-dom";
+
+const ChannelList = () => {
   const navigate = useNavigate();
 
   const handleChat = (e) => {
     e.preventDefault();
-    navigate("/chat");
+    navigate("/channel");
   };
   return (
     <div
@@ -21,7 +22,7 @@ const ContentList = () => {
       <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between gap-2">
           <div className="flex flex-row items-center gap-2">
-            <h3 className="truncate text-sm font-semibold">messi</h3>
+            <h3 className="truncate text-sm font-semibold">Brhan Nega</h3>
             <Volume2 color="#0b0b0b" size={12} />
           </div>
         </div>
@@ -43,4 +44,4 @@ const ContentList = () => {
   );
 };
 
-export default ContentList;
+export default ChannelList;
