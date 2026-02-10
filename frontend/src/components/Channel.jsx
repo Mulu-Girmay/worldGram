@@ -7,6 +7,9 @@ const Channel = () => {
     <div>
       <ProfileNav />
       <ChannelPostCard />
+      <ChannelPostCard />
+      <ChannelPostCard />
+      <ChannelPostCard />
     </div>
   );
 };

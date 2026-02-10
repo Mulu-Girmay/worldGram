@@ -7,7 +7,6 @@ const Chat = () => {
       <ProfileNav />
 
       <div className="mx-auto w-full max-w-2xl space-y-4 p-4">
-        {/* Sender (right) */}
         <div className="flex justify-end">
           <div className="flex max-w-[80%] flex-col items-end gap-2">
             <img
@@ -24,7 +23,6 @@ const Chat = () => {
           </div>
         </div>
 
-        {/* Receiver (left) */}
         <div className="flex justify-start">
           <div className="flex max-w-[80%] items-end gap-2">
             <p className="rounded-2xl rounded-bl-sm bg-white/80 px-4 py-2 text-sm text-[rgba(23,3,3,0.87)] shadow-sm">
@@ -34,6 +32,9 @@ const Chat = () => {
           <div className="flex flex-row justify-around">
             <p>😷 </p>
           </div>
+          <p className="w-40 break-words rounded-2xl rounded-br-sm bg-[var(--btn-color)] px-4 py-2 text-sm text-white shadow-sm">
+            Hellooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo
+          </p>
         </div>
         <div className="flex justify-start">
           <div className="flex max-w-[80%] flex-col items-end gap-2">
@@ -45,8 +46,8 @@ const Chat = () => {
             <div className="flex flex-row justify-around">
               <p>😷 </p>
             </div>
-            <p className="rounded-2xl rounded-br-sm bg-[var(--btn-color)] px-4 py-2 text-sm text-white shadow-sm">
-              Hello
+            <p className="w-40 break-words rounded-2xl rounded-br-sm bg-[var(--btn-color)] px-4 py-2 text-sm text-white shadow-sm">
+              Hellooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo
             </p>{" "}
             <div className="flex flex-row justify-around">
               <p>😷 </p>

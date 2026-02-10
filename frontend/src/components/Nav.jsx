@@ -2,6 +2,7 @@ import React from "react";
 import { Menu, Search } from "lucide-react";
 import { LayoutGrid, FolderLock, FolderKey, FolderOpen } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import Story from "./Story";
 
 const Nav = () => {
   const navigate = useNavigate();
@@ -34,6 +35,7 @@ const Nav = () => {
           />
         </div>
       </nav>
+      <Story />
       <nav className="flex items-center gap-4 rounded-2xl border border-[#6fa63a]/25 bg-[#f3f9ee] px-4 py-3 text-[rgba(23,3,3,0.87)] shadow-[0_10px_30px_rgba(74,127,74,0.12)]">
         <div className="flex flex-row gap-8">
           <div className="flex items-center gap-2">

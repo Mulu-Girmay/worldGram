@@ -59,6 +59,5 @@ const ProfileNav = () => {
     </div>
   );
 };
-// Profile.jsx (bottom)
 export { Profile, ProfileNav };
 export default Profile;
