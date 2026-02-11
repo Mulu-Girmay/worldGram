@@ -3,6 +3,9 @@ import Nav from "../components/Nav";
 import ContentList from "../components/ContentList";
 import ChannelPostCard from "../components/ChannelPostCard";
 import ChannelList from "../components/ChannelList";
+import NewChannelForm from "../components/Channel/newChannelForm";
+import NewGroupForm from "../components/group/NewGroupForm";
+import MyProfile from "../components/MyProfile";
 
 const HomePage = () => {
   return (

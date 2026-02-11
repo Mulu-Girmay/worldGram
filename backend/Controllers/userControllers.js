@@ -21,8 +21,18 @@ exports.RegisterUser = async (req, res) => {
         Bio: Bio,
       },
     });
+    const accessToken = generateAccessToken(newUser._id);
+    const refreshToken = generateRefreshToken(newUser._id);
+    newUser.refreshToken = refreshToken;
     newUser.save();
-    return res.status(202).json({ newUser });
+
+    res.cookie("refreshToken", refreshToken, {
+      httpOnly: true,
+      secure: false,
+      sameSite: "strict",
+    });
+
+    return res.status(202).json({ newUser, accessToken });
   } catch (err) {
     return res.status(400).json({ error: err.message });
   }
@@ -33,7 +43,6 @@ exports.login = async (req, res) => {
     const user = await User.findOne({
       "identity.phoneNumber": phoneNumber,
     });
-    console.log(user.identity.password);
     if (!user) {
       return res.status(404).json({ message: "Phone Number Not found" });
     }

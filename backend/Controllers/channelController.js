@@ -2,14 +2,14 @@ const Channel = require("../Models/Channel");
 const User = require("../Models/User");
 const mongoose = require("mongoose");
 exports.addChannel = async (req, res) => {
-  let { name, userName, description, channelPhoto } = req.body;
+  let { name, userName, description } = req.body;
   try {
     const newChannel = new Channel({
       basicInfo: {
         name: name,
         userName: userName,
         description: description,
-        channelPhoto: channelPhoto,
+        channelPhoto: req.file.fileName || null,
       },
       ownership: {
         ownerId: req.userId, // Set from auth middleware
@@ -286,9 +286,7 @@ exports.subscribeChannel = async (req, res) => {
     const channel = await Channel.findById(req.params.id);
     if (!channel) return res.status(404).json({ err: "Channel not found" });
 
-    const subscribers = channel.audience.subscribers.map((id) =>
-      id.toString(),
-    );
+    const subscribers = channel.audience.subscribers.map((id) => id.toString());
     if (subscribers.includes(req.userId)) {
       return res.status(409).json({ err: "Already subscribed" });
     }
