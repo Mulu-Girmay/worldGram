@@ -1,12 +1,54 @@
-import React from "react";
+import React, { useState } from "react";
 import { ProfileNav } from "../Profile";
 import { ArrowLeft, Check, ListCheck } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
+import { Link, useNavigate } from "react-router-dom";
+import { createChannel } from "../../Redux/channelRedux/channelThunk";
 
 const NewChannelForm = () => {
+  const initials = {
+    name: "",
+    userName: "",
+    description: "",
+  };
+  const [formValues, setFormValues] = useState(initials);
+  const [formError, setFormError] = useState("");
   const [fileName, setFileName] = React.useState("No cover selected");
+  const [mediaFile, setMediaFile] = React.useState(null);
   const navigate = useNavigate();
+  const dispatch = useDispatch();
 
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormValues((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setFormError("");
+    if (!formValues.name.trim())
+      return setFormError("Channel name is required");
+
+    if (!formValues.userName.trim())
+      return setFormError("Username is required");
+
+    // prepare multipart form data
+    const formData = new FormData();
+    formData.append("name", formValues.name);
+    formData.append("userName", formValues.userName);
+    formData.append("description", formValues.description || "");
+    if (mediaFile) {
+      formData.append("media", mediaFile);
+    }
+
+    const result = await dispatch(createChannel(formData));
+    if (createChannel.fulfilled.match(result)) {
+      console.log(result.payload);
+      navigate("/channel");
+    }
+  };
   const handleBack = (e) => {
     e.preventDefault();
     navigate("/home");
@@ -14,6 +56,7 @@ const NewChannelForm = () => {
   const handleFileChange = (e) => {
     const file = e.target.files?.[0];
     setFileName(file ? file.name : "No cover selected");
+    setMediaFile(file || null);
   };
 
   return (
@@ -35,21 +78,30 @@ const NewChannelForm = () => {
             </p>
           </div>
           <div className="flex justify-end">
-            <Check size={20} className="text-[#4a7f4a]" type="submit" />
+            <Check
+              size={20}
+              className="text-[#4a7f4a]"
+              type="submit"
+              onClick={handleSubmit}
+            />
           </div>
         </div>
 
-        <form className="grid gap-3">
+        <form className="grid gap-3" onSubmit={handleSubmit}>
           <div className="grid gap-3 md:grid-cols-2">
             <input
+              onChange={handleChange}
               type="text"
               name="name"
+              value={formValues.name}
               placeholder="Channel name"
               className="rounded-2xl border border-[#6fa63a]/35 bg-white/85 px-4 py-3 text-sm outline-none transition focus:border-[#4a7f4a] focus:ring-2 focus:ring-[#6fa63a]/20"
             />
             <input
+              onChange={handleChange}
               type="text"
               name="userName"
+              value={formValues.userName}
               placeholder="Username"
               className="rounded-2xl border border-[#6fa63a]/35 bg-white/85 px-4 py-3 text-sm outline-none transition focus:border-[#4a7f4a] focus:ring-2 focus:ring-[#6fa63a]/20"
             />
@@ -74,12 +126,15 @@ const NewChannelForm = () => {
           <input
             id="channelMedia"
             type="file"
+            // value={fileName}
             name="media"
             className="hidden"
             onChange={handleFileChange}
           />
 
           <textarea
+            value={formValues.description}
+            onChange={handleChange}
             name="description"
             rows="3"
             placeholder="Describe what this channel is about..."

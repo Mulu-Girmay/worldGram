@@ -9,7 +9,7 @@ exports.addChannel = async (req, res) => {
         name: name,
         userName: userName,
         description: description,
-        channelPhoto: req.file.fileName || null,
+        channelPhoto: (req.file && req.file.filename) || null,
       },
       ownership: {
         ownerId: req.userId, // Set from auth middleware
@@ -26,7 +26,10 @@ exports.addChannel = async (req, res) => {
       channelId: newChannel._id,
     });
   } catch (error) {
-    console.error("Channel creation error:", error);
+    console.error("Channel creation error:", error, {
+      body: req.body,
+      file: req.file,
+    });
     if (error.code === 11000) {
       return res.status(400).json({ error: "Username already exists" });
     }
@@ -251,7 +254,7 @@ exports.listChannels = async (req, res) => {
     const nextCursor =
       channels.length === limit ? channels[channels.length - 1]._id : null;
 
-    res.json({ items: channels, nextCursor });
+    res.json({ data: { items: channels, nextCursor } });
   } catch (error) {
     res.status(500).json({ err: "Failed to list channels" });
   }
