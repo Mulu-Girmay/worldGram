@@ -1,11 +1,13 @@
 import { configureStore } from "@reduxjs/toolkit";
 import authReducer from "./authSlice";
 import channelReducer from "../channelRedux/channelSlice";
+import postReducer from "../postRedux/postSlice";
 
 export const store = configureStore({
   reducer: {
     auth: authReducer,
     channel: channelReducer,
+    post: postReducer,
   },
 });
 

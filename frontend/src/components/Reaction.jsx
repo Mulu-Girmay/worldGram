@@ -1,6 +1,11 @@
-import React from "react";
+import React, { useState, useMemo, useRef, useEffect } from "react";
 
-const Reaction = () => {
+const Reaction = ({
+  onSelect,
+  initial = null,
+  triggerClassName = "",
+  popupClassName = "",
+}) => {
   const reactions = useMemo(
     () => [
       "😂",
@@ -90,37 +95,74 @@ const Reaction = () => {
     ],
     [],
   );
-  const [selectedReaction, setSelectedReaction] = useState(null);
+
+  const [open, setOpen] = useState(false);
+  const [selectedReaction, setSelectedReaction] = useState(initial);
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    function handleOutside(e) {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setOpen(false);
+      }
+    }
+    function handleKey(e) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("mousedown", handleOutside);
+    document.addEventListener("keydown", handleKey);
+    return () => {
+      document.removeEventListener("mousedown", handleOutside);
+      document.removeEventListener("keydown", handleKey);
+    };
+  }, []);
+
+  function handleSelect(reaction) {
+    setSelectedReaction(reaction);
+    setOpen(false);
+    if (typeof onSelect === "function") onSelect(reaction);
+  }
 
   return (
-    <div>
-      <div className="mt-4">
-        <p className="text-xs font-semibold text-[rgba(23,3,3,0.6)]">
-          Reactions
-        </p>
-        <div className="mt-2 flex flex-wrap gap-1">
-          {reactions.map((reaction) => (
-            <button
-              key={reaction}
-              type="button"
-              onClick={() => setSelectedReaction(reaction)}
-              className={`rounded-full border px-2 py-1 text-lg leading-none transition ${
-                selectedReaction === reaction
-                  ? "border-[var(--secondary-color)]"
-                  : "border-[var(--secondary-color)]/25"
-              }`}
-              aria-label={`React with ${reaction}`}
-            >
-              {reaction}
-            </button>
-          ))}
-        </div>
+    <div ref={containerRef} className="relative inline-block">
+      <button
+        type="button"
+        className={`px-2 py-1 rounded-md hover:shadow-sm transition ${triggerClassName}`}
+        aria-haspopup="true"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+        title={
+          selectedReaction ? `Your reaction: ${selectedReaction}` : "React"
+        }
+      >
+        {selectedReaction || "➕"}
+      </button>
 
-        <div className="mt-3 flex items-center gap-2 text-sm text-[rgba(23,3,3,0.7)]">
-          <span className="text-xs text-[rgba(23,3,3,0.6)]">Selected:</span>
-          <span className="text-xl">{selectedReaction ?? "—"}</span>
+      {open && (
+        <div
+          className={`absolute z-50 mt-2 left-0 w-max bg-white border rounded-lg shadow-md p-2 ${popupClassName}`}
+          role="menu"
+          aria-label="Select reaction"
+        >
+          <div className="grid grid-cols-6 gap-1">
+            {reactions.map((r) => (
+              <button
+                key={r}
+                type="button"
+                onClick={() => handleSelect(r)}
+                className={`text-lg leading-none w-8 h-8 flex items-center justify-center rounded-md hover:bg-slate-100 transition ${
+                  selectedReaction === r
+                    ? "ring-2 ring-offset-1 ring-indigo-300"
+                    : ""
+                }`}
+                aria-label={`React with ${r}`}
+              >
+                {r}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };

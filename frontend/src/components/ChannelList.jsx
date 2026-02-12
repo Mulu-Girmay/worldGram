@@ -1,18 +1,22 @@
 import React from "react";
 import { Volume2, VolumeX } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useDispatch } from "react-redux";
+import { setCurrentChannel } from "../Redux/channelRedux/channelSlice";
 
 const ChannelList = ({ channel }) => {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
 
-  const handleChat = (e) => {
+  const handleChannel = (e) => {
     e.preventDefault();
+    dispatch(setCurrentChannel(channel));
     navigate("/channel");
   };
   return (
     <div
       className="w-full flex items-start gap-4 rounded-2xl border border-[#6fa63a]/25 bg-[#f3f9ee] p-4 text-[rgba(23,3,3,0.87)] shadow-[0_10px_30px_rgba(74,127,74,0.12)] mb-0 "
-      onClick={handleChat}
+      onClick={handleChannel}
     >
       <img
         src={

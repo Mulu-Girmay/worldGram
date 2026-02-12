@@ -6,6 +6,7 @@ const { reactToEntity } = require("../utils/reaction");
 const { addViewToEntity } = require("../utils/view");
 const { forwardEntity } = require("../utils/forward");
 const Chat = require("../Models/Chat");
+
 exports.addPost = async (req, res) => {
   try {
     let { text } = req.body;
@@ -15,6 +16,19 @@ exports.addPost = async (req, res) => {
 
     if (!channel) {
       return res.status(404).json({ err: "Channel not found" });
+    }
+
+    const isOwner = channel.ownership?.ownerId
+      ? channel.ownership.ownerId.toString() === userId
+      : false;
+    const isAdmin = channel.ownership.admins
+      .map((id) => id.toString())
+      .includes(userId);
+
+    if (!isOwner && !isAdmin) {
+      return res
+        .status(403)
+        .json({ err: "You are not authorized to post in this channel" });
     }
 
     let newPost = new ChannelPost({
@@ -32,6 +46,7 @@ exports.addPost = async (req, res) => {
     res.status(401).send("post creation error:", error);
   }
 };
+
 exports.editPost = async (req, res) => {
   try {
     const { text, isPinned } = req.body;
@@ -55,8 +70,11 @@ exports.editPost = async (req, res) => {
     const isAdmin = channel.ownership.admins
       .map((id) => id.toString())
       .includes(userId);
+    const isOwner = channel.ownership?.ownerId
+      ? channel.ownership.ownerId.toString() === userId
+      : false;
 
-    if (!isAdmin) {
+    if (!isAdmin && !isOwner) {
       return res.status(403).json({ err: "You are not admin here" });
     }
 
@@ -167,7 +185,10 @@ const canViewChannel = (channel, userId) => {
   const isAdmin = channel.ownership.admins
     .map((id) => id.toString())
     .includes(userId);
-  return channel.settings.isPublic || isSubscriber || isAdmin;
+  const isOwner = channel.ownership?.ownerId
+    ? channel.ownership.ownerId.toString() === userId
+    : false;
+  return channel.settings.isPublic || isSubscriber || isAdmin || isOwner;
 };
 
 exports.getChannelPosts = async (req, res) => {
@@ -187,9 +208,7 @@ exports.getChannelPosts = async (req, res) => {
       query._id = { $lt: cursor };
     }
 
-    const posts = await ChannelPost.find(query)
-      .sort({ _id: -1 })
-      .limit(limit);
+    const posts = await ChannelPost.find(query).sort({ _id: -1 }).limit(limit);
     const nextCursor =
       posts.length === limit ? posts[posts.length - 1]._id : null;
 
@@ -229,7 +248,10 @@ exports.deletePost = async (req, res) => {
     const isAdmin = channel.ownership.admins
       .map((id) => id.toString())
       .includes(req.userId);
-    if (!isAdmin) {
+    const isOwner = channel.ownership?.ownerId
+      ? channel.ownership.ownerId.toString() === req.userId
+      : false;
+    if (!isAdmin && !isOwner) {
       return res.status(403).json({ err: "You are not admin here" });
     }
 
@@ -255,7 +277,10 @@ exports.pinPost = async (req, res) => {
     const isAdmin = channel.ownership.admins
       .map((id) => id.toString())
       .includes(req.userId);
-    if (!isAdmin) {
+    const isOwner = channel.ownership?.ownerId
+      ? channel.ownership.ownerId.toString() === req.userId
+      : false;
+    if (!isAdmin && !isOwner) {
       return res.status(403).json({ err: "You are not admin here" });
     }
 
@@ -281,7 +306,10 @@ exports.unpinPost = async (req, res) => {
     const isAdmin = channel.ownership.admins
       .map((id) => id.toString())
       .includes(req.userId);
-    if (!isAdmin) {
+    const isOwner = channel.ownership?.ownerId
+      ? channel.ownership.ownerId.toString() === req.userId
+      : false;
+    if (!isAdmin && !isOwner) {
       return res.status(403).json({ err: "You are not admin here" });
     }
 

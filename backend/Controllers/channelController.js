@@ -49,8 +49,11 @@ exports.updateChannel = async (req, res) => {
     }
 
     const admins = channel.ownership.admins.map((id) => id.toString());
+    const isOwner = channel.ownership?.ownerId
+      ? channel.ownership.ownerId.toString() === userId
+      : false;
 
-    if (!admins.includes(userId)) {
+    if (!admins.includes(userId) && !isOwner) {
       return res
         .status(401)
         .json({ err: "You are not authorized to update this channel" });
@@ -83,8 +86,11 @@ exports.deleteChannel = async (req, res) => {
       return res.status(404).json({ err: "Channel not found" });
     }
     const admins = channel.ownership.admins.map((id) => id.toString());
+    const isOwner = channel.ownership?.ownerId
+      ? channel.ownership.ownerId.toString() === userId
+      : false;
 
-    if (!admins.includes(userId)) {
+    if (!isOwner) {
       return res
         .status(401)
         .json({ err: "You are not authorized to delete this channel" });
@@ -115,8 +121,11 @@ exports.addAdmin = async (req, res) => {
       return res.status(404).json({ err: "Channel not found" });
     }
     const admins = channel.ownership.admins.map((id) => id.toString());
+    const isOwner = channel.ownership?.ownerId
+      ? channel.ownership.ownerId.toString() === userId
+      : false;
 
-    if (!admins.includes(userId)) {
+    if (!admins.includes(userId) && !isOwner) {
       return res
         .status(403)
         .json({ err: "You are not authorized to add admins in this channel" });
@@ -187,6 +196,14 @@ exports.removeAdmin = async (req, res) => {
       });
     }
 
+    // Prevent removing the owner account from admins
+    const ownerIdStr = channel.ownership?.ownerId
+      ? channel.ownership.ownerId.toString()
+      : null;
+    if (ownerIdStr && adminToRemoveId === ownerIdStr) {
+      return res.status(403).json({ err: "Cannot remove channel owner" });
+    }
+
     // Optional: Prevent removing yourself
     if (adminToRemoveId === userId) {
       return res.status(403).json({
@@ -227,8 +244,11 @@ exports.getChannelById = async (req, res) => {
     const isAdmin = channel.ownership.admins
       .map((id) => id.toString())
       .includes(req.userId);
+    const isOwner = channel.ownership?.ownerId
+      ? channel.ownership.ownerId.toString() === req.userId
+      : false;
 
-    if (!channel.settings.isPublic && !isSubscriber && !isAdmin) {
+    if (!channel.settings.isPublic && !isSubscriber && !isAdmin && !isOwner) {
       return res.status(403).json({ err: "Not allowed to view channel" });
     }
 

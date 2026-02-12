@@ -12,7 +12,7 @@ import {
   removeAdmin,
 } from "./channelThunk";
 const initialState = {
-  channel: null,
+  channel: [],
   status: "idle",
   accessToken: null,
   error: null,
@@ -27,7 +27,7 @@ const initialState = {
   adminStatus: "idle",
   initialized: false,
   nextCursor: null,
-  myChannels: null,
+  myChannels: [],
   myNextCursor: null,
   currentChannel: null,
   lastMessage: null,
@@ -42,25 +42,31 @@ const channelSlice = createSlice({
     setAccessToken(state, action) {
       state.accessToken = action.payload;
     },
+    setCurrentChannel(state, action) {
+      state.currentChannel = action.payload;
+    },
   },
   extraReducers: (builder) => {
     builder
-      // listChannel: supports cursor-based pagination (append when cursor provided)
       .addCase(listChannel.pending, (state) => {
         state.channelStatus = "loading";
         state.error = null;
       })
       .addCase(listChannel.fulfilled, (state, action) => {
         state.channelStatus = "succeeded";
+
+        const payloadData = action.payload?.data;
+
         const items =
-          action.payload?.items ||
-          (Array.isArray(action.payload) ? action.payload : []);
+          payloadData?.items || (Array.isArray(payloadData) ? payloadData : []);
+
         if (action.meta?.arg && action.meta.arg.cursor) {
           state.channel = [...(state.channel || []), ...items];
         } else {
           state.channel = items;
         }
-        state.nextCursor = action.payload?.nextCursor || null;
+
+        state.nextCursor = payloadData?.nextCursor || null;
         state.initialized = true;
       })
       .addCase(listChannel.rejected, (state, action) => {
@@ -277,5 +283,6 @@ const channelSlice = createSlice({
   },
 });
 
-export const { clearAuthError, setAccessToken } = channelSlice.actions;
+export const { clearAuthError, setAccessToken, setCurrentChannel } =
+  channelSlice.actions;
 export default channelSlice.reducer;

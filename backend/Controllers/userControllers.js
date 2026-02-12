@@ -1,6 +1,14 @@
 const User = require("../Models/User");
 const bcrypt = require("bcrypt");
 const { generateAccessToken, generateRefreshToken } = require("../utils/token");
+const sanitizeUser = (user) => {
+  const u = user.toObject ? user.toObject() : user;
+  if (u.identity) {
+    delete u.identity.password;
+    delete u.identity.refreshToken;
+  }
+  return u;
+};
 let hashPassword = async (plainPassword) => {
   const saltRounds = 10;
   const hash = await bcrypt.hash(plainPassword, saltRounds);
@@ -24,7 +32,7 @@ exports.RegisterUser = async (req, res) => {
     const accessToken = generateAccessToken(newUser._id);
     const refreshToken = generateRefreshToken(newUser._id);
     newUser.refreshToken = refreshToken;
-    newUser.save();
+    await newUser.save();
 
     res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
@@ -32,7 +40,7 @@ exports.RegisterUser = async (req, res) => {
       sameSite: "strict",
     });
 
-    return res.status(202).json({ newUser, accessToken });
+    return res.status(202).json({ user: sanitizeUser(newUser), accessToken });
   } catch (err) {
     return res.status(400).json({ error: err.message });
   }
@@ -48,7 +56,7 @@ exports.login = async (req, res) => {
     }
     const isMatch = await bcrypt.compare(password, user.identity.password);
     if (!isMatch) {
-      return res.status(200).json({ users: user, message: "Wrong Password" });
+      return res.status(401).json({ message: "Wrong Password" });
     }
     const accessToken = generateAccessToken(user._id);
     const refreshToken = generateRefreshToken(user._id);
@@ -61,20 +69,17 @@ exports.login = async (req, res) => {
     });
     return res
       .status(200)
-      .json({ accessToken, users: user, message: "Login Successful" });
+      .json({
+        accessToken,
+        user: sanitizeUser(user),
+        message: "Login Successful",
+      });
   } catch (err) {
     return res.status(400).json({ error: err.message });
   }
 };
 
-const sanitizeUser = (user) => {
-  const u = user.toObject ? user.toObject() : user;
-  if (u.identity) {
-    delete u.identity.password;
-    delete u.identity.refreshToken;
-  }
-  return u;
-};
+// sanitizeUser moved to top
 
 exports.getMe = async (req, res) => {
   try {
