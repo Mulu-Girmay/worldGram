@@ -41,12 +41,30 @@ export const refreshSession = createAsyncThunk(
     }
   },
 );
+export const checkAuth = createAsyncThunk(
+  "checkAuth",
+  async (_, { rejectWithValue }) => {
+    try {
+      // call /me which will rely on cookie (api.withCredentials = true)
+      return await meApi();
+    } catch (err) {
+      // if /me failed, try refreshing session and call /me again
+      try {
+        await refreshApi();
+        return await meApi();
+      } catch (err2) {
+        return rejectWithValue(
+          err2.response?.data || { message: "not authenticated" },
+        );
+      }
+    }
+  },
+);
 export const fetchMe = createAsyncThunk(
   "fetchMe",
-  async (_, { getState, rejectWithValue }) => {
+  async (_, { rejectWithValue }) => {
     try {
-      const token = getState().auth.accessToken;
-      return await meApi(token);
+      return await meApi();
     } catch (err) {
       return rejectWithValue(
         err.response?.data || { message: "fetching user failed" },

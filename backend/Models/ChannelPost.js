@@ -10,12 +10,16 @@ const channelPostSchema = new mongoose.Schema(
     authorId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     text: { type: String },
     media: [{ url: String, type: String, size: Number }],
-    views: [
-      {
-        viewNumber: { type: Number, default: 0 },
-        viewers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
-      },
-    ],
+    views: {
+      type: [
+        {
+          viewNumber: { type: Number, default: 0 },
+          viewers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+        },
+      ],
+      default: [{ viewNumber: 0, viewers: [] }],
+    },
+    viewedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
     forward: {
       count: { type: Number, default: 0 },
       lastForwardedAt: Date,
@@ -42,6 +46,20 @@ const channelPostSchema = new mongoose.Schema(
         emoji: String,
         count: Number,
         reactors: [{ type: mongoose.Schema.Types.ObjectId }],
+      },
+    ],
+    comments: [
+      {
+        authorId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+        text: String,
+        createdAt: { type: Date, default: Date.now },
+        replies: [
+          {
+            authorId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+            text: String,
+            createdAt: { type: Date, default: Date.now },
+          },
+        ],
       },
     ],
     isPinned: { type: Boolean, default: false },

@@ -1,20 +1,29 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { ProfileNav } from "./Profile";
 import { Bell, FileBoxIcon, Instagram, SendHorizontal } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
 import { Link, useNavigate } from "react-router-dom";
-import {
-  getChannelPosts,
-  addPost,
-  reactToPost,
-  addView,
-} from "../Redux/postRedux/postThunk";
+import { getChannelPosts, addPost } from "../Redux/postRedux/postThunk";
 import {
   selectPosts,
   selectPostsStatus,
 } from "../Redux/postRedux/postSelector";
 import { selectCurrentChannel } from "../Redux/channelRedux/channelSelector";
-import { selectUser } from "../Redux/userRedux/authSelector";
+import { selectUser, selectAuth } from "../Redux/userRedux/authSelector";
+import ChannelPostCard from "./ChannelPostCard";
+import {
+  editPostApi,
+  deletePostApi,
+  forwardPostApi,
+  pinPostApi,
+  unpinPostApi,
+} from "../api/postApi";
+import {
+  reactToPostApi,
+  addViewApi,
+  addCommentApi,
+  replyToCommentApi,
+} from "../api/postApi";
 
 const Channel = () => {
   const dispatch = useDispatch();
@@ -27,6 +36,8 @@ const Channel = () => {
   const [message, setMessage] = useState("");
   const [mediaFile, setMediaFile] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const auth = useSelector(selectAuth);
+  const token = auth?.accessToken;
 
   useEffect(() => {
     if (currentChannel && currentChannel._id) {
@@ -52,41 +63,166 @@ const Channel = () => {
     return admins.map((a) => a.toString()).includes(uid.toString());
   }, [currentChannel, user]);
 
-  const PostItem = ({ post, isOwner }) => {
-    return (
-      <article className="rounded-2xl border border-[#6fa63a]/25 bg-white p-3">
-        <div className="flex items-start gap-3">
-          <div className="h-10 w-10 rounded-full bg-[#4a7f4a] text-white grid place-items-center font-bold">
-            {(post.authorName || "U").charAt(0)}
-          </div>
-          <div className="min-w-0">
-            <div className="flex items-center justify-between">
-              <h4 className="text-sm font-semibold truncate">
-                {post.title || post.authorName || "Post"}
-              </h4>
-              <span className="text-xs text-[rgba(23,3,3,0.6)]">
-                {new Date(post.createdAt).toLocaleString()}
-              </span>
-            </div>
-            <p className="mt-2 text-sm text-[rgba(23,3,3,0.8)]">{post.text}</p>
-            {post.media && (
-              <img
-                src={`/uploads/images/${post.media}`}
-                alt="post media"
-                className="mt-2 max-h-48 w-full object-cover rounded-md"
-              />
-            )}
-            {isOwner && (
-              <div className="mt-2 flex gap-2">
-                <button className="text-xs text-[#4a7f4a]">Edit</button>
-                <button className="text-xs text-red-500">Delete</button>
-                <button className="text-xs">Pin</button>
-              </div>
-            )}
-          </div>
-        </div>
-      </article>
+  const resolveMediaSrc = (media) => {
+    if (!media) return null;
+    if (typeof media === "string") {
+      return media.startsWith("/") || media.startsWith("http")
+        ? media
+        : `/uploads/images/${media}`;
+    }
+    if (Array.isArray(media) && media.length > 0) {
+      const first = media[0];
+      if (!first) return null;
+      if (typeof first === "string") {
+        return first.startsWith("/") || first.startsWith("http")
+          ? first
+          : `/uploads/images/${first}`;
+      }
+      if (first.url) {
+        return first.url.startsWith("/") || first.url.startsWith("http")
+          ? first.url
+          : `/uploads/images/${first.url}`;
+      }
+      if (first.filename) {
+        return first.filename.startsWith("/") ||
+          first.filename.startsWith("http")
+          ? first.filename
+          : `/uploads/images/${first.filename}`;
+      }
+    }
+    if (media.url) {
+      return media.url.startsWith("/") || media.url.startsWith("http")
+        ? media.url
+        : `/uploads/images/${media.url}`;
+    }
+    return null;
+  };
+
+  const refreshPosts = () => {
+    if (!currentChannel || !currentChannel._id) return;
+    dispatch(
+      getChannelPosts({ channelId: currentChannel._id, params: { limit: 20 } }),
     );
+  };
+
+  const handleEditPost = async (post) => {
+    if (!token) return;
+    const newText = prompt("Edit post text", post?.text || "");
+    if (newText == null) return;
+    const formData = new FormData();
+    formData.append("text", newText);
+    try {
+      await editPostApi(currentChannel._id, post._id, formData, token);
+      refreshPosts();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleDeletePost = async (post) => {
+    if (!token) return;
+    if (!confirm("Delete this post?")) return;
+    try {
+      await deletePostApi(currentChannel._id, post._id, token);
+      refreshPosts();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleForwardPost = async (post) => {
+    if (!token) return;
+    const dest = prompt("Forward destination (type:id) e.g. channel:6123");
+    if (!dest) return;
+    const [type, id] = dest.split(":");
+    if (!type || !id) return alert("Invalid destination");
+    try {
+      await forwardPostApi(currentChannel._id, post._id, { type, id }, token);
+      alert("Forwarded successfully!");
+      refreshPosts();
+    } catch (err) {
+      console.error("Forward error:", err);
+      alert("Failed to forward post");
+    }
+  };
+
+  const handlePinPost = async (post) => {
+    if (!token) return;
+    try {
+      if (post.isPinned) {
+        await unpinPostApi(currentChannel._id, post._id, token);
+      } else {
+        await pinPostApi(currentChannel._id, post._id, token);
+      }
+      refreshPosts();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleCopyPost = (post) => {
+    if (post?.text) {
+      navigator.clipboard.writeText(post.text);
+      alert("Text copied!");
+    }
+  };
+
+  const handleReactPost = async (post, emoji) => {
+    if (!token) return;
+    try {
+      await reactToPostApi(currentChannel._id, post._id, { emoji }, token);
+      refreshPosts();
+    } catch (err) {
+      console.error("React error:", err);
+    }
+  };
+
+  const handleAddView = useCallback(async (post, userId) => {
+    if (!token || !userId) return;
+    try {
+      await addViewApi(currentChannel._id, post._id, token);
+    } catch (err) {
+      console.error("View error:", err);
+    }
+  }, [token, currentChannel._id]);
+
+  const handleAddComment = async (post, text) => {
+    if (!token || !text.trim()) return;
+    try {
+      await addCommentApi(currentChannel._id, post._id, { text: text.trim() }, token);
+      refreshPosts();
+    } catch (err) {
+      console.error("Comment error:", err);
+      alert("Failed to add comment");
+    }
+  };
+
+  const handleReplyToComment = async (post, commentId, text) => {
+    if (!token || !text.trim()) return;
+    try {
+      await replyToCommentApi(
+        currentChannel._id,
+        post._id,
+        commentId,
+        { text: text.trim() },
+        token,
+      );
+      refreshPosts();
+    } catch (err) {
+      console.error("Reply error:", err);
+      alert("Failed to add reply");
+    }
+  };
+
+  const handleSharePost = (post) => {
+    if (navigator.share) {
+      navigator
+        .share({ title: post.title || "Post", text: post.text || "" })
+        .catch(() => {});
+    } else if (post?.text) {
+      navigator.clipboard.writeText(post.text);
+      alert("Post text copied to clipboard for sharing");
+    }
   };
 
   useEffect(() => {
@@ -150,13 +286,34 @@ const Channel = () => {
         <div className="pointer-events-none absolute -bottom-10 -left-8 h-32 w-32 rounded-full bg-[#4a7f4a]/10 blur-2xl" />
 
         <div className="relative mb-4 flex items-center justify-between rounded-2xl border border-[#6fa63a]/25 bg-white/65 px-3 py-2">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-[#4a7f4a]">
-              Channel Feed
-            </p>
-            <p className="text-sm font-semibold text-[rgba(23,3,3,0.87)]">
-              {currentChannel?.basicInfo?.name || "Select a channel"}
-            </p>
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 overflow-hidden rounded-full bg-[#4a7f4a] flex items-center justify-center">
+              {currentChannel?.basicInfo?.photo ? (
+                <img
+                  src={resolveMediaSrc(currentChannel.basicInfo.photo)}
+                  alt={currentChannel?.basicInfo?.name || "Channel"}
+                  className="h-full w-full object-cover"
+                  onError={(e) => {
+                    e.target.style.display = "none";
+                    e.target.nextSibling.style.display = "flex";
+                  }}
+                />
+              ) : null}
+              <div
+                className={`text-xs font-bold text-white ${currentChannel?.basicInfo?.photo ? "hidden" : "flex"} items-center justify-center h-full w-full`}
+              >
+                {currentChannel?.basicInfo?.name?.charAt(0)?.toUpperCase() ||
+                  "C"}
+              </div>
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-[#4a7f4a]">
+                Channel Feed
+              </p>
+              <p className="text-sm font-semibold text-[rgba(23,3,3,0.87)]">
+                {currentChannel?.basicInfo?.name || "Select a channel"}
+              </p>
+            </div>
           </div>
           <p className="rounded-full bg-[#6fa63a]/15 px-2.5 py-1 text-xs font-medium text-[#2f5b2f]">
             {currentChannel?.membersCount || "--"} members
@@ -182,43 +339,49 @@ const Channel = () => {
                 <p className="text-sm">No posts yet.</p>
               ) : (
                 posts.map((post) => (
-                  <PostItem key={post._id} post={post} isOwner={true} />
+                  <ChannelPostCard
+                    key={post._id}
+                    post={post}
+                    channel={currentChannel}
+                    isOwner={true}
+                    canEdit={isOwnerOrAdmin}
+                    canDelete={isOwnerOrAdmin}
+                    canPin={isOwnerOrAdmin}
+                    onEdit={handleEditPost}
+                    onDelete={handleDeletePost}
+                    onForward={handleForwardPost}
+                    onPin={handlePinPost}
+                    onCopy={handleCopyPost}
+                    onShare={handleSharePost}
+                    onReact={handleReactPost}
+                    onView={handleAddView}
+                    onAddComment={handleAddComment}
+                    onReply={handleReplyToComment}
+                  />
                 ))
               )
             ) : posts.length === 0 ? (
               <p className="text-sm">No posts yet.</p>
             ) : (
               posts.map((post) => (
-                <article
+                <ChannelPostCard
                   key={post._id}
-                  className="rounded-2xl border border-[#6fa63a]/25 bg-white p-3"
-                >
-                  <div className="flex items-start gap-3">
-                    <div className="h-10 w-10 rounded-full bg-[#4a7f4a] text-white grid place-items-center font-bold">
-                      {(post.authorName || "U").charAt(0)}
-                    </div>
-                    <div className="min-w-0">
-                      <div className="flex items-center justify-between">
-                        <h4 className="text-sm font-semibold truncate">
-                          {post.title || post.authorName || "Post"}
-                        </h4>
-                        <span className="text-xs text-[rgba(23,3,3,0.6)]">
-                          {new Date(post.createdAt).toLocaleString()}
-                        </span>
-                      </div>
-                      <p className="mt-2 text-sm text-[rgba(23,3,3,0.8)]">
-                        {post.text}
-                      </p>
-                      {post.media && (
-                        <img
-                          src={`/uploads/images/${post.media}`}
-                          alt="post media"
-                          className="mt-2 max-h-48 w-full object-cover rounded-md"
-                        />
-                      )}
-                    </div>
-                  </div>
-                </article>
+                  post={post}
+                  channel={currentChannel}
+                  canEdit={isOwnerOrAdmin}
+                  canDelete={isOwnerOrAdmin}
+                  canPin={isOwnerOrAdmin}
+                  onEdit={handleEditPost}
+                  onDelete={handleDeletePost}
+                  onForward={handleForwardPost}
+                  onPin={handlePinPost}
+                  onCopy={handleCopyPost}
+                  onShare={handleSharePost}
+                  onReact={handleReactPost}
+                  onView={handleAddView}
+                  onAddComment={handleAddComment}
+                  onReply={handleReplyToComment}
+                />
               ))
             ))}
         </div>
@@ -229,8 +392,24 @@ const Channel = () => {
             className="relative mt-4 rounded-2xl border border-[#6fa63a]/30 bg-white/75 p-3 backdrop-blur-sm"
           >
             <div className="mb-2 flex items-center gap-2">
-              <div className="grid h-8 w-8 place-items-center rounded-full bg-[#4a7f4a] text-xs font-bold text-white">
-                SC
+              <div className="h-8 w-8 overflow-hidden rounded-full bg-[#4a7f4a] flex items-center justify-center">
+                {currentChannel?.basicInfo?.photo ? (
+                  <img
+                    src={resolveMediaSrc(currentChannel.basicInfo.photo)}
+                    alt={currentChannel?.basicInfo?.name || "Channel"}
+                    className="h-full w-full object-cover"
+                    onError={(e) => {
+                      e.target.style.display = "none";
+                      e.target.nextSibling.style.display = "flex";
+                    }}
+                  />
+                ) : null}
+                <div
+                  className={`text-xs font-bold text-white ${currentChannel?.basicInfo?.photo ? "hidden" : "flex"} items-center justify-center h-full w-full`}
+                >
+                  {currentChannel?.basicInfo?.name?.charAt(0)?.toUpperCase() ||
+                    "C"}
+                </div>
               </div>
               <p className="text-xs font-medium text-[rgba(23,3,3,0.72)]">
                 Drop an update to your subscribers

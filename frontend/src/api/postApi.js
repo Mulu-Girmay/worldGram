@@ -4,6 +4,7 @@ export const addPostApi = async (channelId, formData, token) => {
   const { data } = await api.post(`/addPost/${channelId}`, formData, {
     headers: {
       Authorization: `Bearer ${token}`,
+      'Content-Type': 'multipart/form-data',
     },
   });
   return data;
@@ -16,6 +17,7 @@ export const editPostApi = async (channelId, postId, formData, token) => {
     {
       headers: {
         Authorization: `Bearer ${token}`,
+        'Content-Type': 'multipart/form-data',
       },
     },
   );
@@ -57,7 +59,39 @@ export const forwardPostApi = async (channelId, postId, destination, token) => {
   return data;
 };
 
-export const getChannelPostsApi = async (channelId, token, params = {}) => {
+export const addCommentApi = async (channelId, postId, payload, token) => {
+  const { data } = await api.post(
+    `/channels/${channelId}/posts/${postId}/comment`,
+    payload,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    },
+  );
+  return data;
+};
+
+export const replyToCommentApi = async (
+  channelId,
+  postId,
+  commentId,
+  payload,
+  token,
+) => {
+  const { data } = await api.post(
+    `/channels/${channelId}/posts/${postId}/comment/${commentId}/reply`,
+    payload,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    },
+  );
+  return data;
+};
+
+export const getChannelPostsApi = async (channelId, params = {}, token) => {
   const { data } = await api.get(`/channels/${channelId}/posts`, {
     headers: {
       Authorization: `Bearer ${token}`,

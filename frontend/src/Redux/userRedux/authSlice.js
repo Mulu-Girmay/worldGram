@@ -6,6 +6,7 @@ import {
   logoutUser,
   refreshSession,
   registerUser,
+  checkAuth,
 } from "./authThunk";
 
 const initialState = {
@@ -84,6 +85,24 @@ const authSlice = createSlice({
       })
       .addCase(fetchMe.rejected, (state) => {
         state.user = null;
+        state.isAuthenticated = false;
+        state.initialized = true;
+      })
+
+      // bootstrap check
+      .addCase(checkAuth.pending, (state) => {
+        state.status = "loading";
+      })
+      .addCase(checkAuth.fulfilled, (state, action) => {
+        state.user = action.payload.user || null;
+        if (action.payload?.accessToken)
+          state.accessToken = action.payload.accessToken;
+        state.isAuthenticated = !!action.payload?.user;
+        state.initialized = true;
+      })
+      .addCase(checkAuth.rejected, (state) => {
+        state.user = null;
+        state.accessToken = null;
         state.isAuthenticated = false;
         state.initialized = true;
       })

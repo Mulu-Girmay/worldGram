@@ -34,6 +34,7 @@ const HomePage = () => {
     <div className="min-h-screen bg-[#eaf4e2] px-4 py-6">
       <div className="mx-auto w-full max-w-[900px] space-y-6">
         <Nav />
+        <Reaction />
 
         {status === "loading" && <p>Loading channels...</p>}
 

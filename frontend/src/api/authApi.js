@@ -17,10 +17,7 @@ export const logoutApi = async () => {
   return data;
 };
 export const meApi = async (token) => {
-  const { data } = await api.get("/me", {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
+  const headers = token ? { Authorization: `Bearer ${token}` } : {};
+  const { data } = await api.get("/me", { headers });
   return data;
 };

@@ -22,7 +22,13 @@ exports.refresh = async (req, res) => {
 
     const newAccess = generateAccessToken(user._id);
 
-    res.json({ accessToken: newAccess });
+    res.cookie("accessToken", newAccess, {
+      httpOnly: true,
+      secure: false,
+      sameSite: "strict",
+    });
+
+    res.json({ success: true });
   } catch (err) {
     res.sendStatus(403);
   }
@@ -44,7 +50,13 @@ exports.logout = async (req, res) => {
 
     res.clearCookie("refreshToken", {
       httpOnly: true,
-      sameSite: "lax",
+      sameSite: "strict",
+      secure: false,
+    });
+
+    res.clearCookie("accessToken", {
+      httpOnly: true,
+      sameSite: "strict",
       secure: false,
     });
 

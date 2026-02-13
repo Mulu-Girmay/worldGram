@@ -40,7 +40,13 @@ exports.RegisterUser = async (req, res) => {
       sameSite: "strict",
     });
 
-    return res.status(202).json({ user: sanitizeUser(newUser), accessToken });
+    res.cookie("accessToken", accessToken, {
+      httpOnly: true,
+      secure: false,
+      sameSite: "strict",
+    });
+
+    return res.status(202).json({ user: sanitizeUser(newUser) });
   } catch (err) {
     return res.status(400).json({ error: err.message });
   }
@@ -67,10 +73,16 @@ exports.login = async (req, res) => {
       secure: false,
       sameSite: "strict",
     });
+
+    res.cookie("accessToken", accessToken, {
+      httpOnly: true,
+      secure: false,
+      sameSite: "strict",
+    });
+
     return res
       .status(200)
       .json({
-        accessToken,
         user: sanitizeUser(user),
         message: "Login Successful",
       });
@@ -85,7 +97,7 @@ exports.getMe = async (req, res) => {
   try {
     const user = await User.findById(req.userId);
     if (!user) return res.status(404).json({ err: "User not found" });
-    res.json(sanitizeUser(user));
+    res.json({ user: sanitizeUser(user) });
   } catch (err) {
     res.status(500).json({ err: "Failed to fetch profile" });
   }

@@ -16,7 +16,8 @@ export const addPost = createAsyncThunk(
   "addPost",
   async ({ channelId, formData }, { getState, rejectWithValue }) => {
     try {
-      const token = getState().auth.accessToken;
+      const state = getState();
+      const token = state.auth?.accessToken;
       return await addPostApi(channelId, formData, token);
     } catch (err) {
       return rejectWithValue(
@@ -30,7 +31,8 @@ export const editPost = createAsyncThunk(
   "editPost",
   async ({ channelId, postId, formData }, { getState, rejectWithValue }) => {
     try {
-      const token = getState().auth.accessToken;
+      const state = getState();
+      const token = state.auth?.accessToken;
       return await editPostApi(channelId, postId, formData, token);
     } catch (err) {
       return rejectWithValue(
@@ -44,7 +46,8 @@ export const reactToPost = createAsyncThunk(
   "reactToPost",
   async ({ channelId, postId, emoji }, { getState, rejectWithValue }) => {
     try {
-      const token = getState().auth.accessToken;
+      const state = getState();
+      const token = state.auth?.accessToken;
       return await reactToPostApi(channelId, postId, { emoji }, token);
     } catch (err) {
       return rejectWithValue(
@@ -58,7 +61,8 @@ export const addView = createAsyncThunk(
   "post/addView",
   async ({ channelId, postId }, { getState, rejectWithValue }) => {
     try {
-      const token = getState().auth.accessToken;
+      const state = getState();
+      const token = state.auth?.accessToken;
       return await addViewApi(channelId, postId, token);
     } catch (err) {
       return rejectWithValue(
@@ -72,7 +76,8 @@ export const forwardPost = createAsyncThunk(
   "forwardPost",
   async ({ channelId, postId, destination }, { getState, rejectWithValue }) => {
     try {
-      const token = getState().auth.accessToken;
+      const state = getState();
+      const token = state.auth?.accessToken;
       return await forwardPostApi(channelId, postId, destination, token);
     } catch (err) {
       return rejectWithValue(
@@ -86,8 +91,9 @@ export const getChannelPosts = createAsyncThunk(
   "getChannelPosts",
   async ({ channelId, params = {} }, { getState, rejectWithValue }) => {
     try {
-      const token = getState().auth.accessToken;
-      return await getChannelPostsApi(channelId, token, params);
+      const state = getState();
+      const token = state.auth?.accessToken;
+      return await getChannelPostsApi(channelId, params, token);
     } catch (err) {
       return rejectWithValue(
         err.response?.data || { message: "fetch posts failed" },
@@ -98,10 +104,9 @@ export const getChannelPosts = createAsyncThunk(
 
 export const getChannelPostById = createAsyncThunk(
   "getChannelPostById",
-  async ({ channelId, postId }, { getState, rejectWithValue }) => {
+  async ({ channelId, postId }, { rejectWithValue }) => {
     try {
-      const token = getState().auth.accessToken;
-      return await getChannelPostByIdApi(channelId, postId, token);
+      return await getChannelPostByIdApi(channelId, postId);
     } catch (err) {
       return rejectWithValue(
         err.response?.data || { message: "fetch post failed" },
@@ -112,10 +117,9 @@ export const getChannelPostById = createAsyncThunk(
 
 export const deletePost = createAsyncThunk(
   "deletePost",
-  async ({ channelId, postId }, { getState, rejectWithValue }) => {
+  async ({ channelId, postId }, { rejectWithValue }) => {
     try {
-      const token = getState().auth.accessToken;
-      return await deletePostApi(channelId, postId, token);
+      return await deletePostApi(channelId, postId);
     } catch (err) {
       return rejectWithValue(
         err.response?.data || { message: "delete post failed" },
@@ -126,10 +130,9 @@ export const deletePost = createAsyncThunk(
 
 export const pinPost = createAsyncThunk(
   "pinPost",
-  async ({ channelId, postId }, { getState, rejectWithValue }) => {
+  async ({ channelId, postId }, { rejectWithValue }) => {
     try {
-      const token = getState().auth.accessToken;
-      return await pinPostApi(channelId, postId, token);
+      return await pinPostApi(channelId, postId);
     } catch (err) {
       return rejectWithValue(err.response?.data || { message: "pin failed" });
     }
@@ -138,10 +141,9 @@ export const pinPost = createAsyncThunk(
 
 export const unpinPost = createAsyncThunk(
   "unpinPost",
-  async ({ channelId, postId }, { getState, rejectWithValue }) => {
+  async ({ channelId, postId }, { rejectWithValue }) => {
     try {
-      const token = getState().auth.accessToken;
-      return await unpinPostApi(channelId, postId, token);
+      return await unpinPostApi(channelId, postId);
     } catch (err) {
       return rejectWithValue(err.response?.data || { message: "unpin failed" });
     }

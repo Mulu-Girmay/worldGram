@@ -114,14 +114,19 @@ exports.reactToPost = async (req, res) => {
 
 exports.addViewToPost = async (req, res) => {
   try {
+    console.log("addViewToPost called", {
+      params: req.params,
+      userId: req.userId,
+    });
     const result = await addViewToEntity({
       Model: ChannelPost,
       findQuery: { _id: req.params.postId, channelId: req.params.channelId },
       userId: req.userId,
-      viewersPath: "views.0.viewers",
+      viewersPath: "viewedBy",
       countPath: "views.0.viewNumber",
       notFoundMessage: "Post not found",
     });
+    console.log("addViewToPost result", result);
 
     return res.status(result.status).json(result.body);
   } catch (err) {
@@ -130,39 +135,112 @@ exports.addViewToPost = async (req, res) => {
   }
 };
 
+exports.addCommentToPost = async (req, res) => {
+  try {
+    const { channelId, postId } = req.params;
+    const { text } = req.body;
+    const userId = req.userId;
+
+    if (!text || !text.trim()) {
+      return res.status(400).json({ err: "Comment text required" });
+    }
+
+    const post = await ChannelPost.findOne({ _id: postId, channelId });
+    if (!post) return res.status(404).json({ err: "Post not found" });
+
+    const comment = {
+      authorId: userId,
+      text: text.trim(),
+      createdAt: new Date(),
+      replies: [],
+    };
+
+    await ChannelPost.updateOne(
+      { _id: post._id },
+      { $push: { comments: comment } },
+    );
+
+    return res.status(201).json({ message: "Comment added" });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ err: err.message });
+  }
+};
+
+exports.replyToComment = async (req, res) => {
+  try {
+    const { channelId, postId, commentId } = req.params;
+    const { text } = req.body;
+    const userId = req.userId;
+
+    if (!text || !text.trim()) {
+      return res.status(400).json({ err: "Reply text required" });
+    }
+
+    const post = await ChannelPost.findOne({ _id: postId, channelId });
+    if (!post) return res.status(404).json({ err: "Post not found" });
+
+    const comment = post.comments.id(commentId);
+    if (!comment) return res.status(404).json({ err: "Comment not found" });
+
+    const reply = {
+      authorId: userId,
+      text: text.trim(),
+      createdAt: new Date(),
+    };
+
+    await ChannelPost.updateOne(
+      { _id: post._id, "comments._id": commentId },
+      { $push: { "comments.$.replies": reply } },
+    );
+
+    return res.status(201).json({ message: "Reply added" });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ err: err.message });
+  }
+};
+
 exports.forwardPost = async (req, res) => {
   try {
-    let targ = req.body.destination;
-    if (!targ || !targ.type || !targ.id) {
+    const { type, id } = req.body;
+    if (!type || !id) {
+      return res.status(400).json({ err: "Destination type and id required" });
     }
+
     let targetModel;
-    if (targ.type == "channel") {
+    if (type === "channel") {
       targetModel = ChannelPost;
-    } else if (targ.type == "chat") {
+    } else if (type === "chat") {
       targetModel = Chat;
+    } else {
+      return res.status(400).json({ err: "Invalid destination type" });
     }
-    let forwardedPost = await ChannelPost.findById(req.params.postId);
+
+    const forwardedPost = await ChannelPost.findById(req.params.postId);
+    if (!forwardedPost) {
+      return res.status(404).json({ err: "Post not found" });
+    }
+
     if (!forwardedPost.text && !forwardedPost.media) {
       return res.status(400).json({ err: "Cannot forward empty post" });
     }
-    let text = forwardedPost.text;
-    let media = forwardedPost.media;
 
     const result = await forwardEntity({
       SourceModel: ChannelPost,
       TargetModel: targetModel,
       findQuery: { _id: req.params.postId, channelId: req.params.channelId },
       userId: req.userId,
-      destination: req.body.destination,
+      destination: { type, id },
       original: {
         channelId: req.params.channelId,
         postId: req.params.postId,
       },
       snapshot: {
-        text: text || null,
-        media: media || null,
+        text: forwardedPost.text || null,
+        media: forwardedPost.media || null,
         authorId: req.userId,
-        channelId: req.body.destination.id,
+        channelId: id,
       },
     });
     return res.status(result.status).json(result.body);

@@ -1,3 +1,4 @@
+import { Plus } from "lucide-react";
 import React, { useState, useMemo, useRef, useEffect } from "react";
 
 const Reaction = ({
@@ -125,7 +126,8 @@ const Reaction = ({
 
   return (
     <div ref={containerRef} className="relative inline-block">
-      <button
+      <Plus
+        size={25}
         type="button"
         className={`px-2 py-1 rounded-md hover:shadow-sm transition ${triggerClassName}`}
         aria-haspopup="true"
@@ -136,7 +138,7 @@ const Reaction = ({
         }
       >
         {selectedReaction || "➕"}
-      </button>
+      </Plus>
 
       {open && (
         <div
@@ -146,7 +148,7 @@ const Reaction = ({
         >
           <div className="grid grid-cols-6 gap-1">
             {reactions.map((r) => (
-              <button
+              <p
                 key={r}
                 type="button"
                 onClick={() => handleSelect(r)}
@@ -158,7 +160,7 @@ const Reaction = ({
                 aria-label={`React with ${r}`}
               >
                 {r}
-              </button>
+              </p>
             ))}
           </div>
         </div>

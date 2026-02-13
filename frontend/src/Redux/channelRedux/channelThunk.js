@@ -14,11 +14,9 @@ import {
 
 export const listChannel = createAsyncThunk(
   "listChannel",
-  async (params = {}, { getState, rejectWithValue }) => {
+  async (params = {}, { rejectWithValue }) => {
     try {
-      const token = getState().auth.accessToken;
-
-      return await listChannelApi(token, params);
+      return await listChannelApi(params);
     } catch (err) {
       return rejectWithValue(
         err.response?.data || { message: "fetching channels failed" },
@@ -28,11 +26,9 @@ export const listChannel = createAsyncThunk(
 );
 export const myChannel = createAsyncThunk(
   "myChannel",
-  async (params = {}, { getState, rejectWithValue }) => {
+  async (params = {}, { rejectWithValue }) => {
     try {
-      const token = getState().auth.accessToken;
-
-      return await listMyChannelApi(token, params);
+      return await listMyChannelApi();
     } catch (err) {
       return rejectWithValue(
         err.response?.data || { message: "fetching your channel failed" },
@@ -42,11 +38,9 @@ export const myChannel = createAsyncThunk(
 );
 export const findChannel = createAsyncThunk(
   "findChannel",
-  async (id, { getState, rejectWithValue }) => {
+  async (id, { rejectWithValue }) => {
     try {
-      const token = getState().auth.accessToken;
-
-      return await specificChannelApi(id, token);
+      return await specificChannelApi(id);
     } catch (err) {
       return rejectWithValue(
         err.response?.data || { message: "fetching  channel failed" },
@@ -56,11 +50,9 @@ export const findChannel = createAsyncThunk(
 );
 export const subscribeChannel = createAsyncThunk(
   "subscribeChannel",
-  async (id, { getState, rejectWithValue }) => {
+  async (id, { rejectWithValue }) => {
     try {
-      const token = getState().auth.accessToken;
-
-      return await subscribeChannelApi(id, token);
+      return await subscribeChannelApi(id);
     } catch (err) {
       return rejectWithValue(
         err.response?.data || { message: "subscribing  channel failed" },
@@ -70,11 +62,9 @@ export const subscribeChannel = createAsyncThunk(
 );
 export const unsubscribeChannel = createAsyncThunk(
   "unsubscribeChannel",
-  async (id, { getState, rejectWithValue }) => {
+  async (id, { rejectWithValue }) => {
     try {
-      const token = getState().auth.accessToken;
-
-      return await unsubscribeChannelApi(id, token);
+      return await unsubscribeChannelApi(id);
     } catch (err) {
       return rejectWithValue(
         err.response?.data || { message: "unsubscribing  channel failed" },
@@ -84,16 +74,9 @@ export const unsubscribeChannel = createAsyncThunk(
 );
 export const createChannel = createAsyncThunk(
   "createChannel",
-  async (payload, { getState, rejectWithValue }) => {
+  async (payload, { rejectWithValue }) => {
     try {
-      const token = getState().auth.accessToken;
-
-      const res = await addChannelApi(payload, token);
-      // after creating a channel, refresh the channel list so UI shows the new channel
-      // use dispatch via global import workaround: return res and let caller refresh,
-      // but we can also trigger a list refresh by returning the response and
-      // letting components dispatch listChannel upon fulfillment.
-      return res;
+      return await addChannelApi(payload);
     } catch (err) {
       return rejectWithValue(
         err.response?.data || { message: "adding channel failed" },
@@ -103,11 +86,9 @@ export const createChannel = createAsyncThunk(
 );
 export const updateChannel = createAsyncThunk(
   "updateChannel",
-  async ({ id, payload }, { getState, rejectWithValue }) => {
+  async ({ id, payload }, { rejectWithValue }) => {
     try {
-      const token = getState().auth.accessToken;
-
-      return await updateChannelApi(id, payload, token);
+      return await updateChannelApi(id, payload);
     } catch (err) {
       return rejectWithValue(
         err.response?.data || { message: "updating channel failed" },
@@ -117,11 +98,9 @@ export const updateChannel = createAsyncThunk(
 );
 export const deleteChannel = createAsyncThunk(
   "deleteChannel",
-  async (id, { getState, rejectWithValue }) => {
+  async (id, { rejectWithValue }) => {
     try {
-      const token = getState().auth.accessToken;
-
-      return await deleteChannelApi(id, token);
+      return await deleteChannelApi(id);
     } catch (err) {
       return rejectWithValue(
         err.response?.data || { message: "deleting channel failed" },
@@ -132,11 +111,9 @@ export const deleteChannel = createAsyncThunk(
 
 export const addAdmin = createAsyncThunk(
   "addAdmin",
-  async ({ id, payload }, { getState, rejectWithValue }) => {
+  async ({ id, payload }, { rejectWithValue }) => {
     try {
-      const token = getState().auth.accessToken;
-
-      return await addAdminApi(id, payload, token);
+      return await addAdminApi(id, payload);
     } catch (err) {
       return rejectWithValue(
         err.response?.data || { message: "adding admin failed" },
@@ -147,11 +124,9 @@ export const addAdmin = createAsyncThunk(
 
 export const removeAdmin = createAsyncThunk(
   "removeAdmin",
-  async ({ id, payload }, { getState, rejectWithValue }) => {
+  async ({ id, payload }, { rejectWithValue }) => {
     try {
-      const token = getState().auth.accessToken;
-
-      return await removeAdminApi(id, payload, token);
+      return await removeAdminApi(id, payload);
     } catch (err) {
       return rejectWithValue(
         err.response?.data || { message: "removing admin failed" },
