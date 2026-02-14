@@ -192,9 +192,11 @@ export const getChannelPostById = createAsyncThunk(
 
 export const deletePost = createAsyncThunk(
   "deletePost",
-  async ({ channelId, postId }, { rejectWithValue }) => {
+  async ({ channelId, postId }, { getState, rejectWithValue }) => {
     try {
-      return await deletePostApi(channelId, postId);
+      const state = getState();
+      const token = state.auth?.accessToken;
+      return await deletePostApi(channelId, postId, token);
     } catch (err) {
       return rejectWithValue(
         err.response?.data || { message: "delete post failed" },
@@ -205,9 +207,11 @@ export const deletePost = createAsyncThunk(
 
 export const pinPost = createAsyncThunk(
   "pinPost",
-  async ({ channelId, postId }, { rejectWithValue }) => {
+  async ({ channelId, postId }, { getState, rejectWithValue }) => {
     try {
-      return await pinPostApi(channelId, postId);
+      const state = getState();
+      const token = state.auth?.accessToken;
+      return await pinPostApi(channelId, postId, token);
     } catch (err) {
       return rejectWithValue(err.response?.data || { message: "pin failed" });
     }
@@ -216,9 +220,11 @@ export const pinPost = createAsyncThunk(
 
 export const unpinPost = createAsyncThunk(
   "unpinPost",
-  async ({ channelId, postId }, { rejectWithValue }) => {
+  async ({ channelId, postId }, { getState, rejectWithValue }) => {
     try {
-      return await unpinPostApi(channelId, postId);
+      const state = getState();
+      const token = state.auth?.accessToken;
+      return await unpinPostApi(channelId, postId, token);
     } catch (err) {
       return rejectWithValue(err.response?.data || { message: "unpin failed" });
     }

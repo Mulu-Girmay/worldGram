@@ -35,5 +35,8 @@ export const selectCreateStatus = (state) => state.channel.createStatus;
 export const selectUpdateStatus = (state) => state.channel.updateStatus;
 export const selectDeleteStatus = (state) => state.channel.deleteStatus;
 export const selectAdminStatus = (state) => state.channel.adminStatus;
+export const selectAddAdminStatus = (state) => state.channel.addAdminStatus;
+export const selectRemoveAdminStatus = (state) =>
+  state.channel.removeAdminStatus;
 
 export const selectLastMessage = (state) => state.channel.lastMessage;

@@ -45,8 +45,11 @@ const postSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      .addCase(getChannelPosts.pending, (state) => {
-        state.postsStatus = "loading";
+      .addCase(getChannelPosts.pending, (state, action) => {
+        const isLoadMore = !!action.meta?.arg?.params?.cursor;
+        if (!isLoadMore || !state.posts?.length) {
+          state.postsStatus = "loading";
+        }
         state.error = null;
       })
       .addCase(getChannelPosts.fulfilled, (state, action) => {

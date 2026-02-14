@@ -1,44 +1,63 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { ProfileNav } from "./Profile";
-import { Bell, FileBoxIcon, Instagram, SendHorizontal } from "lucide-react";
+import { FileBoxIcon, SendHorizontal } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
-import { Link, useNavigate } from "react-router-dom";
 import {
   getChannelPosts,
   addPost,
+  editPost,
+  deletePost,
+  pinPost,
+  unpinPost,
   addView,
   reactToPost,
   addCommentToPost,
   replyToPostComment,
   forwardPost,
 } from "../Redux/postRedux/postThunk";
+import { useToast } from "./ToastProvider";
 import {
   selectPosts,
   selectPostsStatus,
+  selectPostsNextCursor,
 } from "../Redux/postRedux/postSelector";
-import { myChannel } from "../Redux/channelRedux/channelThunk";
+import {
+  myChannel,
+  findChannel,
+  subscribeChannel,
+  unsubscribeChannel,
+  addAdmin,
+  removeAdmin,
+} from "../Redux/channelRedux/channelThunk";
 import {
   selectCurrentChannel,
   selectMyChannels,
   selectMyChannelsStatus,
+  selectSubscribeStatus,
+  selectUnsubscribeStatus,
+  selectAddAdminStatus,
+  selectRemoveAdminStatus,
+  selectChannelError,
+  selectLastMessage,
 } from "../Redux/channelRedux/channelSelector";
-import { selectUser, selectAuth } from "../Redux/userRedux/authSelector";
+import { selectUser } from "../Redux/userRedux/authSelector";
 import ChannelPostCard from "./ChannelPostCard";
-import {
-  editPostApi,
-  deletePostApi,
-  pinPostApi,
-  unpinPostApi,
-} from "../api/postApi";
 
 const Channel = () => {
   const dispatch = useDispatch();
-  const navigate = useNavigate();
+  const { success: toastSuccess, error: toastError, info: toastInfo } = useToast();
   const currentChannel = useSelector(selectCurrentChannel);
   const myChannels = useSelector(selectMyChannels);
   const myChannelsStatus = useSelector(selectMyChannelsStatus);
+  const subscribeStatus = useSelector(selectSubscribeStatus);
+  const unsubscribeStatus = useSelector(selectUnsubscribeStatus);
+  const addAdminStatus = useSelector(selectAddAdminStatus);
+  const removeAdminStatus = useSelector(selectRemoveAdminStatus);
+  const channelError = useSelector(selectChannelError);
+  const channelLastMessage = useSelector(selectLastMessage);
   const posts = useSelector(selectPosts);
   const postsStatus = useSelector(selectPostsStatus);
+  const postsNextCursor = useSelector(selectPostsNextCursor);
   const user = useSelector(selectUser);
 
   const [message, setMessage] = useState("");
@@ -50,9 +69,12 @@ const Channel = () => {
   const [selectedForwardChannelId, setSelectedForwardChannelId] = useState("");
   const [forwardSubmitting, setForwardSubmitting] = useState(false);
   const [forwardError, setForwardError] = useState("");
-  const auth = useSelector(selectAuth);
-  const token = auth?.accessToken;
-
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [postsLocal, setPostsLocal] = useState([]);
+  const [adminToAdd, setAdminToAdd] = useState("");
+  const [adminToRemove, setAdminToRemove] = useState("");
+  const [channelActionFeedback, setChannelActionFeedback] = useState("");
+  const [channelActionError, setChannelActionError] = useState("");
   useEffect(() => {
     if (currentChannel && currentChannel._id) {
       dispatch(
@@ -65,6 +87,10 @@ const Channel = () => {
     console.log("currentChannel:", currentChannel);
   }, [dispatch, currentChannel]);
 
+  useEffect(() => {
+    setPostsLocal(posts || []);
+  }, [posts]);
+
   const isOwnerOrAdmin = React.useMemo(() => {
     if (!currentChannel || !user) return false;
     const ownerId = currentChannel?.ownership?.ownerId;
@@ -76,6 +102,24 @@ const Channel = () => {
     } catch (e) {}
     return admins.map((a) => a.toString()).includes(uid.toString());
   }, [currentChannel, user]);
+
+  const currentUserId = React.useMemo(
+    () => (user?._id || user?.id || "").toString(),
+    [user],
+  );
+
+  const isSubscriber = React.useMemo(() => {
+    if (!currentUserId) return false;
+    const subscribers = (currentChannel?.audience?.subscribers || []).map((id) =>
+      id.toString(),
+    );
+    return subscribers.includes(currentUserId);
+  }, [currentChannel?.audience?.subscribers, currentUserId]);
+
+  const isSubscribing = subscribeStatus === "loading";
+  const isUnsubscribing = unsubscribeStatus === "loading";
+  const isAddingAdmin = addAdminStatus === "loading";
+  const isRemovingAdmin = removeAdminStatus === "loading";
 
   const resolveMediaSrc = (media) => {
     if (!media) return null;
@@ -119,28 +163,155 @@ const Channel = () => {
     );
   };
 
-  const handleEditPost = async (post) => {
-    if (!token) return;
-    const newText = prompt("Edit post text", post?.text || "");
-    if (newText == null) return;
+  const handleLoadMorePosts = async () => {
+    if (!currentChannel?._id || !postsNextCursor || loadingMore) return;
+
+    try {
+      setLoadingMore(true);
+      await dispatch(
+        getChannelPosts({
+          channelId: currentChannel._id,
+          params: { limit: 20, cursor: postsNextCursor },
+        }),
+      ).unwrap();
+    } catch (err) {
+      console.error("Load more posts error:", err);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
+  const refreshCurrentChannel = useCallback(() => {
+    if (!currentChannel?._id) return;
+    dispatch(findChannel(currentChannel._id));
+  }, [dispatch, currentChannel?._id]);
+
+  const handleSubscribe = async () => {
+    if (!currentChannel?._id) return;
+    try {
+      setChannelActionError("");
+      const result = await dispatch(subscribeChannel(currentChannel._id)).unwrap();
+      setChannelActionFeedback(result?.message || "Subscribed");
+      refreshCurrentChannel();
+    } catch (err) {
+      setChannelActionError(
+        err?.err || err?.message || "Failed to subscribe to this channel.",
+      );
+    }
+  };
+
+  const handleUnsubscribe = async () => {
+    if (!currentChannel?._id) return;
+    try {
+      setChannelActionError("");
+      const result = await dispatch(
+        unsubscribeChannel(currentChannel._id),
+      ).unwrap();
+      setChannelActionFeedback(result?.message || "Unsubscribed");
+      refreshCurrentChannel();
+    } catch (err) {
+      setChannelActionError(
+        err?.err || err?.message || "Failed to unsubscribe from this channel.",
+      );
+    }
+  };
+
+  const handleAddAdmin = async (e) => {
+    e.preventDefault();
+    if (!currentChannel?._id || !adminToAdd.trim()) return;
+    try {
+      setChannelActionError("");
+      const result = await dispatch(
+        addAdmin({
+          id: currentChannel._id,
+          payload: { newAdminUsername: adminToAdd.trim() },
+        }),
+      ).unwrap();
+      setChannelActionFeedback(result?.message || "Admin added");
+      setAdminToAdd("");
+      refreshCurrentChannel();
+      dispatch(myChannel());
+    } catch (err) {
+      setChannelActionError(
+        err?.err || err?.message || "Failed to add admin to this channel.",
+      );
+    }
+  };
+
+  const handleRemoveAdmin = async (e) => {
+    e.preventDefault();
+    if (!currentChannel?._id || !adminToRemove.trim()) return;
+    try {
+      setChannelActionError("");
+      const result = await dispatch(
+        removeAdmin({
+          id: currentChannel._id,
+          payload: { adminUsername: adminToRemove.trim() },
+        }),
+      ).unwrap();
+      setChannelActionFeedback(result?.message || "Admin removed");
+      setAdminToRemove("");
+      refreshCurrentChannel();
+      dispatch(myChannel());
+    } catch (err) {
+      setChannelActionError(
+        err?.err || err?.message || "Failed to remove admin from this channel.",
+      );
+    }
+  };
+
+  const handleEditPost = async (post, textOverride) => {
+    if (!currentChannel?._id || !post?._id) return;
+    const nextText =
+      typeof textOverride === "string" ? textOverride : post?.text || "";
+    const newText = nextText.trim();
+    if (!newText) {
+      toastError("Post text cannot be empty");
+      return;
+    }
+    const previousText = post?.text;
+    setPostsLocal((prev) =>
+      (prev || []).map((p) => (p._id === post._id ? { ...p, text: newText } : p)),
+    );
     const formData = new FormData();
     formData.append("text", newText);
     try {
-      await editPostApi(currentChannel._id, post._id, formData, token);
+      await dispatch(
+        editPost({
+          channelId: currentChannel._id,
+          postId: post._id,
+          formData,
+        }),
+      ).unwrap();
       refreshPosts();
     } catch (err) {
-      console.error(err);
+      setPostsLocal((prev) =>
+        (prev || []).map((p) =>
+          p._id === post._id ? { ...p, text: previousText } : p,
+        ),
+      );
+      console.error("Edit post error:", err);
+      toastError(err?.err || err?.message || "Failed to edit post");
     }
   };
 
   const handleDeletePost = async (post) => {
-    if (!token) return;
+    if (!currentChannel?._id || !post?._id) return;
     if (!confirm("Delete this post?")) return;
+    const previousPosts = postsLocal;
+    setPostsLocal((prev) => (prev || []).filter((p) => p._id !== post._id));
     try {
-      await deletePostApi(currentChannel._id, post._id, token);
+      await dispatch(
+        deletePost({
+          channelId: currentChannel._id,
+          postId: post._id,
+        }),
+      ).unwrap();
       refreshPosts();
     } catch (err) {
-      console.error(err);
+      setPostsLocal(previousPosts);
+      console.error("Delete post error:", err);
+      toastError(err?.err || err?.message || "Failed to delete post");
     }
   };
 
@@ -173,6 +344,19 @@ const Channel = () => {
       return;
     }
 
+    const previousForwardCount =
+      forwardTargetPost?.forward?.count || 0;
+    setPostsLocal((prev) =>
+      (prev || []).map((p) =>
+        p._id === forwardTargetPost._id
+          ? {
+              ...p,
+              forward: { ...(p.forward || {}), count: previousForwardCount + 1 },
+            }
+          : p,
+      ),
+    );
+
     try {
       setForwardError("");
       setForwardSubmitting(true);
@@ -184,8 +368,18 @@ const Channel = () => {
         }),
       ).unwrap();
       closeForwardModal();
-      alert("Forwarded successfully");
+      toastSuccess("Forwarded successfully");
     } catch (err) {
+      setPostsLocal((prev) =>
+        (prev || []).map((p) =>
+          p._id === forwardTargetPost._id
+            ? {
+                ...p,
+                forward: { ...(p.forward || {}), count: previousForwardCount },
+              }
+            : p,
+        ),
+      );
       console.error("Forward error:", err);
       setForwardError(err?.err || err?.message || "Failed to forward post");
     } finally {
@@ -219,24 +413,51 @@ const Channel = () => {
   }, [forwardChannels, forwardSearch]);
 
   const handlePinPost = async (post) => {
-    if (!token) return;
+    if (!currentChannel?._id || !post?._id) return;
+    const previousPinned = !!post.isPinned;
+    setPostsLocal((prev) =>
+      (prev || []).map((p) =>
+        p._id === post._id ? { ...p, isPinned: !previousPinned } : p,
+      ),
+    );
     try {
       if (post.isPinned) {
-        await unpinPostApi(currentChannel._id, post._id, token);
+        await dispatch(
+          unpinPost({
+            channelId: currentChannel._id,
+            postId: post._id,
+          }),
+        ).unwrap();
       } else {
-        await pinPostApi(currentChannel._id, post._id, token);
+        await dispatch(
+          pinPost({
+            channelId: currentChannel._id,
+            postId: post._id,
+          }),
+        ).unwrap();
       }
       refreshPosts();
     } catch (err) {
-      console.error(err);
+      setPostsLocal((prev) =>
+        (prev || []).map((p) =>
+          p._id === post._id ? { ...p, isPinned: previousPinned } : p,
+        ),
+      );
+      console.error("Pin post error:", err);
+      toastError(err?.err || err?.message || "Failed to update pin state");
     }
   };
 
   const handleCopyPost = (post) => {
-    if (post?.text) {
-      navigator.clipboard.writeText(post.text);
-      alert("Text copied!");
+    if (!post?.text) return;
+    if (!navigator?.clipboard?.writeText) {
+      toastError("Clipboard is not available in this browser.");
+      return;
     }
+    navigator.clipboard
+      .writeText(post.text)
+      .then(() => toastSuccess("Text copied"))
+      .catch(() => toastError("Failed to copy text"));
   };
 
   const handleReactPost = async (post, emoji) => {
@@ -254,7 +475,7 @@ const Channel = () => {
       refreshPosts();
     } catch (err) {
       console.error("React error:", err);
-      alert(err?.err || err?.message || "Failed to update reaction");
+      toastError(err?.err || err?.message || "Failed to update reaction");
     }
   };
 
@@ -285,7 +506,7 @@ const Channel = () => {
       refreshPosts();
     } catch (err) {
       console.error("Comment error:", err);
-      alert(err?.err || err?.message || "Failed to add comment");
+      toastError(err?.err || err?.message || "Failed to add comment");
       throw err;
     }
   };
@@ -306,7 +527,7 @@ const Channel = () => {
       refreshPosts();
     } catch (err) {
       console.error("Reply error:", err);
-      alert(err?.err || err?.message || "Failed to add reply");
+      toastError(err?.err || err?.message || "Failed to add reply");
       throw err;
     }
   };
@@ -315,23 +536,23 @@ const Channel = () => {
     if (navigator.share) {
       navigator
         .share({ title: post.title || "Post", text: post.text || "" })
-        .catch(() => {});
+        .catch(() => toastInfo("Share canceled"));
     } else if (post?.text) {
-      navigator.clipboard.writeText(post.text);
-      alert("Post text copied to clipboard for sharing");
+      if (!navigator?.clipboard?.writeText) {
+        toastError("Clipboard is not available in this browser.");
+        return;
+      }
+      navigator.clipboard
+        .writeText(post.text)
+        .then(() => toastSuccess("Post copied for sharing"))
+        .catch(() => toastError("Failed to copy post for sharing"));
     }
   };
 
   useEffect(() => {
-    if (currentChannel && currentChannel._id && isOwnerOrAdmin) {
-      dispatch(
-        getChannelPosts({
-          channelId: currentChannel._id,
-          params: { limit: 20 },
-        }),
-      );
-    }
-  }, [dispatch, currentChannel, isOwnerOrAdmin]);
+    setChannelActionFeedback("");
+    setChannelActionError("");
+  }, [currentChannel?._id]);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -417,9 +638,93 @@ const Channel = () => {
           </p>
         </div>
 
+        <div className="mb-4 rounded-2xl border border-[#6fa63a]/25 bg-white/70 p-3">
+          <div className="flex flex-wrap items-center gap-2">
+            {currentUserId && (
+              <button
+                type="button"
+                onClick={isSubscriber ? handleUnsubscribe : handleSubscribe}
+                disabled={isSubscribing || isUnsubscribing}
+                className="rounded-lg border border-[#6fa63a]/35 px-3 py-1.5 text-xs font-medium text-[#2f5b2f] hover:bg-[#f3f9ee] disabled:opacity-60"
+              >
+                {isSubscribing || isUnsubscribing
+                  ? "Updating..."
+                  : isSubscriber
+                    ? "Unsubscribe"
+                    : "Subscribe"}
+              </button>
+            )}
+            {isOwnerOrAdmin && (
+              <span className="rounded-full bg-[#6fa63a]/15 px-2 py-1 text-[10px] font-semibold text-[#2f5b2f]">
+                You are {currentChannel?.ownership?.ownerId?.toString?.() === currentUserId ? "Owner" : "Admin"}
+              </span>
+            )}
+          </div>
+
+          {isOwnerOrAdmin && (
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              <form onSubmit={handleAddAdmin} className="rounded-xl border border-[#6fa63a]/20 p-2 bg-[#f9fcf6]">
+                <p className="text-xs font-semibold text-[#2f5b2f]">Add Admin</p>
+                <div className="mt-2 flex gap-2">
+                  <input
+                    value={adminToAdd}
+                    onChange={(e) => setAdminToAdd(e.target.value)}
+                    placeholder="username"
+                    className="w-full rounded-md border border-[#6fa63a]/30 px-2 py-1 text-xs outline-none focus:border-[#4a7f4a]"
+                  />
+                  <button
+                    type="submit"
+                    disabled={!adminToAdd.trim() || isAddingAdmin}
+                    className="rounded-md bg-[#4a7f4a] px-2 py-1 text-xs text-white disabled:opacity-60"
+                  >
+                    {isAddingAdmin ? "Adding..." : "Add"}
+                  </button>
+                </div>
+              </form>
+
+              <form onSubmit={handleRemoveAdmin} className="rounded-xl border border-[#6fa63a]/20 p-2 bg-[#f9fcf6]">
+                <p className="text-xs font-semibold text-[#2f5b2f]">
+                  Remove Admin
+                </p>
+                <div className="mt-2 flex gap-2">
+                  <input
+                    value={adminToRemove}
+                    onChange={(e) => setAdminToRemove(e.target.value)}
+                    placeholder="username"
+                    className="w-full rounded-md border border-[#6fa63a]/30 px-2 py-1 text-xs outline-none focus:border-[#4a7f4a]"
+                  />
+                  <button
+                    type="submit"
+                    disabled={!adminToRemove.trim() || isRemovingAdmin}
+                    className="rounded-md bg-[#4a7f4a] px-2 py-1 text-xs text-white disabled:opacity-60"
+                  >
+                    {isRemovingAdmin ? "Removing..." : "Remove"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
+
+          {(channelActionFeedback || channelLastMessage) && (
+            <p className="mt-2 text-xs text-[#2f5b2f]">
+              {channelActionFeedback || channelLastMessage}
+            </p>
+          )}
+          {(channelActionError || channelError) && (
+            <p className="mt-1 text-xs text-red-600">
+              {channelActionError || channelError}
+            </p>
+          )}
+        </div>
+
         <div className="relative max-h-[520px] space-y-3 overflow-y-auto pr-1">
-          {postsStatus === "loading" && <p>Loading posts...</p>}
-          {postsStatus === "succeeded" && posts.length === 0 && (
+          {postsStatus === "loading" && postsLocal.length === 0 && (
+            <div className="space-y-2">
+              <div className="h-20 rounded-xl bg-white/60 animate-pulse" />
+              <div className="h-20 rounded-xl bg-white/60 animate-pulse" />
+            </div>
+          )}
+          {postsStatus === "succeeded" && postsLocal.length === 0 && (
             <p className="text-sm">No posts yet.</p>
           )}
           {!isOwnerOrAdmin && (
@@ -430,12 +735,12 @@ const Channel = () => {
           {isOwnerOrAdmin && postsStatus === "loading" && (
             <p>Loading posts...</p>
           )}
-          {postsStatus === "succeeded" &&
+          {(postsStatus === "succeeded" || postsLocal.length > 0) &&
             (isOwnerOrAdmin ? (
-              posts.length === 0 ? (
+              postsLocal.length === 0 ? (
                 <p className="text-sm">No posts yet.</p>
               ) : (
-                posts.map((post) => (
+                postsLocal.map((post) => (
                   <ChannelPostCard
                     key={post._id}
                     post={post}
@@ -457,10 +762,10 @@ const Channel = () => {
                   />
                 ))
               )
-            ) : posts.length === 0 ? (
+            ) : postsLocal.length === 0 ? (
               <p className="text-sm">No posts yet.</p>
             ) : (
-              posts.map((post) => (
+              postsLocal.map((post) => (
                 <ChannelPostCard
                   key={post._id}
                   post={post}
@@ -481,6 +786,19 @@ const Channel = () => {
                 />
               ))
             ))}
+
+          {postsNextCursor && (
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={handleLoadMorePosts}
+                disabled={loadingMore}
+                className="w-full rounded-xl border border-[#6fa63a]/35 bg-white/70 px-3 py-2 text-sm text-[#2f5b2f] hover:bg-[#f3f9ee] disabled:opacity-60"
+              >
+                {loadingMore ? "Loading more..." : "Load more posts"}
+              </button>
+            </div>
+          )}
         </div>
 
         {isOwnerOrAdmin && (

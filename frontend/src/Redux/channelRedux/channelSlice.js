@@ -25,6 +25,8 @@ const initialState = {
   updateStatus: "idle",
   deleteStatus: "idle",
   adminStatus: "idle",
+  addAdminStatus: "idle",
+  removeAdminStatus: "idle",
   initialized: false,
   nextCursor: null,
   myChannels: [],
@@ -249,34 +251,42 @@ const channelSlice = createSlice({
       // addAdmin / removeAdmin
       .addCase(addAdmin.pending, (state) => {
         state.adminStatus = "loading";
+        state.addAdminStatus = "loading";
         state.error = null;
       })
       .addCase(addAdmin.fulfilled, (state, action) => {
         state.adminStatus = "succeeded";
+        state.addAdminStatus = "succeeded";
         state.lastMessage = action.payload?.message || null;
       })
       .addCase(addAdmin.rejected, (state, action) => {
         state.adminStatus = "failed";
+        state.addAdminStatus = "failed";
         state.error =
           action.payload?.err ||
           action.payload?.error ||
+          action.payload?.message ||
           action.error?.message ||
           "admin action failed";
       })
 
       .addCase(removeAdmin.pending, (state) => {
         state.adminStatus = "loading";
+        state.removeAdminStatus = "loading";
         state.error = null;
       })
       .addCase(removeAdmin.fulfilled, (state, action) => {
         state.adminStatus = "succeeded";
+        state.removeAdminStatus = "succeeded";
         state.lastMessage = action.payload?.message || null;
       })
       .addCase(removeAdmin.rejected, (state, action) => {
         state.adminStatus = "failed";
+        state.removeAdminStatus = "failed";
         state.error =
           action.payload?.err ||
           action.payload?.error ||
+          action.payload?.message ||
           action.error?.message ||
           "admin action failed";
       });
