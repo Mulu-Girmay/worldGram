@@ -4,6 +4,8 @@ import {
   editPost,
   reactToPost,
   addView,
+  addCommentToPost,
+  replyToPostComment,
   forwardPost,
   getChannelPosts,
   getChannelPostById,
@@ -21,6 +23,8 @@ const initialState = {
   editStatus: "idle",
   reactStatus: "idle",
   viewStatus: "idle",
+  commentStatus: "idle",
+  replyStatus: "idle",
   forwardStatus: "idle",
   deleteStatus: "idle",
   pinStatus: "idle",
@@ -166,6 +170,50 @@ const postSlice = createSlice({
           action.error?.message ||
           "Add view failed";
         console.error("addView rejected:", action.payload || action.error);
+      })
+
+      .addCase(addCommentToPost.pending, (state) => {
+        state.commentStatus = "loading";
+        state.error = null;
+      })
+      .addCase(addCommentToPost.fulfilled, (state) => {
+        state.commentStatus = "succeeded";
+        state.error = null;
+      })
+      .addCase(addCommentToPost.rejected, (state, action) => {
+        state.commentStatus = "failed";
+        state.error =
+          action.payload?.err ||
+          action.payload?.error ||
+          action.payload?.message ||
+          action.error?.message ||
+          "Add comment failed";
+        console.error(
+          "addCommentToPost rejected:",
+          action.payload || action.error,
+        );
+      })
+
+      .addCase(replyToPostComment.pending, (state) => {
+        state.replyStatus = "loading";
+        state.error = null;
+      })
+      .addCase(replyToPostComment.fulfilled, (state) => {
+        state.replyStatus = "succeeded";
+        state.error = null;
+      })
+      .addCase(replyToPostComment.rejected, (state, action) => {
+        state.replyStatus = "failed";
+        state.error =
+          action.payload?.err ||
+          action.payload?.error ||
+          action.payload?.message ||
+          action.error?.message ||
+          "Reply failed";
+        console.error(
+          "replyToPostComment rejected:",
+          action.payload || action.error,
+        );
       })
 
       .addCase(forwardPost.pending, (state) => {

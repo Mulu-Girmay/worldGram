@@ -5,6 +5,8 @@ import {
   reactToPostApi,
   addViewApi,
   forwardPostApi,
+  addCommentApi,
+  replyToCommentApi,
   getChannelPostsApi,
   getChannelPostByIdApi,
   deletePostApi,
@@ -44,11 +46,19 @@ export const editPost = createAsyncThunk(
 
 export const reactToPost = createAsyncThunk(
   "reactToPost",
-  async ({ channelId, postId, emoji }, { getState, rejectWithValue }) => {
+  async (payload, { getState, rejectWithValue }) => {
     try {
+      const { channelId, postId, emoji } = payload || {};
+      if (!channelId || !postId || !emoji) {
+        return rejectWithValue({
+          message: "channelId, postId and emoji are required",
+        });
+      }
+
       const state = getState();
       const token = state.auth?.accessToken;
-      return await reactToPostApi(channelId, postId, { emoji }, token);
+      const response = await reactToPostApi(channelId, postId, { emoji }, token);
+      return response?.data ?? response;
     } catch (err) {
       return rejectWithValue(
         err.response?.data || { message: "reacting failed" },
@@ -72,13 +82,78 @@ export const addView = createAsyncThunk(
   },
 );
 
-export const forwardPost = createAsyncThunk(
-  "forwardPost",
-  async ({ channelId, postId, destination }, { getState, rejectWithValue }) => {
+export const addCommentToPost = createAsyncThunk(
+  "post/addCommentToPost",
+  async (payload, { getState, rejectWithValue }) => {
     try {
+      const { channelId, postId, text } = payload || {};
+      if (!channelId || !postId || !text?.trim()) {
+        return rejectWithValue({
+          message: "channelId, postId and text are required",
+        });
+      }
+
       const state = getState();
       const token = state.auth?.accessToken;
-      return await forwardPostApi(channelId, postId, destination, token);
+      return await addCommentApi(
+        channelId,
+        postId,
+        { text: text.trim() },
+        token,
+      );
+    } catch (err) {
+      return rejectWithValue(
+        err.response?.data || { message: "adding comment failed" },
+      );
+    }
+  },
+);
+
+export const replyToPostComment = createAsyncThunk(
+  "post/replyToPostComment",
+  async (payload, { getState, rejectWithValue }) => {
+    try {
+      const { channelId, postId, commentId, text } = payload || {};
+      if (!channelId || !postId || !commentId || !text?.trim()) {
+        return rejectWithValue({
+          message: "channelId, postId, commentId and text are required",
+        });
+      }
+
+      const state = getState();
+      const token = state.auth?.accessToken;
+      return await replyToCommentApi(
+        channelId,
+        postId,
+        commentId,
+        { text: text.trim() },
+        token,
+      );
+    } catch (err) {
+      return rejectWithValue(
+        err.response?.data || { message: "replying to comment failed" },
+      );
+    }
+  },
+);
+
+export const forwardPost = createAsyncThunk(
+  "forwardPost",
+  async (payload, { getState, rejectWithValue }) => {
+    try {
+      const { channelId, postId, destination, type, id } = payload || {};
+      const target = destination || { type, id };
+
+      if (!channelId || !postId || !target?.type || !target?.id) {
+        return rejectWithValue({
+          message: "channelId, postId and destination(type,id) are required",
+        });
+      }
+
+      const state = getState();
+      const token = state.auth?.accessToken;
+      const response = await forwardPostApi(channelId, postId, target, token);
+      return response?.data ?? response;
     } catch (err) {
       return rejectWithValue(
         err.response?.data || { message: "forward failed" },

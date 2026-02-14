@@ -3,32 +3,40 @@ import { ProfileNav } from "./Profile";
 import { Bell, FileBoxIcon, Instagram, SendHorizontal } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
 import { Link, useNavigate } from "react-router-dom";
-import { getChannelPosts, addPost } from "../Redux/postRedux/postThunk";
+import {
+  getChannelPosts,
+  addPost,
+  addView,
+  reactToPost,
+  addCommentToPost,
+  replyToPostComment,
+  forwardPost,
+} from "../Redux/postRedux/postThunk";
 import {
   selectPosts,
   selectPostsStatus,
 } from "../Redux/postRedux/postSelector";
-import { selectCurrentChannel } from "../Redux/channelRedux/channelSelector";
+import { myChannel } from "../Redux/channelRedux/channelThunk";
+import {
+  selectCurrentChannel,
+  selectMyChannels,
+  selectMyChannelsStatus,
+} from "../Redux/channelRedux/channelSelector";
 import { selectUser, selectAuth } from "../Redux/userRedux/authSelector";
 import ChannelPostCard from "./ChannelPostCard";
 import {
   editPostApi,
   deletePostApi,
-  forwardPostApi,
   pinPostApi,
   unpinPostApi,
-} from "../api/postApi";
-import {
-  reactToPostApi,
-  addViewApi,
-  addCommentApi,
-  replyToCommentApi,
 } from "../api/postApi";
 
 const Channel = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const currentChannel = useSelector(selectCurrentChannel);
+  const myChannels = useSelector(selectMyChannels);
+  const myChannelsStatus = useSelector(selectMyChannelsStatus);
   const posts = useSelector(selectPosts);
   const postsStatus = useSelector(selectPostsStatus);
   const user = useSelector(selectUser);
@@ -36,6 +44,12 @@ const Channel = () => {
   const [message, setMessage] = useState("");
   const [mediaFile, setMediaFile] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [forwardModalOpen, setForwardModalOpen] = useState(false);
+  const [forwardTargetPost, setForwardTargetPost] = useState(null);
+  const [forwardSearch, setForwardSearch] = useState("");
+  const [selectedForwardChannelId, setSelectedForwardChannelId] = useState("");
+  const [forwardSubmitting, setForwardSubmitting] = useState(false);
+  const [forwardError, setForwardError] = useState("");
   const auth = useSelector(selectAuth);
   const token = auth?.accessToken;
 
@@ -131,20 +145,78 @@ const Channel = () => {
   };
 
   const handleForwardPost = async (post) => {
-    if (!token) return;
-    const dest = prompt("Forward destination (type:id) e.g. channel:6123");
-    if (!dest) return;
-    const [type, id] = dest.split(":");
-    if (!type || !id) return alert("Invalid destination");
-    try {
-      await forwardPostApi(currentChannel._id, post._id, { type, id }, token);
-      alert("Forwarded successfully!");
-      refreshPosts();
-    } catch (err) {
-      console.error("Forward error:", err);
-      alert("Failed to forward post");
+    if (!currentChannel?._id || !post?._id) return;
+
+    setForwardTargetPost(post);
+    setForwardSearch("");
+    setSelectedForwardChannelId("");
+    setForwardError("");
+    setForwardModalOpen(true);
+
+    if (myChannelsStatus === "idle" || myChannelsStatus === "failed") {
+      dispatch(myChannel());
     }
   };
+
+  const closeForwardModal = () => {
+    setForwardModalOpen(false);
+    setForwardTargetPost(null);
+    setForwardSearch("");
+    setSelectedForwardChannelId("");
+    setForwardError("");
+  };
+
+  const handleConfirmForward = async () => {
+    if (!currentChannel?._id || !forwardTargetPost?._id) return;
+    if (!selectedForwardChannelId) {
+      setForwardError("Select a channel first.");
+      return;
+    }
+
+    try {
+      setForwardError("");
+      setForwardSubmitting(true);
+      await dispatch(
+        forwardPost({
+          channelId: currentChannel._id,
+          postId: forwardTargetPost._id,
+          destination: { type: "channel", id: selectedForwardChannelId },
+        }),
+      ).unwrap();
+      closeForwardModal();
+      alert("Forwarded successfully");
+    } catch (err) {
+      console.error("Forward error:", err);
+      setForwardError(err?.err || err?.message || "Failed to forward post");
+    } finally {
+      setForwardSubmitting(false);
+    }
+  };
+
+  const forwardChannels = React.useMemo(() => {
+    const uid = user?._id || user?.id;
+    if (!uid) return [];
+
+    const list = (myChannels || []).filter((ch) => ch?._id);
+    return list.filter((ch) => {
+      if (ch._id === currentChannel?._id) return false;
+
+      const ownerId = ch?.ownership?.ownerId?.toString?.();
+      const adminIds = (ch?.ownership?.admins || []).map((a) => a.toString());
+      return ownerId === uid.toString() || adminIds.includes(uid.toString());
+    });
+  }, [myChannels, currentChannel?._id, user]);
+
+  const filteredForwardChannels = React.useMemo(() => {
+    const q = forwardSearch.trim().toLowerCase();
+    if (!q) return forwardChannels;
+
+    return forwardChannels.filter((ch) => {
+      const name = ch?.basicInfo?.name?.toLowerCase() || "";
+      const userName = ch?.basicInfo?.userName?.toLowerCase() || "";
+      return name.includes(q) || userName.includes(q);
+    });
+  }, [forwardChannels, forwardSearch]);
 
   const handlePinPost = async (post) => {
     if (!token) return;
@@ -168,49 +240,74 @@ const Channel = () => {
   };
 
   const handleReactPost = async (post, emoji) => {
-    if (!token) return;
+    if (!currentChannel || !currentChannel._id) return;
+    if (!post?._id || !emoji) return;
+
     try {
-      await reactToPostApi(currentChannel._id, post._id, { emoji }, token);
+      await dispatch(
+        reactToPost({
+          channelId: currentChannel._id,
+          postId: post._id,
+          emoji,
+        }),
+      ).unwrap();
       refreshPosts();
     } catch (err) {
       console.error("React error:", err);
+      alert(err?.err || err?.message || "Failed to update reaction");
     }
   };
 
-  const handleAddView = useCallback(async (post, userId) => {
-    if (!token || !userId) return;
-    try {
-      await addViewApi(currentChannel._id, post._id, token);
-    } catch (err) {
-      console.error("View error:", err);
-    }
-  }, [token, currentChannel._id]);
+  const handleAddView = useCallback(
+    async (post, userId) => {
+      if (!userId || !currentChannel?._id) return;
+
+      dispatch(
+        addView({
+          channelId: currentChannel._id,
+          postId: post._id,
+        }),
+      );
+    },
+    [dispatch, currentChannel?._id],
+  );
 
   const handleAddComment = async (post, text) => {
-    if (!token || !text.trim()) return;
+    if (!currentChannel?._id || !post?._id || !text?.trim()) return;
     try {
-      await addCommentApi(currentChannel._id, post._id, { text: text.trim() }, token);
+      await dispatch(
+        addCommentToPost({
+          channelId: currentChannel._id,
+          postId: post._id,
+          text: text.trim(),
+        }),
+      ).unwrap();
       refreshPosts();
     } catch (err) {
       console.error("Comment error:", err);
-      alert("Failed to add comment");
+      alert(err?.err || err?.message || "Failed to add comment");
+      throw err;
     }
   };
 
   const handleReplyToComment = async (post, commentId, text) => {
-    if (!token || !text.trim()) return;
+    if (!currentChannel?._id || !post?._id || !commentId || !text?.trim()) {
+      return;
+    }
     try {
-      await replyToCommentApi(
-        currentChannel._id,
-        post._id,
-        commentId,
-        { text: text.trim() },
-        token,
-      );
+      await dispatch(
+        replyToPostComment({
+          channelId: currentChannel._id,
+          postId: post._id,
+          commentId,
+          text: text.trim(),
+        }),
+      ).unwrap();
       refreshPosts();
     } catch (err) {
       console.error("Reply error:", err);
-      alert("Failed to add reply");
+      alert(err?.err || err?.message || "Failed to add reply");
+      throw err;
     }
   };
 
@@ -446,6 +543,123 @@ const Channel = () => {
         )}
       </section>
       <div className="h-2" />
+
+      {forwardModalOpen && (
+        <div className="fixed inset-0 z-[100] bg-black/35 backdrop-blur-[1px] flex items-center justify-center p-4">
+          <div className="w-full max-w-lg rounded-2xl border border-[#6fa63a]/30 bg-white p-4 shadow-2xl">
+            <div className="flex items-center justify-between gap-3">
+              <h3 className="text-base font-semibold text-[rgba(23,3,3,0.87)]">
+                Forward Post To Channel
+              </h3>
+              <button
+                type="button"
+                onClick={closeForwardModal}
+                className="rounded-md border border-[#6fa63a]/30 px-2 py-1 text-xs hover:bg-[#f3f9ee]"
+                disabled={forwardSubmitting}
+              >
+                Close
+              </button>
+            </div>
+
+            <input
+              type="text"
+              value={forwardSearch}
+              onChange={(e) => setForwardSearch(e.target.value)}
+              placeholder="Search your channels..."
+              className="mt-3 w-full rounded-lg border border-[#6fa63a]/30 px-3 py-2 text-sm outline-none focus:border-[#4a7f4a] focus:ring-2 focus:ring-[#6fa63a]/20"
+              disabled={forwardSubmitting}
+            />
+
+            <div className="mt-3 max-h-72 overflow-y-auto space-y-2 pr-1">
+              {myChannelsStatus === "loading" && (
+                <p className="text-sm text-[rgba(23,3,3,0.7)]">
+                  Loading channels...
+                </p>
+              )}
+
+              {myChannelsStatus !== "loading" &&
+                filteredForwardChannels.length === 0 && (
+                  <p className="text-sm text-[rgba(23,3,3,0.7)]">
+                    No owned/admin channels found.
+                  </p>
+                )}
+
+              {filteredForwardChannels.map((ch) => {
+                const uid = (user?._id || user?.id || "").toString();
+                const isOwner =
+                  ch?.ownership?.ownerId?.toString?.() === uid;
+                const photo = ch?.basicInfo?.channelPhoto;
+                const photoSrc = photo
+                  ? `http://localhost:3000/uploads/images/${photo}`
+                  : null;
+
+                return (
+                  <button
+                    key={ch._id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedForwardChannelId(ch._id);
+                      setForwardError("");
+                    }}
+                    className={`w-full flex items-center gap-3 rounded-xl border px-3 py-2 text-left transition ${
+                      selectedForwardChannelId === ch._id
+                        ? "border-[#4a7f4a] bg-[#eef8e8]"
+                        : "border-[#6fa63a]/25 bg-[#f9fcf6] hover:bg-[#f3f9ee]"
+                    }`}
+                    disabled={forwardSubmitting}
+                  >
+                    <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full bg-[#4a7f4a]/20 grid place-items-center text-xs font-semibold text-[#2f5b2f]">
+                      {photoSrc ? (
+                        <img
+                          src={photoSrc}
+                          alt={ch?.basicInfo?.name || "Channel"}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        (ch?.basicInfo?.name || "C").charAt(0).toUpperCase()
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-[rgba(23,3,3,0.87)]">
+                        {ch?.basicInfo?.name || "Unnamed channel"}
+                      </p>
+                      <p className="truncate text-xs text-[rgba(23,3,3,0.65)]">
+                        @{ch?.basicInfo?.userName || "channel"}
+                      </p>
+                    </div>
+                    <span className="rounded-full bg-[#6fa63a]/20 px-2 py-0.5 text-[10px] font-semibold text-[#2f5b2f]">
+                      {isOwner ? "Owner" : "Admin"}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {forwardError && (
+              <p className="mt-3 text-xs text-red-600">{forwardError}</p>
+            )}
+
+            <div className="mt-4 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={closeForwardModal}
+                className="rounded-lg border border-[#6fa63a]/30 px-3 py-2 text-sm hover:bg-[#f3f9ee]"
+                disabled={forwardSubmitting}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmForward}
+                className="rounded-lg bg-[#4a7f4a] px-3 py-2 text-sm text-white hover:bg-[#3f6e3f] disabled:opacity-60"
+                disabled={!selectedForwardChannelId || forwardSubmitting}
+              >
+                {forwardSubmitting ? "Forwarding..." : "Forward"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

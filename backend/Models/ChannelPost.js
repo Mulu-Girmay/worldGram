@@ -11,13 +11,8 @@ const channelPostSchema = new mongoose.Schema(
     text: { type: String },
     media: [{ url: String, type: String, size: Number }],
     views: {
-      type: [
-        {
-          viewNumber: { type: Number, default: 0 },
-          viewers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
-        },
-      ],
-      default: [{ viewNumber: 0, viewers: [] }],
+      viewNumber: { type: Number, default: 0 },
+      viewers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
     },
     viewedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
     forward: {

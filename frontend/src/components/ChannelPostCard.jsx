@@ -79,8 +79,17 @@ const ChannelPostCard = (props) => {
   const [commentText, setCommentText] = useState("");
   const [replyOpen, setReplyOpen] = useState({});
   const [hasViewed, setHasViewed] = useState(false);
+  const [showComments, setShowComments] = useState(false);
+  const [commentError, setCommentError] = useState("");
+  const [replyError, setReplyError] = useState("");
+  const [submittingComment, setSubmittingComment] = useState(false);
+  const [submittingReplyId, setSubmittingReplyId] = useState(null);
   const postRef = useRef(null);
   const currentUser = useSelector((state) => state.auth.user);
+  const visibleReactions = (post?.reactions || []).filter(
+    (reaction) => Number(reaction?.count) > 0,
+  );
+  const commentsCount = post?.comments?.length || 0;
 
   const handleEdit = async () => {
     if (onEditProp) return onEditProp(post);
@@ -136,7 +145,8 @@ const ChannelPostCard = (props) => {
   useEffect(() => {
     if (!post?._id || !currentUser?._id || !onViewProp) return;
 
-    const alreadyViewed = post?.viewedBy?.includes(currentUser?._id) || hasViewed;
+    const alreadyViewed =
+      post?.viewedBy?.includes(currentUser?._id) || hasViewed;
     if (alreadyViewed) {
       setHasViewed(true);
       return;
@@ -162,7 +172,7 @@ const ChannelPostCard = (props) => {
           }
         }
       },
-      { threshold: 0.1 }
+      { threshold: 0.1 },
     );
 
     if (postRef.current) {
@@ -174,6 +184,7 @@ const ChannelPostCard = (props) => {
       if (viewTimeout) clearTimeout(viewTimeout);
     };
   }, [post?._id, post?.viewedBy, currentUser?._id, onViewProp]);
+
   function handleReactSelect(reaction) {
     if (onReactProp) return onReactProp(post, reaction);
     console.log("React selected", reaction, post);
@@ -181,14 +192,36 @@ const ChannelPostCard = (props) => {
 
   async function submitComment() {
     if (!commentText || !commentText.trim()) return;
-    if (onAddCommentProp) await onAddCommentProp(post, commentText.trim());
-    setCommentText("");
+
+    try {
+      setCommentError("");
+      setSubmittingComment(true);
+      if (onAddCommentProp) await onAddCommentProp(post, commentText.trim());
+      setCommentText("");
+    } catch (err) {
+      setCommentError(
+        err?.err || err?.message || "Failed to save comment. Please try again.",
+      );
+    } finally {
+      setSubmittingComment(false);
+    }
   }
 
   async function submitReply(commentId, text) {
     if (!text || !text.trim()) return;
-    if (onReplyProp) await onReplyProp(post, commentId, text.trim());
-    setReplyOpen((s) => ({ ...s, [commentId]: false }));
+
+    try {
+      setReplyError("");
+      setSubmittingReplyId(commentId);
+      if (onReplyProp) await onReplyProp(post, commentId, text.trim());
+      setReplyOpen((s) => ({ ...s, [commentId]: false }));
+    } catch (err) {
+      setReplyError(
+        err?.err || err?.message || "Failed to save reply. Please try again.",
+      );
+    } finally {
+      setSubmittingReplyId(null);
+    }
   }
 
   if (post) {
@@ -216,15 +249,18 @@ const ChannelPostCard = (props) => {
           <p className="flex items-center gap-1 text-[rgba(23,3,3,0.75)]">
             <Eye size={10} />
             <span className="font-medium text-[rgba(23,3,3,0.87)]">
-              {(post.viewedBy?.length || 0) + (hasViewed && !post.viewedBy?.includes(currentUser._id) ? 1 : 0)}
+              {(post.viewedBy?.length || 0) +
+                (hasViewed && !post.viewedBy?.includes(currentUser._id)
+                  ? 1
+                  : 0)}
             </span>
           </p>
 
           <p>1:24 AM</p>
         </div>
         <div className="flex flex-row justify-around">
-          {post.reactions && post.reactions.length > 0 ? (
-            post.reactions.map((reaction, index) => (
+          {visibleReactions.length > 0 ? (
+            visibleReactions.map((reaction, index) => (
               <p key={index}>
                 {reaction.emoji} {reaction.count}
               </p>
@@ -237,12 +273,10 @@ const ChannelPostCard = (props) => {
         <div className="mt-4 flex items-center justify-between rounded-xl bg-white/70 px-3 py-2">
           <div
             className="flex items-center gap-2 text-sm text-[rgba(23,3,3,0.7)] cursor-pointer"
-            onClick={() =>
-              document.getElementById(`comment-input-${post._id}`).focus()
-            }
+            onClick={() => setShowComments(true)}
           >
             <MessageSquare size={14} />
-            <p>Leave a comment</p>
+            <p>{`Read comments${commentsCount ? ` (${commentsCount})` : ""}`}</p>
           </div>
           <Reaction onSelect={handleReactSelect} />
           <MoreVertical
@@ -267,68 +301,89 @@ const ChannelPostCard = (props) => {
           canPin={canPin}
         />
         <div className="mt-3">
-          <div className="space-y-2">
-            {(post.comments || []).map((c) => (
-              <div
-                key={c._id || c.createdAt}
-                className="rounded-md border p-2 bg-white/80"
-              >
-                <div className="text-sm font-medium">{c.text}</div>
-                <div className="text-xs text-gray-500">
-                  by {c.authorId || "user"}
-                </div>
-                <div className="mt-2">
-                  {(c.replies || []).map((r) => (
-                    <div
-                      key={r._id || r.createdAt}
-                      className="ml-3 text-sm text-gray-700"
-                    >
-                      {r.text}
-                    </div>
-                  ))}
-                </div>
-                <div className="mt-2 flex gap-2">
-                  <button
-                    onClick={() =>
-                      setReplyOpen((s) => ({
-                        ...s,
-                        [c._id || c.createdAt]: true,
-                      }))
-                    }
-                    className="text-xs text-blue-600"
-                  >
-                    Reply
-                  </button>
-                  {replyOpen[c._id || c.createdAt] && (
-                    <div className="flex gap-2 mt-2">
-                      <input
-                        placeholder="Write reply"
-                        className="flex-1 rounded border px-2 py-1"
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" && !e.shiftKey) {
-                            e.preventDefault();
-                            submitReply(c._id, e.target.value);
-                            e.target.value = "";
-                          }
-                        }}
-                      />
-                      <button
-                        onClick={(e) => {
-                          const input = e.target.previousElementSibling;
-                          submitReply(c._id, input.value);
-                          input.value = "";
-                        }}
-                        className="text-xs text-green-600 px-2 py-1 rounded border hover:bg-green-50"
-                      >
-                        Send
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
+          <button
+            type="button"
+            className="text-xs text-blue-700 underline-offset-2 hover:underline"
+            onClick={() => setShowComments((v) => !v)}
+          >
+            {showComments
+              ? "Hide comments"
+              : `Read comments${commentsCount ? ` (${commentsCount})` : ""}`}
+          </button>
 
+          {showComments && (
+            <div className="space-y-2 mt-2">
+              {(post.comments || []).map((c) => (
+                <div
+                  key={c._id || c.createdAt}
+                  className="rounded-md border p-2 bg-white/80"
+                >
+                  <div className="text-sm font-medium">{c.text}</div>
+                  <div className="text-xs text-gray-500">
+                    by {c.authorId || "user"}
+                  </div>
+                  <div className="mt-2">
+                    {(c.replies || []).map((r) => (
+                      <div
+                        key={r._id || r.createdAt}
+                        className="ml-3 text-sm text-gray-700"
+                      >
+                        {r.text}
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-2 flex gap-2">
+                    <button
+                      onClick={() =>
+                        setReplyOpen((s) => ({
+                          ...s,
+                          [c._id || c.createdAt]: true,
+                        }))
+                      }
+                      className="text-xs text-blue-600"
+                    >
+                      Reply
+                    </button>
+                    {replyOpen[c._id || c.createdAt] && (
+                      <div className="flex gap-2 mt-2">
+                        <input
+                          placeholder="Write reply"
+                          className="flex-1 rounded border px-2 py-1"
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" && !e.shiftKey) {
+                              e.preventDefault();
+                              submitReply(c._id, e.target.value);
+                              e.target.value = "";
+                            }
+                          }}
+                        />
+                        <button
+                          onClick={(e) => {
+                            const input = e.target.previousElementSibling;
+                            submitReply(c._id, input.value);
+                            input.value = "";
+                          }}
+                          disabled={submittingReplyId === c._id}
+                          className="text-xs text-green-600 px-2 py-1 rounded border hover:bg-green-50 disabled:opacity-60"
+                        >
+                          {submittingReplyId === c._id ? "Sending..." : "Send"}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {commentError && (
+            <p className="mt-2 text-xs text-red-600">{commentError}</p>
+          )}
+          {replyError && <p className="mt-2 text-xs text-red-600">{replyError}</p>}
+
+          {showComments && commentsCount === 0 && (
+            <p className="mt-2 text-xs text-gray-500">No comments yet</p>
+          )}
           <div className="mt-2 flex gap-2">
             <input
               id={`comment-input-${post._id}`}
@@ -345,10 +400,10 @@ const ChannelPostCard = (props) => {
             />
             <button
               onClick={submitComment}
-              className="text-sm text-green-600 px-2 py-1 rounded border hover:bg-green-50"
-              disabled={!commentText.trim()}
+              className="text-sm text-green-600 px-2 py-1 rounded border hover:bg-green-50 disabled:opacity-60"
+              disabled={!commentText.trim() || submittingComment}
             >
-              Post
+              {submittingComment ? "Posting..." : "Post"}
             </button>
           </div>
         </div>

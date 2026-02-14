@@ -49,7 +49,7 @@ export const addViewApi = async (channelId, postId, token) => {
 export const forwardPostApi = async (channelId, postId, destination, token) => {
   const { data } = await api.post(
     `/forwardPost/${channelId}/${postId}`,
-    { destination },
+    destination,
     {
       headers: {
         Authorization: `Bearer ${token}`,

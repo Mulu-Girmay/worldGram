@@ -126,7 +126,7 @@ const Reaction = ({
 
   return (
     <div ref={containerRef} className="relative inline-block">
-      <Plus
+      <button
         size={25}
         type="button"
         className={`px-2 py-1 rounded-md hover:shadow-sm transition ${triggerClassName}`}
@@ -138,8 +138,7 @@ const Reaction = ({
         }
       >
         {selectedReaction || "➕"}
-      </Plus>
-
+      </button>
       {open && (
         <div
           className={`absolute z-50 mt-2 left-0 w-max bg-white border rounded-lg shadow-md p-2 ${popupClassName}`}
