@@ -85,7 +85,7 @@ const SideBar = () => {
         chats.find((chat) => {
           if (chat?.type !== "private" || !Array.isArray(chat?.participants))
             return false;
-          const ids = chat.participants.map((id) => String(id));
+          const ids = chat.participants.map((p) => String(p?._id || p));
           return (
             ids.length === 2 &&
             ids.includes(String(currentUserId)) &&
@@ -182,6 +182,7 @@ const SideBar = () => {
                 const username = user?.identity?.username || "unknown";
                 const displayName = `${first} ${last}`.trim() || username;
                 const profileUrl = user?.identity?.profileUrl;
+                const onlineStatus = user?.AccountStatus?.onlineStatus || "offline";
                 const initials = displayName
                   .split(" ")
                   .filter(Boolean)
@@ -211,7 +212,7 @@ const SideBar = () => {
                         {displayName}
                       </p>
                       <p className="truncate text-[10px] text-[rgba(23,3,3,0.62)]">
-                        @{username}
+                        @{username} • {onlineStatus}
                       </p>
                     </div>
                   </div>

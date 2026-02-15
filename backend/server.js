@@ -7,10 +7,12 @@ const app = require("./app");
 const chatRouter = require("./Routes/chatRouter");
 const Chat = require("./Models/Chat");
 const Message = require("./Models/Message");
+const User = require("./Models/User");
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: "*",
+    origin: "http://localhost:5173",
+    credentials: true,
   },
 });
 app.set("io", io);
@@ -69,6 +71,13 @@ io.use((socket, next) => {
 // Socket logic
 io.on("connection", (socket) => {
   console.log("User connected:", socket.id);
+  User.findByIdAndUpdate(socket.userId, {
+    "AccountStatus.onlineStatus": "online",
+  }).catch((err) => console.log("socket online status error:", err.message));
+  io.emit("user-status", {
+    userId: socket.userId,
+    onlineStatus: "online",
+  });
 
   // Join a chat room
   socket.on("join-chat", async (chatId) => {
@@ -100,6 +109,7 @@ io.on("connection", (socket) => {
 
       const message = await Message.create({
         identity: { chatId, senderId: socket.userId },
+        state: { readBy: [socket.userId] },
         content: { ContentType: "text", text },
       });
 
@@ -107,13 +117,32 @@ io.on("connection", (socket) => {
         lastMessageId: message._id,
       });
 
-      io.to(chatId).emit("new-message", message);
+      const hydratedMessage = await Message.findById(message._id).populate({
+        path: "identity.senderId",
+        select:
+          "identity.firstName identity.lastName identity.username identity.profileUrl AccountStatus.onlineStatus",
+      });
+
+      io.to(chatId).emit("new-message", hydratedMessage);
     } catch (err) {
       console.log("socket send-message error:", err.message);
     }
   });
 
-  socket.on("disconnect", () => {
+  socket.on("disconnect", async () => {
+    try {
+      await User.findByIdAndUpdate(socket.userId, {
+        "AccountStatus.onlineStatus": "offline",
+        "AccountStatus.lastSeenAt": new Date(),
+      });
+      io.emit("user-status", {
+        userId: socket.userId,
+        onlineStatus: "offline",
+        lastSeenAt: new Date(),
+      });
+    } catch (err) {
+      console.log("socket offline status error:", err.message);
+    }
     console.log("User disconnected:", socket.id);
   });
 });

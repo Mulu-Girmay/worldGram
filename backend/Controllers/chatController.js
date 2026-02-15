@@ -11,7 +11,8 @@ const Group = require("../Models/Group");
 
 exports.createChat = async (req, res) => {
   try {
-    const { type, participants } = req.body;
+    const { type } = req.body;
+    let { participants } = req.body;
     if (!type) {
       return res.status(400).json({
         err: "Please provide a chat type.",
@@ -43,6 +44,10 @@ exports.createChat = async (req, res) => {
         type,
         participants: [...new Set(participants)],
       });
+      return res.status(201).json({
+        message: "successfully created chat",
+        chatId: chat._id,
+      });
     } else if (type === "group") {
       let group = await Group.findOne({
         _id: req.params.groupId,
@@ -58,9 +63,12 @@ exports.createChat = async (req, res) => {
         participants: participants,
         groupId: req.params.groupId,
       });
+      return res.status(201).json({
+        message: "successfully created chat",
+        chatId: chat._id,
+      });
     }
-
-    res.status(201).json({ message: "successfully created chat" });
+    return res.status(400).json({ err: "Unsupported chat type." });
   } catch (err) {
     res.status(500).json({ err: "Failed to create chat. Please try again." });
   }
@@ -81,6 +89,9 @@ exports.sendMessage = async (req, res) => {
         chatId,
         senderId,
       },
+      state: {
+        readBy: [senderId],
+      },
       content: {
         ContentType: "text",
         text,
@@ -94,9 +105,14 @@ exports.sendMessage = async (req, res) => {
 
     // Emit via socket
     const io = req.app.get("io");
-    io.to(chatId).emit("new-message", message);
+    const hydratedMessage = await Message.findById(message._id).populate({
+      path: "identity.senderId",
+      select:
+        "identity.firstName identity.lastName identity.username identity.profileUrl AccountStatus.onlineStatus",
+    });
+    io.to(chatId).emit("new-message", hydratedMessage);
 
-    res.status(201).json(message);
+    res.status(201).json(hydratedMessage);
   } catch (err) {
     res.status(500).json({ err: "Failed to send message. Please try again." });
   }
@@ -111,7 +127,13 @@ exports.getMessages = async (req, res) => {
     const messages = await Message.find({
       "identity.chatId": chatId,
       "state.isDeleted": false,
-    }).sort({ createdAt: 1 });
+    })
+      .sort({ createdAt: 1 })
+      .populate({
+        path: "identity.senderId",
+        select:
+          "identity.firstName identity.lastName identity.username identity.profileUrl AccountStatus.onlineStatus",
+      });
 
     res.json(messages);
   } catch (err) {
@@ -264,7 +286,20 @@ exports.listChats = async (req, res) => {
     const chats = await Chat.find(query)
       .sort({ _id: -1 })
       .limit(limit)
-      .populate("lastMessageId");
+      .populate({
+        path: "lastMessageId",
+        populate: {
+          path: "identity.senderId",
+          select:
+            "identity.firstName identity.lastName identity.username identity.profileUrl AccountStatus.onlineStatus",
+        },
+      })
+      .populate({
+        path: "participants",
+        model: "User",
+        select:
+          "identity.firstName identity.lastName identity.username identity.profileUrl AccountStatus.onlineStatus",
+      });
 
     const nextCursor =
       chats.length === limit ? chats[chats.length - 1]._id : null;
@@ -278,11 +313,25 @@ exports.listChats = async (req, res) => {
 exports.getChatById = async (req, res) => {
   try {
     const { chatId } = req.params;
-    const chat = await Chat.findById(chatId).populate("lastMessageId");
+    const chat = await Chat.findById(chatId)
+      .populate({
+        path: "lastMessageId",
+        populate: {
+          path: "identity.senderId",
+          select:
+            "identity.firstName identity.lastName identity.username identity.profileUrl AccountStatus.onlineStatus",
+        },
+      })
+      .populate({
+        path: "participants",
+        model: "User",
+        select:
+          "identity.firstName identity.lastName identity.username identity.profileUrl AccountStatus.onlineStatus",
+      });
     if (!chat) return res.status(404).json({ err: "Chat not found." });
 
     const isParticipant = chat.participants
-      .map((id) => id.toString())
+      .map((p) => (p?._id ? p._id.toString() : p.toString()))
       .includes(req.userId);
     if (!isParticipant) {
       return res.status(403).json({ err: "Not allowed to view this chat." });
@@ -319,7 +368,12 @@ exports.getMessagesPaged = async (req, res) => {
 
     const messages = await Message.find(query)
       .sort({ _id: -1 })
-      .limit(limit);
+      .limit(limit)
+      .populate({
+        path: "identity.senderId",
+        select:
+          "identity.firstName identity.lastName identity.username identity.profileUrl AccountStatus.onlineStatus",
+      });
 
     const nextCursor =
       messages.length === limit ? messages[messages.length - 1]._id : null;
@@ -397,6 +451,9 @@ exports.sendMediaMessage = async (req, res) => {
 
     const message = await Message.create({
       identity: { chatId, senderId: req.userId },
+      state: {
+        readBy: [req.userId],
+      },
       content: {
         ContentType: req.file
           ? req.file.mimetype.startsWith("image/")
@@ -419,9 +476,14 @@ exports.sendMediaMessage = async (req, res) => {
     });
 
     const io = req.app.get("io");
-    io.to(chatId).emit("new-message", message);
+    const hydratedMessage = await Message.findById(message._id).populate({
+      path: "identity.senderId",
+      select:
+        "identity.firstName identity.lastName identity.username identity.profileUrl AccountStatus.onlineStatus",
+    });
+    io.to(chatId).emit("new-message", hydratedMessage);
 
-    res.status(201).json(message);
+    res.status(201).json(hydratedMessage);
   } catch (err) {
     res.status(500).json({ err: "Failed to send media message." });
   }
@@ -448,7 +510,13 @@ exports.markChatRead = async (req, res) => {
       { $addToSet: { "state.readBy": req.userId } },
     );
 
-    res.json({ message: "Chat marked as read." });
+    const io = req.app.get("io");
+    io.to(chatId).emit("chat-read", {
+      chatId,
+      userId: req.userId,
+    });
+
+    res.json({ message: "Chat marked as read.", chatId, userId: req.userId });
   } catch (err) {
     res.status(500).json({ err: "Failed to mark read." });
   }

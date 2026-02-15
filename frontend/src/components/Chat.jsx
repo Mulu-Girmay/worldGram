@@ -12,14 +12,26 @@ import {
   selectMessagesStatus,
 } from "../Redux/chatRedux/chatSelector";
 import { selectUser } from "../Redux/userRedux/authSelector";
-import { getMessages, sendMessage } from "../Redux/chatRedux/chatThunk";
-import { pushIncomingMessage } from "../Redux/chatRedux/chatSlice";
+import {
+  getChatById,
+  getMessages,
+  markChatRead,
+  sendMessage,
+} from "../Redux/chatRedux/chatThunk";
+import { markMessagesReadByUser, pushIncomingMessage } from "../Redux/chatRedux/chatSlice";
 
 const formatTime = (value) => {
   if (!value) return "";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
   return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+};
+
+const normalizeId = (value) => {
+  if (!value) return "";
+  if (typeof value === "string") return value;
+  if (typeof value === "object" && value._id) return String(value._id);
+  return String(value);
 };
 
 const Chat = ({
@@ -44,6 +56,7 @@ const Chat = ({
   const messagesStatus = useSelector(selectMessagesStatus);
 
   const [draft, setDraft] = useState("");
+  const [presenceMap, setPresenceMap] = useState({});
 
   const activeChat =
     currentChatProp || selectedChatFromStore || currentChatFromStore || null;
@@ -59,7 +72,9 @@ const Chat = ({
 
   useEffect(() => {
     if (!resolvedChatId) return;
+    dispatch(getChatById(resolvedChatId));
     dispatch(getMessages(resolvedChatId));
+    dispatch(markChatRead(resolvedChatId));
   }, [dispatch, resolvedChatId]);
 
   useEffect(() => {
@@ -84,11 +99,30 @@ const Chat = ({
       const incomingChatId = message?.identity?.chatId;
       if (String(incomingChatId || "") !== String(resolvedChatId)) return;
       dispatch(pushIncomingMessage(message));
+      dispatch(markChatRead(resolvedChatId));
+    };
+
+    const handleChatRead = (payload) => {
+      if (String(payload?.chatId || "") !== String(resolvedChatId)) return;
+      dispatch(markMessagesReadByUser(payload));
+    };
+
+    const handleUserStatus = (payload) => {
+      const userId = normalizeId(payload?.userId);
+      if (!userId) return;
+      setPresenceMap((prev) => ({
+        ...prev,
+        [userId]: payload?.onlineStatus || "offline",
+      }));
     };
 
     socket.on("new-message", handleIncomingMessage);
+    socket.on("chat-read", handleChatRead);
+    socket.on("user-status", handleUserStatus);
     return () => {
       socket.off("new-message", handleIncomingMessage);
+      socket.off("chat-read", handleChatRead);
+      socket.off("user-status", handleUserStatus);
     };
   }, [dispatch, resolvedChatId]);
 
@@ -153,18 +187,51 @@ const Chat = ({
     }
   };
 
+  const participants = Array.isArray(activeChat?.participants)
+    ? activeChat.participants
+    : [];
+  const otherParticipant = participants.find(
+    (p) => normalizeId(p?._id || p) !== normalizeId(currentUser?._id),
+  );
+  const otherName = otherParticipant
+    ? `${otherParticipant?.identity?.firstName || ""} ${otherParticipant?.identity?.lastName || ""}`.trim() ||
+      otherParticipant?.identity?.username ||
+      "Unknown user"
+    : title;
+  const otherProfile = otherParticipant?.identity?.profileUrl || null;
+  const otherStatus =
+    presenceMap[normalizeId(otherParticipant?._id)] ||
+    otherParticipant?.AccountStatus?.onlineStatus ||
+    "offline";
+
   return (
     <div className="min-h-screen bg-[var(--primary-color)]">
       <ProfileNav />
 
       <div className="mx-auto w-full max-w-2xl space-y-3 p-4">
-        <div className="rounded-xl border border-[#6fa63a]/20 bg-white/60 px-3 py-2">
-          <p className="text-sm font-semibold text-[rgba(23,3,3,0.9)]">
-            {title}
-          </p>
-          <p className="text-xs text-[rgba(23,3,3,0.62)]">
-            {activeChat?._id || "No active chat selected"}
-          </p>
+        <div className="flex items-center gap-3 rounded-xl border border-[#6fa63a]/20 bg-white/60 px-3 py-2">
+          {otherProfile ? (
+            <img
+              src={otherProfile}
+              alt={otherName}
+              className="h-10 w-10 rounded-full border border-[#6fa63a]/25 object-cover"
+            />
+          ) : (
+            <div className="flex h-10 w-10 items-center justify-center rounded-full border border-[#6fa63a]/25 bg-[#eaf4e2] text-xs font-semibold text-[#4a7f4a]">
+              {(otherName || "U")
+                .split(" ")
+                .filter(Boolean)
+                .slice(0, 2)
+                .map((s) => s[0]?.toUpperCase() || "")
+                .join("") || "U"}
+            </div>
+          )}
+          <div>
+            <p className="text-sm font-semibold text-[rgba(23,3,3,0.9)]">{otherName}</p>
+            <p className="text-xs text-[rgba(23,3,3,0.62)] capitalize">
+              {otherStatus}
+            </p>
+          </div>
         </div>
 
         <div className="h-[60vh] space-y-2 overflow-y-auto rounded-2xl border border-[#6fa63a]/25 bg-[#f3f9ee] p-3">
@@ -182,15 +249,51 @@ const Chat = ({
 
           {renderedMessages.map((message) => {
             const senderId = message?.identity?.senderId;
+            const senderObject =
+              typeof senderId === "object" && senderId !== null ? senderId : null;
+            const senderName = senderObject
+              ? `${senderObject?.identity?.firstName || ""} ${senderObject?.identity?.lastName || ""}`.trim() ||
+                senderObject?.identity?.username ||
+                "Unknown"
+              : "Unknown";
+            const senderProfile = senderObject?.identity?.profileUrl || null;
+            const senderNormalizedId = normalizeId(senderObject?._id || senderId);
             const isOwn =
-              String(senderId || "") === String(currentUser?._id || "");
+              senderNormalizedId === normalizeId(currentUser?._id);
             const text = message?.content?.text || "";
+            const readBy = Array.isArray(message?.state?.readBy)
+              ? message.state.readBy.map((id) => normalizeId(id))
+              : [];
+            const readStatus =
+              readBy.length > 1 || readBy.some((id) => id !== senderNormalizedId)
+                ? "Read"
+                : "Unread";
 
             return (
               <div
                 key={message?._id || `${senderId}-${message?.createdAt}`}
                 className={`flex ${isOwn ? "justify-end" : "justify-start"}`}
               >
+                {!isOwn && (
+                  <div className="mr-2 mt-1">
+                    {senderProfile ? (
+                      <img
+                        src={senderProfile}
+                        alt={senderName}
+                        className="h-8 w-8 rounded-full border border-[#6fa63a]/25 object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full border border-[#6fa63a]/25 bg-[#eaf4e2] text-[10px] font-semibold text-[#4a7f4a]">
+                        {(senderName || "U")
+                          .split(" ")
+                          .filter(Boolean)
+                          .slice(0, 2)
+                          .map((s) => s[0]?.toUpperCase() || "")
+                          .join("") || "U"}
+                      </div>
+                    )}
+                  </div>
+                )}
                 <div
                   className={`max-w-[78%] rounded-2xl px-3 py-2 text-sm shadow-sm ${
                     isOwn
@@ -198,14 +301,24 @@ const Chat = ({
                       : "rounded-bl-sm bg-white text-[rgba(23,3,3,0.87)]"
                   }`}
                 >
+                  {!isOwn && (
+                    <p className="mb-1 text-xs font-semibold text-[#355f35]">
+                      {senderName}
+                    </p>
+                  )}
                   <p className="break-words">{text || "(no text)"}</p>
-                  <p
-                    className={`mt-1 text-[10px] ${
-                      isOwn ? "text-white/70" : "text-[rgba(23,3,3,0.52)]"
-                    }`}
-                  >
-                    {formatTime(message?.createdAt)}
-                  </p>
+                  <div className="mt-1 flex items-center justify-end gap-2">
+                    {isOwn && (
+                      <span className="text-[10px] text-white/70">{readStatus}</span>
+                    )}
+                    <p
+                      className={`text-[10px] ${
+                        isOwn ? "text-white/70" : "text-[rgba(23,3,3,0.52)]"
+                      }`}
+                    >
+                      {formatTime(message?.createdAt)}
+                    </p>
+                  </div>
                 </div>
               </div>
             );

@@ -72,6 +72,29 @@ const chatSlice = createSlice({
     pushIncomingMessage(state, action) {
       state.messages = upsertMessage(state.messages, action.payload);
     },
+    markMessagesReadByUser(state, action) {
+      const { chatId, userId } = action.payload || {};
+      if (!chatId || !userId) return;
+      state.messages = (state.messages || []).map((message) => {
+        if (String(message?.identity?.chatId || "") !== String(chatId)) {
+          return message;
+        }
+        const prevReadBy = Array.isArray(message?.state?.readBy)
+          ? message.state.readBy
+          : [];
+        const hasUser = prevReadBy.some(
+          (id) => String(id?._id || id) === String(userId),
+        );
+        if (hasUser) return message;
+        return {
+          ...message,
+          state: {
+            ...(message.state || {}),
+            readBy: [...prevReadBy, userId],
+          },
+        };
+      });
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -286,6 +309,29 @@ const chatSlice = createSlice({
       .addCase(markChatRead.fulfilled, (state, action) => {
         state.readStatus = "succeeded";
         state.lastActionMessage = action.payload?.message || null;
+        const userId = action.payload?.userId;
+        const chatId = action.payload?.chatId;
+        if (chatId && userId) {
+          state.messages = (state.messages || []).map((message) => {
+            if (String(message?.identity?.chatId || "") !== String(chatId)) {
+              return message;
+            }
+            const prevReadBy = Array.isArray(message?.state?.readBy)
+              ? message.state.readBy
+              : [];
+            const hasUser = prevReadBy.some(
+              (id) => String(id?._id || id) === String(userId),
+            );
+            if (hasUser) return message;
+            return {
+              ...message,
+              state: {
+                ...(message.state || {}),
+                readBy: [...prevReadBy, userId],
+              },
+            };
+          });
+        }
       })
       .addCase(markChatRead.rejected, (state, action) => {
         state.readStatus = "failed";
@@ -396,6 +442,11 @@ const chatSlice = createSlice({
   },
 });
 
-export const { clearChatError, clearMessages, setCurrentChat, pushIncomingMessage } =
-  chatSlice.actions;
+export const {
+  clearChatError,
+  clearMessages,
+  setCurrentChat,
+  pushIncomingMessage,
+  markMessagesReadByUser,
+} = chatSlice.actions;
 export default chatSlice.reducer;
