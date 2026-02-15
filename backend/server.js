@@ -46,9 +46,17 @@ const connectdb = async (uri) => {
   }
 };
 io.use((socket, next) => {
+  const cookieHeader = socket.handshake.headers?.cookie || "";
+  const cookieToken = cookieHeader
+    .split(";")
+    .map((part) => part.trim())
+    .find((part) => part.startsWith("accessToken="))
+    ?.split("=")[1];
+
   const token =
     socket.handshake.auth?.token ||
-    socket.handshake.headers?.authorization?.split(" ")[1];
+    socket.handshake.headers?.authorization?.split(" ")[1] ||
+    cookieToken;
   if (!token) return next(new Error("Unauthorized"));
   try {
     const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET);

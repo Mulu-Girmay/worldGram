@@ -157,14 +157,22 @@ exports.updatePrivacy = async (req, res) => {
 
 exports.searchUsers = async (req, res) => {
   try {
-    const { q } = req.query;
-    if (!q) return res.status(400).json({ err: "Query is required" });
-    const users = await User.find({
-      $or: [
+    const q = (req.query.q || "").trim();
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 20, 1), 50);
+    const query = {
+      _id: { $ne: req.userId },
+    };
+
+    if (q) {
+      query.$or = [
         { "identity.username": { $regex: q, $options: "i" } },
         { "identity.phoneNumber": { $regex: q, $options: "i" } },
-      ],
-    }).limit(20);
+        { "identity.firstName": { $regex: q, $options: "i" } },
+        { "identity.lastName": { $regex: q, $options: "i" } },
+      ];
+    }
+
+    const users = await User.find(query).sort({ _id: -1 }).limit(limit);
     res.json(users.map(sanitizeUser));
   } catch (err) {
     res.status(500).json({ err: "Failed to search users" });
