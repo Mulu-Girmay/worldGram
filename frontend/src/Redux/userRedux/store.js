@@ -5,6 +5,7 @@ import postReducer from "../postRedux/postSlice";
 import contactReducer from "../contactRedux/contactSlice";
 import chatReducer from "../chatRedux/chatSlice";
 import groupReducer from "../groupRedux/groupSlice";
+import storyReducer from "../storyRedux/storySlice";
 
 export const store = configureStore({
   reducer: {
@@ -14,6 +15,7 @@ export const store = configureStore({
     contact: contactReducer,
     chat: chatReducer,
     group: groupReducer,
+    story: storyReducer,
   },
 });
 

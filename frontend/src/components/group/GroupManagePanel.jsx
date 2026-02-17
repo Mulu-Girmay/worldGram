@@ -19,6 +19,7 @@ import {
   selectGroupMembersStatus,
   selectPermissionStatus,
 } from "../../Redux/groupRedux/groupSelector";
+import { resolveProfileUrl, toInitials } from "../../utils/media";
 
 const GroupManagePanel = ({ groupId }) => {
   const dispatch = useDispatch();
@@ -244,9 +245,26 @@ const GroupManagePanel = ({ groupId }) => {
           {displayMembers.map((member) => {
             const memberId = member?._id || "";
             const username = member?.identity?.username || "unknown";
+            const fullName =
+              `${member?.identity?.firstName || ""} ${member?.identity?.lastName || ""}`.trim() ||
+              username;
+            const avatar = resolveProfileUrl(member?.identity?.profileUrl);
             return (
               <div key={memberId} className="flex items-center justify-between gap-2">
-                <span className="text-xs truncate">@{username}</span>
+                <div className="flex min-w-0 items-center gap-2">
+                  {avatar ? (
+                    <img
+                      src={avatar}
+                      alt={fullName}
+                      className="h-7 w-7 rounded-full border border-[#6fa63a]/25 object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-7 w-7 items-center justify-center rounded-full border border-[#6fa63a]/25 bg-[#eaf4e2] text-[10px] font-semibold text-[#4a7f4a]">
+                      {toInitials(fullName) || "U"}
+                    </div>
+                  )}
+                  <span className="truncate text-xs">@{username}</span>
+                </div>
                 <button
                   type="button"
                   onClick={() => handleRemoveMember(memberId)}

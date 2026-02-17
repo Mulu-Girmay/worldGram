@@ -21,6 +21,7 @@ import {
   sendMessage,
 } from "../Redux/chatRedux/chatThunk";
 import { markMessagesReadByUser, pushIncomingMessage } from "../Redux/chatRedux/chatSlice";
+import { resolveAssetUrl, resolveProfileUrl, toInitials } from "../utils/media";
 
 const formatTime = (value) => {
   if (!value) return "";
@@ -198,7 +199,7 @@ const Chat = ({
       otherParticipant?.identity?.username ||
       "Unknown user"
     : title;
-  const otherProfile = otherParticipant?.identity?.profileUrl || null;
+  const otherProfile = resolveProfileUrl(otherParticipant?.identity?.profileUrl);
   const otherStatus =
     presenceMap[normalizeId(otherParticipant?._id)] ||
     otherParticipant?.AccountStatus?.onlineStatus ||
@@ -242,12 +243,7 @@ const Chat = ({
             />
           ) : (
             <div className="flex h-10 w-10 items-center justify-center rounded-full border border-[#6fa63a]/25 bg-[#eaf4e2] text-xs font-semibold text-[#4a7f4a]">
-              {(otherName || "U")
-                .split(" ")
-                .filter(Boolean)
-                .slice(0, 2)
-                .map((s) => s[0]?.toUpperCase() || "")
-                .join("") || "U"}
+              {toInitials(otherName) || "U"}
             </div>
           )}
           <div>
@@ -280,11 +276,16 @@ const Chat = ({
                 senderObject?.identity?.username ||
                 "Unknown"
               : "Unknown";
-            const senderProfile = senderObject?.identity?.profileUrl || null;
+            const senderProfile = resolveProfileUrl(senderObject?.identity?.profileUrl);
             const senderNormalizedId = normalizeId(senderObject?._id || senderId);
             const isOwn =
               senderNormalizedId === normalizeId(currentUser?._id);
             const text = message?.content?.text || "";
+            const mediaURL = message?.content?.mediaURL || null;
+            const mediaSrc = mediaURL ? resolveAssetUrl(mediaURL, "images") : null;
+            const mediaIsVideo =
+              typeof mediaURL === "string" &&
+              /\.(mp4|webm|ogg|mov)$/i.test(mediaURL);
             const readBy = Array.isArray(message?.state?.readBy)
               ? message.state.readBy.map((id) => normalizeId(id))
               : [];
@@ -308,12 +309,7 @@ const Chat = ({
                       />
                     ) : (
                       <div className="flex h-8 w-8 items-center justify-center rounded-full border border-[#6fa63a]/25 bg-[#eaf4e2] text-[10px] font-semibold text-[#4a7f4a]">
-                        {(senderName || "U")
-                          .split(" ")
-                          .filter(Boolean)
-                          .slice(0, 2)
-                          .map((s) => s[0]?.toUpperCase() || "")
-                          .join("") || "U"}
+                        {toInitials(senderName) || "U"}
                       </div>
                     )}
                   </div>
@@ -330,7 +326,20 @@ const Chat = ({
                       {senderName}
                     </p>
                   )}
-                  <p className="break-words">{text || "(no text)"}</p>
+                  {text ? (
+                    <p className="break-words">{text}</p>
+                  ) : (
+                    <p className="break-words italic opacity-70">(no text)</p>
+                  )}
+                  {mediaSrc && (
+                    <div className="mt-2 overflow-hidden rounded-xl border border-black/10">
+                      {mediaIsVideo ? (
+                        <video src={mediaSrc} controls className="max-h-72 w-full object-cover" />
+                      ) : (
+                        <img src={mediaSrc} alt="media" className="max-h-72 w-full object-cover" />
+                      )}
+                    </div>
+                  )}
                   <div className="mt-1 flex items-center justify-end gap-2">
                     {isOwn && (
                       <span className="text-[10px] text-white/70">{readStatus}</span>

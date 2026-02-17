@@ -3,6 +3,7 @@ import { Megaphone } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
 import { setCurrentChannel } from "../Redux/channelRedux/channelSlice";
+import { resolveMediaUrl } from "../utils/media";
 
 const ChannelList = ({ channel }) => {
   const navigate = useNavigate();
@@ -16,7 +17,7 @@ const ChannelList = ({ channel }) => {
   const channelName = channel?.basicInfo?.name || "Untitled channel";
   const description = channel?.basicInfo?.description || "No description";
   const photo = channel?.basicInfo?.channelPhoto
-    ? `http://localhost:3000/uploads/images/${channel.basicInfo.channelPhoto}`
+    ? resolveMediaUrl(channel.basicInfo.channelPhoto, "image")
     : null;
 
   return (

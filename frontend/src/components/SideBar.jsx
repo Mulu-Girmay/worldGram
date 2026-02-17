@@ -27,6 +27,7 @@ import {
 import { listRegisteredUsers } from "../Redux/contactRedux/contactThunk";
 import { createChat, listChats } from "../Redux/chatRedux/chatThunk";
 import { setCurrentChat } from "../Redux/chatRedux/chatSlice";
+import { resolveProfileUrl, toInitials } from "../utils/media";
 
 const SideBar = () => {
   const navigate = useNavigate();
@@ -181,14 +182,9 @@ const SideBar = () => {
                 const last = user?.identity?.lastName || "";
                 const username = user?.identity?.username || "unknown";
                 const displayName = `${first} ${last}`.trim() || username;
-                const profileUrl = user?.identity?.profileUrl;
+                const profileUrl = resolveProfileUrl(user?.identity?.profileUrl);
                 const onlineStatus = user?.AccountStatus?.onlineStatus || "offline";
-                const initials = displayName
-                  .split(" ")
-                  .filter(Boolean)
-                  .slice(0, 2)
-                  .map((part) => part[0]?.toUpperCase() || "")
-                  .join("");
+                const initials = toInitials(displayName);
 
                 return (
                   <div
@@ -212,7 +208,7 @@ const SideBar = () => {
                         {displayName}
                       </p>
                       <p className="truncate text-[10px] text-[rgba(23,3,3,0.62)]">
-                        @{username} • {onlineStatus}
+                        @{username} - {onlineStatus}
                       </p>
                     </div>
                   </div>

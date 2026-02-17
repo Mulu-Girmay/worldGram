@@ -37,7 +37,7 @@ const storySchema = new mongoose.Schema({
   privacy: {
     type: String,
     enum: ["public", "contacts", "closeFriends"],
-    default: "Contacts",
+    default: "contacts",
   },
   expiredAt: { type: Date, index: { expires: 0 } },
 });

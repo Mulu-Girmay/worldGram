@@ -29,6 +29,7 @@ import {
   addAdmin,
   removeAdmin,
 } from "../Redux/channelRedux/channelThunk";
+import { resolveMediaUrl } from "../utils/media";
 import {
   selectCurrentChannel,
   selectMyChannels,
@@ -126,34 +127,23 @@ const Channel = () => {
   const resolveMediaSrc = (media) => {
     if (!media) return null;
     if (typeof media === "string") {
-      return media.startsWith("/") || media.startsWith("http")
-        ? media
-        : `/uploads/images/${media}`;
+      return resolveMediaUrl(media, "image");
     }
     if (Array.isArray(media) && media.length > 0) {
       const first = media[0];
       if (!first) return null;
       if (typeof first === "string") {
-        return first.startsWith("/") || first.startsWith("http")
-          ? first
-          : `/uploads/images/${first}`;
+        return resolveMediaUrl(first, "image");
       }
       if (first.url) {
-        return first.url.startsWith("/") || first.url.startsWith("http")
-          ? first.url
-          : `/uploads/images/${first.url}`;
+        return resolveMediaUrl(first.url, "image");
       }
       if (first.filename) {
-        return first.filename.startsWith("/") ||
-          first.filename.startsWith("http")
-          ? first.filename
-          : `/uploads/images/${first.filename}`;
+        return resolveMediaUrl(first.filename, "image");
       }
     }
     if (media.url) {
-      return media.url.startsWith("/") || media.url.startsWith("http")
-        ? media.url
-        : `/uploads/images/${media.url}`;
+      return resolveMediaUrl(media.url, "image");
     }
     return null;
   };
@@ -984,9 +974,7 @@ const Channel = () => {
                 const isOwner =
                   ch?.ownership?.ownerId?.toString?.() === uid;
                 const photo = ch?.basicInfo?.channelPhoto;
-                const photoSrc = photo
-                  ? `http://localhost:3000/uploads/images/${photo}`
-                  : null;
+                const photoSrc = photo ? resolveMediaUrl(photo, "image") : null;
 
                 return (
                   <button

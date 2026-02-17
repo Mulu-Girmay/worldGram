@@ -6,23 +6,38 @@ const { addViewToEntity } = require("../utils/view");
 
 exports.addStory = async (req, res) => {
   try {
-    let { caption } = req.body;
-    let userId = req.userId;
+    const { caption = "", privacy } = req.body;
+    const userId = req.userId;
 
     if (!userId) {
-      res.status(401).json({ message: "userId not found" });
+      return res.status(401).json({ message: "userId not found" });
     }
     if (!req.file) {
-      res.status(401).json({ message: "file not found" });
+      return res.status(400).json({ message: "file not found" });
     }
-    let adding = new Story({
-      caption: caption,
+
+    const allowedPrivacy = ["public", "contacts", "closeFriends"];
+    const safePrivacy = allowedPrivacy.includes(privacy) ? privacy : "contacts";
+    const mediaType = req.file.mimetype?.startsWith("video/")
+      ? "video"
+      : "image";
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+    const adding = new Story({
+      authorId: userId,
+      caption: caption?.trim?.() || "",
       media: req.file.filename,
+      mediaType,
+      privacy: safePrivacy,
+      expiredAt: expiresAt,
     });
-    await adding.save();
-    res.status(201).json({ message: "successfully added story" });
+    const saved = await adding.save();
+    res.status(201).json({
+      message: "successfully added story",
+      story: saved,
+    });
   } catch (err) {
-    res.status(500).json({ message: "failed to post story" });
+    res.status(500).json({ message: "failed to post story", err: err.message });
   }
 };
 

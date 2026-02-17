@@ -3,6 +3,7 @@ import React from "react";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { selectUser } from "../Redux/userRedux/authSelector";
+import { resolveProfileUrl, toInitials } from "../utils/media";
 
 const buildDisplayName = (user) => {
   if (!user) return "Guest";
@@ -12,18 +13,10 @@ const buildDisplayName = (user) => {
   return full || user?.identity?.username || "Guest";
 };
 
-const buildInitials = (label) =>
-  (label || "U")
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() || "")
-    .join("");
-
 const Profile = () => {
   const user = useSelector(selectUser);
   const displayName = buildDisplayName(user);
-  const profileUrl = user?.identity?.profileUrl || null;
+  const profileUrl = resolveProfileUrl(user?.identity?.profileUrl);
   const username = user?.identity?.username || "guest";
 
   return (
@@ -36,7 +29,7 @@ const Profile = () => {
         />
       ) : (
         <div className="flex h-11 w-11 items-center justify-center rounded-full border border-[#6fa63a]/35 bg-[#eaf4e2] text-xs font-semibold text-[#4a7f4a]">
-          {buildInitials(displayName) || "U"}
+          {toInitials(displayName) || "U"}
         </div>
       )}
       <div className="min-w-0">
@@ -65,7 +58,7 @@ const ProfileNav = ({
     <div className="flex items-center justify-between rounded-2xl border border-[#6fa63a]/25 bg-[#f3f9ee] px-2 py-1 text-[rgba(23,3,3,0.87)] shadow-[0_10px_30px_rgba(74,127,74,0.12)]">
       <button
         type="button"
-        className="flex w-9 items-center justify-center rounded-xl bg-[#6fa63a]/10 text-[#4a7f4a]"
+        className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#6fa63a]/10 text-[#4a7f4a]"
         aria-label="Go back"
         onClick={handleSidebar}
       >
@@ -74,13 +67,13 @@ const ProfileNav = ({
       <div className="flex flex-row items-center gap-3">
         {avatarUrl ? (
           <img
-            src={avatarUrl}
+            src={resolveProfileUrl(avatarUrl)}
             alt={title}
             className="h-10 w-10 rounded-full border border-[#6fa63a]/35 object-cover"
           />
         ) : (
           <div className="flex h-10 w-10 items-center justify-center rounded-full border border-[#6fa63a]/35 bg-[#eaf4e2] text-[10px] font-semibold text-[#4a7f4a]">
-            {buildInitials(title) || "U"}
+            {toInitials(title) || "U"}
           </div>
         )}
         <div className="min-w-0">

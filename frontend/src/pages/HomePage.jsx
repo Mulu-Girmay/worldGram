@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Nav from "../components/Nav";
 import ContentList from "../components/ContentList";
 import ChannelList from "../components/ChannelList";
@@ -23,9 +23,17 @@ import {
   selectGroups,
   selectGroupsStatus,
 } from "../Redux/groupRedux/groupSelector";
+import { listStories } from "../Redux/storyRedux/storyThunk";
+import {
+  selectStories,
+  selectStoriesStatus,
+  selectStoryError,
+} from "../Redux/storyRedux/storySelector";
+import Story from "../components/Story";
 
 const HomePage = () => {
   const dispatch = useDispatch();
+  const [activeFilter, setActiveFilter] = useState("all");
   const channels = useSelector(selectChannels);
   const status = useSelector(selectChannelStatus);
   const error = useSelector(selectChannelError);
@@ -36,6 +44,9 @@ const HomePage = () => {
   const groups = useSelector(selectGroups);
   const groupsStatus = useSelector(selectGroupsStatus);
   const groupsError = useSelector(selectGroupError);
+  const stories = useSelector(selectStories);
+  const storiesStatus = useSelector(selectStoriesStatus);
+  const storiesError = useSelector(selectStoryError);
 
   useEffect(() => {
     if (isAuthenticated && status === "idle")
@@ -52,13 +63,71 @@ const HomePage = () => {
       dispatch(listGroups({ limit: 20 }));
   }, [dispatch, groupsStatus, isAuthenticated]);
 
+  useEffect(() => {
+    if (isAuthenticated && storiesStatus === "idle")
+      dispatch(listStories({ limit: 20 }));
+  }, [dispatch, storiesStatus, isAuthenticated]);
+
+  const visibleChats = useMemo(() => {
+    if (activeFilter === "groups") return [];
+    if (activeFilter === "channels") return [];
+    return chats;
+  }, [activeFilter, chats]);
+
+  const visibleGroups = useMemo(() => {
+    if (activeFilter === "groups" || activeFilter === "all") return groups;
+    return [];
+  }, [activeFilter, groups]);
+
+  const visibleChannels = useMemo(() => {
+    if (activeFilter === "channels" || activeFilter === "all") return channels;
+    return [];
+  }, [activeFilter, channels]);
+
   return (
-    <div className="min-h-screen p-3 md:p-4">
-      <div className="mx-auto h-[calc(100vh-1.5rem)] max-w-[1300px] grid grid-cols-1 gap-3 md:h-[calc(100vh-2rem)] md:grid-cols-[360px_1fr]">
-        <aside className="flex min-h-0 flex-col rounded-2xl border border-[var(--border-color)] bg-[var(--surface-color)] p-3 shadow-[0_12px_30px_rgba(74,127,74,0.12)]">
+    <div className="min-h-screen p-0 md:p-4">
+      <div className="mx-auto grid h-screen max-w-[1400px] grid-cols-1 gap-0 md:h-[calc(100vh-2rem)] md:grid-cols-[390px_1fr] md:gap-3">
+        <aside className="flex min-h-0 flex-col border-r border-[var(--border-color)] bg-[var(--surface-color)] p-3 shadow-[0_12px_30px_rgba(74,127,74,0.12)] md:rounded-2xl md:border">
           <Nav />
 
+          <div className="mt-3 flex items-center gap-2 px-1">
+            {[
+              { id: "all", label: "All" },
+              { id: "groups", label: "Groups" },
+              { id: "channels", label: "Channels" },
+            ].map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => setActiveFilter(item.id)}
+                className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
+                  activeFilter === item.id
+                    ? "bg-[#4a7f4a] text-white"
+                    : "bg-[#eef6e8] text-[#2f5b2f] hover:bg-[#e2efd8]"
+                }`}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+
           <div className="mt-3 min-h-0 flex-1 overflow-y-auto rounded-xl border border-[var(--border-color)] bg-white/75 p-2">
+            <div className="mb-2 px-2 text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">
+              Stories
+            </div>
+            {storiesStatus === "loading" && (
+              <p className="px-2 py-2 text-xs text-[var(--text-muted)]">
+                Loading stories...
+              </p>
+            )}
+            {storiesStatus === "failed" && (
+              <p className="px-2 py-2 text-xs text-red-600">{storiesError}</p>
+            )}
+            {stories.slice(0, 8).map((s) => (
+              <Story key={s._id} story={s} />
+            ))}
+
+            <div className="my-2 border-t border-[var(--border-color)]" />
             <div className="mb-2 px-2 text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">
               Conversations
             </div>
@@ -71,7 +140,7 @@ const HomePage = () => {
             {chatsStatus === "failed" && (
               <p className="px-2 py-2 text-xs text-red-600">{chatsError}</p>
             )}
-            {chats.map((c) => (
+            {visibleChats.map((c) => (
               <ContentList key={c._id} chat={c} />
             ))}
 
@@ -88,7 +157,7 @@ const HomePage = () => {
             {groupsStatus === "failed" && (
               <p className="px-2 py-2 text-xs text-red-600">{groupsError}</p>
             )}
-            {groups.map((g) => (
+            {visibleGroups.map((g) => (
               <GroupList key={g._id} group={g} />
             ))}
 
@@ -105,15 +174,15 @@ const HomePage = () => {
             {status === "failed" && (
               <p className="px-2 py-2 text-xs text-red-600">{error}</p>
             )}
-            {channels.map((c) => (
+            {visibleChannels.map((c) => (
               <ChannelList key={c._id} channel={c} />
             ))}
           </div>
         </aside>
 
-        <main className="hidden min-h-0 rounded-2xl border border-[var(--border-color)] bg-[var(--surface-color)] shadow-[0_12px_30px_rgba(74,127,74,0.12)] md:flex md:flex-col">
+        <main className="hidden min-h-0 bg-[var(--surface-color)] shadow-[0_12px_30px_rgba(74,127,74,0.12)] md:flex md:flex-col md:rounded-2xl md:border md:border-[var(--border-color)]">
           <div className="border-b border-[var(--border-color)] px-6 py-4">
-            <h1 className="text-lg font-semibold">Telegram Style Workspace</h1>
+            <h1 className="text-lg font-semibold">Telegram Workspace</h1>
             <p className="text-sm text-[var(--text-muted)]">
               Select a conversation from the left panel to start messaging.
             </p>

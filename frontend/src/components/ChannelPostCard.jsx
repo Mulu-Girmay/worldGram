@@ -4,18 +4,14 @@ import MessageContextMenu from "./MessageContextMenu";
 import Reaction from "./Reaction";
 import { useSelector } from "react-redux";
 import { useToast } from "./ToastProvider";
+import { resolveMediaUrl } from "../utils/media";
 
 const resolveMediaSrc = (media) => {
-  const baseURL = "http://localhost:3000";
-
   if (!media) return null;
 
   // string filename
   if (typeof media === "string") {
-    if (media.startsWith("http")) return media;
-    return media.startsWith("/")
-      ? `${baseURL}${media}`
-      : `${baseURL}/uploads/images/${media}`;
+    return resolveMediaUrl(media, "image");
   }
 
   // array of items
@@ -23,34 +19,19 @@ const resolveMediaSrc = (media) => {
     const first = media[0];
     if (!first) return null;
     if (typeof first === "string") {
-      if (first.startsWith("http")) return first;
-      return first.startsWith("/")
-        ? `${baseURL}${first}`
-        : `${baseURL}/uploads/images/${first}`;
+      return resolveMediaUrl(first, "image");
     }
     if (first.url) {
-      const url = first.url;
-      if (url.startsWith("http")) return url;
-      return url.startsWith("/")
-        ? `${baseURL}${url}`
-        : `${baseURL}/uploads/images/${url}`;
+      return resolveMediaUrl(first.url, "image");
     }
     if (first.filename) {
-      const filename = first.filename;
-      if (filename.startsWith("http")) return filename;
-      return filename.startsWith("/")
-        ? `${baseURL}${filename}`
-        : `${baseURL}/uploads/images/${filename}`;
+      return resolveMediaUrl(first.filename, "image");
     }
   }
 
   // object with url
   if (media.url) {
-    const url = media.url;
-    if (url.startsWith("http")) return url;
-    return url.startsWith("/")
-      ? `${baseURL}${url}`
-      : `${baseURL}/uploads/images/${url}`;
+    return resolveMediaUrl(media.url, "image");
   }
 
   return null;

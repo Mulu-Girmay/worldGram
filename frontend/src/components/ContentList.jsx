@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { setCurrentChat } from "../Redux/chatRedux/chatSlice";
 import { selectUser } from "../Redux/userRedux/authSelector";
+import { resolveProfileUrl, toInitials } from "../utils/media";
 
 const normalizeId = (value) => {
   if (!value) return "";
@@ -36,13 +37,8 @@ const ContentList = ({ chat }) => {
       ? "Group chat"
       : "Direct chat";
 
-  const avatarUrl = otherParticipant?.identity?.profileUrl || null;
-  const initials = (displayName || "U")
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((s) => s[0]?.toUpperCase() || "")
-    .join("");
+  const avatarUrl = resolveProfileUrl(otherParticipant?.identity?.profileUrl);
+  const initials = toInitials(displayName || "U");
 
   const lastMessage = chat?.lastMessageId || null;
   const lastMessageText =
