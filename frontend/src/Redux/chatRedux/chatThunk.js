@@ -35,7 +35,11 @@ export const createGroupChat = createAsyncThunk(
   async ({ groupId, payload = {} }, { getState, rejectWithValue }) => {
     try {
       const token = getState().auth?.accessToken;
-      return await createGroupChatApi(groupId, payload, token);
+      return await createGroupChatApi(
+        groupId,
+        { type: "group", ...payload },
+        token,
+      );
     } catch (err) {
       return rejectWithValue(
         err.response?.data || { message: "create group chat failed" },

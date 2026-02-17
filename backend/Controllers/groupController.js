@@ -1,5 +1,6 @@
 const Group = require("../Models/Group");
 const User = require("../Models/User");
+const Chat = require("../Models/Chat");
 const mongoose = require("mongoose");
 exports.createGroup = async (req, res) => {
   let { name, userName, description, groupPhoto } = req.body;
@@ -130,6 +131,10 @@ exports.addMember = async (req, res) => {
     }
     group.members.members.push(newMemberId);
     await group.save();
+    await Chat.findOneAndUpdate(
+      { groupId },
+      { $addToSet: { participants: newMemberId } },
+    );
 
     res.status(200).json({
       message: "member successfully added",
@@ -353,6 +358,10 @@ exports.joinGroup = async (req, res) => {
 
     group.members.members.push(req.userId);
     await group.save();
+    await Chat.findOneAndUpdate(
+      { groupId: req.params.id },
+      { $addToSet: { participants: req.userId } },
+    );
     res.json({ message: "Joined group" });
   } catch (error) {
     res.status(500).json({ err: "Failed to join group" });
@@ -374,6 +383,10 @@ exports.leaveGroup = async (req, res) => {
       return res.status(403).json({ err: "Owner cannot leave group" });
     }
     await group.save();
+    await Chat.findOneAndUpdate(
+      { groupId: req.params.id },
+      { $pull: { participants: req.userId } },
+    );
     res.json({ message: "Left group" });
   } catch (error) {
     res.status(500).json({ err: "Failed to leave group" });
@@ -400,6 +413,10 @@ exports.removeMember = async (req, res) => {
       (id) => id.toString() !== memberId,
     );
     await group.save();
+    await Chat.findOneAndUpdate(
+      { groupId: req.params.id },
+      { $pull: { participants: memberId } },
+    );
 
     res.json({ message: "Member removed" });
   } catch (error) {

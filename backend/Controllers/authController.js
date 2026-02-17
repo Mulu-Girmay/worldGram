@@ -28,7 +28,7 @@ exports.refresh = async (req, res) => {
       sameSite: "strict",
     });
 
-    res.json({ success: true });
+    res.json({ success: true, accessToken: newAccess });
   } catch (err) {
     res.sendStatus(403);
   }

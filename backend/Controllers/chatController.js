@@ -11,7 +11,7 @@ const Group = require("../Models/Group");
 
 exports.createChat = async (req, res) => {
   try {
-    const { type } = req.body;
+    const type = req.params.groupId ? "group" : req.body?.type;
     let { participants } = req.body;
     if (!type) {
       return res.status(400).json({
@@ -52,6 +52,9 @@ exports.createChat = async (req, res) => {
       let group = await Group.findOne({
         _id: req.params.groupId,
       });
+      if (!group) {
+        return res.status(404).json({ err: "Group not found" });
+      }
       participants = group.members.members;
       if (!participants) {
         return res.status(400).json({

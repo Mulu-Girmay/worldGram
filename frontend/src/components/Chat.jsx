@@ -5,6 +5,8 @@ import { useDispatch } from "react-redux";
 import { FileBoxIcon, SendHorizontal } from "lucide-react";
 import { useLocation } from "react-router-dom";
 import { io } from "socket.io-client";
+import GroupManagePanel from "./group/GroupManagePanel";
+import { useToast } from "./ToastProvider";
 import {
   selectChatById,
   selectCurrentChat,
@@ -47,6 +49,7 @@ const Chat = ({
   const currentUser = useSelector(selectUser);
   const accessToken = useSelector((state) => state.auth?.accessToken || null);
   const dispatch = useDispatch();
+  const toast = useToast();
   const socketRef = useRef(null);
   const currentChatFromStore = useSelector(selectCurrentChat);
   const selectedChatFromStore = useSelector((state) =>
@@ -69,6 +72,10 @@ const Chat = ({
   }, [activeChat]);
 
   const resolvedChatId = activeChat?._id || chatId || routeChatId || null;
+  const resolvedGroupId =
+    activeChat?.type === "group"
+      ? activeChat?.groupId?._id || activeChat?.groupId || null
+      : null;
 
   useEffect(() => {
     if (!resolvedChatId) return;
@@ -131,46 +138,34 @@ const Chat = ({
     if (!text) return;
 
     if (!resolvedChatId) {
-      console.error("Send blocked: missing chatId", {
-        activeChatId: activeChat?._id || null,
-        propChatId: chatId || null,
-        routeChatId: routeChatId || null,
-      });
+      toast.error("Open a valid chat before sending messages.");
       return;
     }
 
     const senderId = currentUser?._id || null;
     if (!senderId) {
-      console.error("Send blocked: missing current user id");
+      toast.error("Unable to resolve current user.");
       return;
     }
 
-    const socket = socketRef.current;
-    if (socket?.connected) {
-      socket.emit("send-message", { chatId: resolvedChatId, text });
-    } else {
-      const result = await dispatch(
-        sendMessage({
-          chatId: resolvedChatId,
-          payload: {
-            senderId,
-            text,
-          },
-        }),
-      );
-
-      if (sendMessage.rejected.match(result)) {
-        console.error("Send failed", {
-          chatId: resolvedChatId,
+    const result = await dispatch(
+      sendMessage({
+        chatId: resolvedChatId,
+        payload: {
           senderId,
-          payload: result.payload,
-          error: result.error,
-        });
-        return;
-      }
-    }
+          text,
+        },
+      }),
+    );
 
-    console.log("Send success", { chatId: resolvedChatId });
+    if (sendMessage.rejected.match(result)) {
+      toast.error(
+        result.payload?.err ||
+          result.payload?.message ||
+          "Failed to send message",
+      );
+      return;
+    }
 
     if (typeof onSend === "function") {
       onSend({
@@ -233,6 +228,10 @@ const Chat = ({
             </p>
           </div>
         </div>
+
+        {activeChat?.type === "group" && (
+          <GroupManagePanel groupId={resolvedGroupId} />
+        )}
 
         <div className="h-[60vh] space-y-2 overflow-y-auto rounded-2xl border border-[#6fa63a]/25 bg-[#f3f9ee] p-3">
           {messagesStatus === "loading" && (

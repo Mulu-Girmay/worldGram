@@ -1,9 +1,28 @@
 import { ArrowLeft, Check, UploadIcon } from "lucide-react";
 import React from "react";
 import { useNavigate } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
+import { createGroup } from "../../Redux/groupRedux/groupThunk";
+import {
+  selectCreateGroupStatus,
+  selectGroupError,
+} from "../../Redux/groupRedux/groupSelector";
+import { createGroupChat, listChats } from "../../Redux/chatRedux/chatThunk";
+import { setCurrentChat } from "../../Redux/chatRedux/chatSlice";
 
 const NewGroupForm = () => {
+  const dispatch = useDispatch();
+  const createStatus = useSelector(selectCreateGroupStatus);
+  const groupError = useSelector(selectGroupError);
+
+  const [formValues, setFormValues] = React.useState({
+    name: "",
+    userName: "",
+    description: "",
+  });
+  const [formError, setFormError] = React.useState("");
   const [fileName, setFileName] = React.useState("No cover selected");
+  const [mediaFile, setMediaFile] = React.useState(null);
   const navigate = useNavigate();
 
   const handleBack = (e) => {
@@ -13,7 +32,54 @@ const NewGroupForm = () => {
   const handleFileChange = (e) => {
     const file = e.target.files?.[0];
     setFileName(file ? file.name : "No cover selected");
+    setMediaFile(file || null);
   };
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormValues((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setFormError("");
+
+    if (!formValues.name.trim()) return setFormError("Group name is required");
+    if (!formValues.userName.trim()) return setFormError("Username is required");
+
+    const payload = {
+      name: formValues.name.trim(),
+      userName: formValues.userName.trim(),
+      description: formValues.description?.trim() || "",
+      groupPhoto: mediaFile?.name || "",
+    };
+
+    const groupResult = await dispatch(createGroup(payload));
+    if (!createGroup.fulfilled.match(groupResult)) return;
+
+    const groupId = groupResult.payload?.groupId;
+    if (!groupId) return navigate("/home");
+
+    const chatResult = await dispatch(createGroupChat({ groupId, payload: {} }));
+    if (createGroupChat.fulfilled.match(chatResult)) {
+      const chatId = chatResult.payload?.chatId || null;
+      const listResult = await dispatch(listChats({ limit: 50 }));
+      if (listChats.fulfilled.match(listResult)) {
+        const matched = (listResult.payload?.items || []).find(
+          (chat) =>
+            String(chat?.groupId?._id || chat?.groupId || "") === String(groupId),
+        );
+        if (matched) {
+          dispatch(setCurrentChat(matched));
+        }
+      }
+      return navigate("/chat", { state: { chatId } });
+    }
+
+    navigate("/home");
+  };
+
+  const isLoading = createStatus === "loading";
 
   return (
     <div className="space-y-4">
@@ -34,11 +100,13 @@ const NewGroupForm = () => {
             </p>
           </div>
           <div className="flex justify-end">
-            <Check size={20} className="text-[#4a7f4a]" type="submit" />
+            <button type="submit" form="new-group-form" disabled={isLoading}>
+              <Check size={20} className="text-[#4a7f4a]" />
+            </button>
           </div>
         </div>
 
-        <form className="grid gap-3">
+        <form id="new-group-form" className="grid gap-3" onSubmit={handleSubmit}>
           <div className="flex gap-7">
             <label
               htmlFor="groupMedia"
@@ -64,16 +132,40 @@ const NewGroupForm = () => {
             <input
               type="text"
               name="name"
+              value={formValues.name}
+              onChange={handleChange}
               placeholder="group name"
               className="rounded-2xl h-10 mt-10 w-40 border border-[#6fa63a]/35 bg-white/85 px-3 py-3 text-sm outline-none transition focus:border-[#4a7f4a] focus:ring-2 focus:ring-[#6fa63a]/20"
             />
           </div>
+          <input
+            type="text"
+            name="userName"
+            value={formValues.userName}
+            onChange={handleChange}
+            placeholder="group username"
+            className="rounded-2xl border border-[#6fa63a]/35 bg-white/85 px-4 py-3 text-sm outline-none transition focus:border-[#4a7f4a] focus:ring-2 focus:ring-[#6fa63a]/20"
+          />
           <textarea
             name="description"
+            value={formValues.description}
+            onChange={handleChange}
             rows="3"
             placeholder="Describe what this group is about..."
             className="resize-none rounded-2xl border border-[#6fa63a]/35 bg-white/85 px-4 py-3 text-sm outline-none transition focus:border-[#4a7f4a] focus:ring-2 focus:ring-[#6fa63a]/20"
           />
+
+          {(formError || groupError) && (
+            <p className="text-sm text-red-600">{formError || groupError}</p>
+          )}
+
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="rounded-[10px] bg-[#4a7f4a] px-4 py-3 font-semibold text-white disabled:opacity-60"
+          >
+            {isLoading ? "Creating group..." : "Create group"}
+          </button>
         </form>
       </div>
     </div>

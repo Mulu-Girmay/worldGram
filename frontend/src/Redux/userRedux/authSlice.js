@@ -94,6 +94,7 @@ const authSlice = createSlice({
         state.status = "loading";
       })
       .addCase(checkAuth.fulfilled, (state, action) => {
+        state.status = "succeeded";
         state.user = action.payload.user || null;
         if (action.payload?.accessToken)
           state.accessToken = action.payload.accessToken;
@@ -101,6 +102,7 @@ const authSlice = createSlice({
         state.initialized = true;
       })
       .addCase(checkAuth.rejected, (state) => {
+        state.status = "failed";
         state.user = null;
         state.accessToken = null;
         state.isAuthenticated = false;

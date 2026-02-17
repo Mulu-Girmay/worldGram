@@ -17,7 +17,11 @@ function Bootstrap() {
   }, [dispatch]);
 
   if (!initialized) {
-    return <div className="min-h-screen grid place-items-center">Loading...</div>;
+    return (
+      <ToastProvider>
+        <div className="min-h-screen grid place-items-center">Loading...</div>
+      </ToastProvider>
+    );
   }
 
   return (

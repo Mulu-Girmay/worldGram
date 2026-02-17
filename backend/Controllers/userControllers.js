@@ -46,7 +46,10 @@ exports.RegisterUser = async (req, res) => {
       sameSite: "strict",
     });
 
-    return res.status(202).json({ user: sanitizeUser(newUser) });
+    return res.status(202).json({
+      user: sanitizeUser(newUser),
+      accessToken,
+    });
   } catch (err) {
     return res.status(400).json({ error: err.message });
   }
@@ -84,6 +87,7 @@ exports.login = async (req, res) => {
       .status(200)
       .json({
         user: sanitizeUser(user),
+        accessToken,
         message: "Login Successful",
       });
   } catch (err) {
