@@ -47,6 +47,9 @@ const ProfileNav = ({
   subtitle = "Select a conversation",
   avatarUrl = null,
   backPath = "/home",
+  onProfileClick = null,
+  onSearchClick = null,
+  onMoreClick = null,
 }) => {
   const navigate = useNavigate();
 
@@ -64,7 +67,12 @@ const ProfileNav = ({
       >
         <ArrowLeft size={12} />
       </button>
-      <div className="flex flex-row items-center gap-3">
+      <button
+        type="button"
+        onClick={onProfileClick || undefined}
+        disabled={!onProfileClick}
+        className={`flex flex-row items-center gap-3 text-left ${onProfileClick ? "cursor-pointer" : "cursor-default"}`}
+      >
         {avatarUrl ? (
           <img
             src={resolveProfileUrl(avatarUrl)}
@@ -82,17 +90,24 @@ const ProfileNav = ({
             {subtitle}
           </p>
         </div>
-      </div>
+      </button>
       <div className="flex items-center gap-1">
-        <Search
-          size={16}
-          className="flex w-9 pointer-events-none items-center justify-center rounded-xl bg-[#6fa63a]/10 text-[#4a7f4a]"
-        />
-        <MoreVertical
-          size={14}
-          className="flex w-9 items-center justify-center rounded-xl bg-[#6fa63a]/10 text-[#4a7f4a]"
+        <button
+          type="button"
+          onClick={onSearchClick || undefined}
+          className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#6fa63a]/10 text-[#4a7f4a]"
+          aria-label="Search"
+        >
+          <Search size={16} />
+        </button>
+        <button
+          type="button"
+          onClick={onMoreClick || undefined}
+          className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#6fa63a]/10 text-[#4a7f4a]"
           aria-label="More options"
-        />
+        >
+          <MoreVertical size={14} />
+        </button>
       </div>
     </div>
   );

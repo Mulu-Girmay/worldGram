@@ -1,9 +1,14 @@
 import React from "react";
 import { Menu, Search, Plus, Users, Megaphone } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useSelector } from "react-redux";
+import { selectStories } from "../Redux/storyRedux/storySelector";
+import { resolveMediaUrl } from "../utils/media";
 
 const Nav = () => {
   const navigate = useNavigate();
+  const stories = useSelector(selectStories);
+  const hasStories = Array.isArray(stories) && stories.length > 0;
 
   const goTo = (path) => navigate(path);
 
@@ -18,10 +23,55 @@ const Nav = () => {
         >
           <Menu size={16} />
         </button>
-        <div>
-          <h2 className="text-base font-semibold leading-none">WorldGram</h2>
-          <p className="text-[11px] text-[var(--text-muted)]">Telegram style</p>
-        </div>
+
+        {hasStories ? (
+          <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto">
+            {stories.slice(0, 12).map((story) => {
+              const media = story?.media;
+              const mediaType = story?.mediaType || "image";
+              const mediaSrc =
+                media && typeof media === "string"
+                  ? resolveMediaUrl(media, mediaType)
+                  : null;
+              return (
+                <button
+                  key={story?._id}
+                  type="button"
+                  onClick={() =>
+                    navigate("/story", {
+                      state: {
+                        storyId: story?._id,
+                        authorId: story?.authorId?._id || story?.authorId || null,
+                      },
+                    })
+                  }
+                  className="h-10 w-10 shrink-0 overflow-hidden rounded-full border-2 border-[#6fa63a]/60 bg-[#eaf4e2]"
+                  aria-label="Open story"
+                >
+                  {mediaSrc ? (
+                    mediaType === "video" ? (
+                      <video src={mediaSrc} className="h-full w-full object-cover" />
+                    ) : (
+                      <img
+                        src={mediaSrc}
+                        alt={story?.caption || "Story"}
+                        className="h-full w-full object-cover"
+                      />
+                    )
+                  ) : (
+                    <div className="grid h-full w-full place-items-center text-[10px] font-semibold text-[#2f5b2f]">
+                      ST
+                    </div>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <div>
+            <h2 className="text-base font-semibold leading-none">WorldGram</h2>
+          </div>
+        )}
       </div>
 
       <div className="relative">

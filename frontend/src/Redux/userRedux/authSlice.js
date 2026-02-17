@@ -7,6 +7,7 @@ import {
   refreshSession,
   registerUser,
   checkAuth,
+  updateProfile,
 } from "./authThunk";
 
 const initialState = {
@@ -18,6 +19,7 @@ const initialState = {
   registerStatus: "idle",
   loginStatus: "idle",
   refreshStatus: "idle",
+  updateProfileStatus: "idle",
   initialized: false,
 };
 
@@ -111,6 +113,22 @@ const authSlice = createSlice({
 
       .addCase(logoutUser.fulfilled, (state) => {
         Object.assign(state, initialState, { initialized: true });
+      })
+
+      .addCase(updateProfile.pending, (state) => {
+        state.updateProfileStatus = "loading";
+        state.error = null;
+      })
+      .addCase(updateProfile.fulfilled, (state, action) => {
+        state.updateProfileStatus = "succeeded";
+        state.user = action.payload?.user || state.user;
+      })
+      .addCase(updateProfile.rejected, (state, action) => {
+        state.updateProfileStatus = "failed";
+        state.error =
+          action.payload?.err ||
+          action.payload?.message ||
+          "Profile update failed";
       });
   },
 });

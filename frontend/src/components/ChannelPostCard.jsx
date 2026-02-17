@@ -6,6 +6,8 @@ import { useSelector } from "react-redux";
 import { useToast } from "./ToastProvider";
 import { resolveMediaUrl } from "../utils/media";
 
+const QUICK_REACTIONS = ["👍", "❤️", "🔥", "😂", "😍", "😮"];
+
 const resolveMediaSrc = (media) => {
   if (!media) return null;
 
@@ -75,6 +77,7 @@ const ChannelPostCard = (props) => {
   const [displayReactions, setDisplayReactions] = useState(post?.reactions || []);
   const [displayComments, setDisplayComments] = useState(post?.comments || []);
   const postRef = useRef(null);
+  const commentInputRef = useRef(null);
   const { success: toastSuccess, error: toastError, info: toastInfo } = useToast();
   const currentUser = useSelector((state) => state.auth.user);
   const currentUserId = currentUser?._id?.toString?.() || "";
@@ -82,6 +85,30 @@ const ChannelPostCard = (props) => {
     (reaction) => Number(reaction?.count) > 0,
   );
   const commentsCount = displayComments?.length || 0;
+
+  const resolveAuthorLabel = (author) => {
+    if (!author) return "Unknown user";
+    if (typeof author === "object") {
+      const directFirst = author?.firstName || "";
+      const directLast = author?.lastName || "";
+      const directFull = `${directFirst} ${directLast}`.trim();
+      if (directFull) return directFull;
+      if (author?.username) return `@${author.username}`;
+
+      const first = author?.identity?.firstName || "";
+      const last = author?.identity?.lastName || "";
+      const full = `${first} ${last}`.trim();
+      if (full) return full;
+      if (author?.identity?.username) return `@${author.identity.username}`;
+      if (author?._id && String(author._id) === currentUserId) return "You";
+      return "Unknown user";
+    }
+
+    const raw = String(author);
+    if (raw === currentUserId) return "You";
+    if (/^[a-f0-9]{24}$/i.test(raw)) return "Unknown user";
+    return raw;
+  };
 
   useEffect(() => {
     setEditText(post?.text || "");
@@ -190,8 +217,11 @@ const ChannelPostCard = (props) => {
   };
 
   const handleReply = () => {
+    setShowComments(true);
+    setTimeout(() => {
+      commentInputRef.current?.focus();
+    }, 0);
     if (onReplyProp) return onReplyProp(post);
-    console.log("Reply to post:", post);
   };
 
   const handleShare = () => {
@@ -464,6 +494,18 @@ const ChannelPostCard = (props) => {
             <p className="text-xs text-gray-500">No reactions yet</p>
           )}
         </div>
+        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+          {QUICK_REACTIONS.map((reaction) => (
+            <button
+              key={`${post?._id}-${reaction}`}
+              type="button"
+              onClick={() => handleReactSelect(reaction)}
+              className="rounded-full border border-[#6fa63a]/35 bg-[#f8fdf3] px-2 py-0.5 text-xs text-[rgba(23,3,3,0.85)] transition hover:bg-[#eef8e8]"
+            >
+              {reaction}
+            </button>
+          ))}
+        </div>
 
         <div className="mt-4 flex items-center justify-between rounded-xl bg-white/70 px-3 py-2">
           <button
@@ -523,7 +565,7 @@ const ChannelPostCard = (props) => {
                 >
                   <div className="text-sm font-medium">{c.text}</div>
                   <div className="text-xs text-gray-500">
-                    by {c.authorId || "user"}
+                    by {resolveAuthorLabel(c.authorId)}
                   </div>
                   <div className="mt-2">
                     {(c.replies || []).map((r) => (
@@ -532,6 +574,9 @@ const ChannelPostCard = (props) => {
                       className="ml-3 text-sm text-gray-700"
                     >
                       {r.text}
+                      <div className="text-[11px] text-gray-500">
+                        by {resolveAuthorLabel(r.authorId)}
+                      </div>
                       </div>
                     ))}
                   </div>
@@ -589,6 +634,7 @@ const ChannelPostCard = (props) => {
           )}
           <div className="mt-2 flex gap-2">
             <input
+              ref={commentInputRef}
               id={`comment-input-${post._id}`}
               value={commentText}
               onChange={(e) => setCommentText(e.target.value)}

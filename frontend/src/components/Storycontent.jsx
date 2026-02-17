@@ -16,8 +16,16 @@ import {
 } from "../Redux/storyRedux/storySelector";
 import { selectUser } from "../Redux/userRedux/authSelector";
 import { resolveMediaUrl } from "../utils/media";
+import Reaction from "./Reaction";
 
-const REACTIONS = ["like", "love", "haha", "wow", "fire"];
+const QUICK_REACTIONS = [
+  "\u{1F44D}",
+  "\u{2764}\u{FE0F}",
+  "\u{1F525}",
+  "\u{1F602}",
+  "\u{1F60D}",
+  "\u{1F62E}",
+];
 
 const Storycontent = () => {
   const navigate = useNavigate();
@@ -32,20 +40,34 @@ const Storycontent = () => {
   const currentUser = useSelector(selectUser);
 
   const [showSettings, setShowSettings] = useState(false);
-  const [localReaction, setLocalReaction] = useState("");
+  const [localReaction, setLocalReaction] = useState(null);
 
-  const currentUserId = (currentUser?._id || currentUser?.id || "").toString();
-  const storyAuthorId = (
-    currentStory?.authorId?._id ||
-    currentStory?.authorId ||
-    ""
-  ).toString();
-  const isOwner = !!currentUserId && !!storyAuthorId && currentUserId === storyAuthorId;
+  const currentUserId = String(currentUser?._id || currentUser?.id || "");
+  const storyAuthorId = String(
+    currentStory?.authorId?._id || currentStory?.authorId || "",
+  );
+  const isOwner =
+    Boolean(currentUserId) &&
+    Boolean(storyAuthorId) &&
+    currentUserId === storyAuthorId;
 
   useEffect(() => {
     if (!storyId) return;
-    dispatch(getStoryById(storyId));
-    dispatch(viewStory(storyId));
+    let mounted = true;
+
+    const syncStory = async () => {
+      await dispatch(getStoryById(storyId));
+      await dispatch(viewStory(storyId));
+      if (mounted) {
+        dispatch(getStoryById(storyId));
+      }
+    };
+
+    syncStory();
+
+    return () => {
+      mounted = false;
+    };
   }, [dispatch, storyId]);
 
   const mediaSrc = useMemo(() => {
@@ -56,8 +78,8 @@ const Storycontent = () => {
 
   const reactionMap = useMemo(() => {
     const map = {};
-    (currentStory?.reactions || []).forEach((r) => {
-      if (r?.emoji) map[r.emoji] = r?.count || 0;
+    (currentStory?.reactions || []).forEach((reaction) => {
+      if (reaction?.emoji) map[reaction.emoji] = reaction?.count || 0;
     });
     return map;
   }, [currentStory?.reactions]);
@@ -66,13 +88,39 @@ const Storycontent = () => {
     ? currentStory.viewers.length
     : 0;
 
+  const currentReaction = useMemo(() => {
+    if (!Array.isArray(currentStory?.reactions) || !currentUserId) return null;
+    const found = currentStory.reactions.find((reaction) =>
+      (reaction?.reactors || []).some(
+        (id) => String(id?._id || id) === currentUserId,
+      ),
+    );
+    return found?.emoji || null;
+  }, [currentStory?.reactions, currentUserId]);
+
+  const hasViewed = useMemo(() => {
+    if (!Array.isArray(currentStory?.viewers) || !currentUserId) return false;
+    return currentStory.viewers.some(
+      (viewer) =>
+        String(viewer?.userId?._id || viewer?.userId || viewer) === currentUserId,
+    );
+  }, [currentStory?.viewers, currentUserId]);
+
+  const visibleReactionEntries = useMemo(
+    () =>
+      Object.entries(reactionMap)
+        .filter(([, count]) => Number(count) > 0)
+        .sort((a, b) => Number(b[1]) - Number(a[1])),
+    [reactionMap],
+  );
+
   const handleBack = (e) => {
     e.preventDefault();
     navigate("/home");
   };
 
   const handleReact = async (emoji) => {
-    if (!storyId) return;
+    if (!storyId || !emoji) return;
     setLocalReaction(emoji);
     await dispatch(reactStory({ storyId, emoji }));
     dispatch(getStoryById(storyId));
@@ -151,17 +199,19 @@ const Storycontent = () => {
           <p className="text-sm text-[rgba(23,3,3,0.9)]">
             {currentStory?.caption || "No caption"}
           </p>
-          <p className="mt-1 text-xs text-[rgba(23,3,3,0.62)]">
-            {viewersCount} views
-          </p>
+          <div className="mt-1 flex items-center justify-between">
+            <p className="text-xs text-[rgba(23,3,3,0.62)]">{viewersCount} views</p>
+            {hasViewed && <p className="text-[11px] text-[#2f5b2f]">Seen by you</p>}
+          </div>
+
           <div className="mt-3 flex flex-wrap gap-2">
-            {REACTIONS.map((emoji) => (
+            {QUICK_REACTIONS.map((emoji) => (
               <button
                 key={emoji}
                 type="button"
                 onClick={() => handleReact(emoji)}
                 className={`rounded-full border px-2.5 py-1 text-sm ${
-                  localReaction === emoji
+                  (localReaction || currentReaction) === emoji
                     ? "border-[#4a7f4a] bg-[#eef8e8]"
                     : "border-[#6fa63a]/35 bg-[#f8fdf3]"
                 }`}
@@ -169,7 +219,26 @@ const Storycontent = () => {
                 {emoji} {reactionMap[emoji] || 0}
               </button>
             ))}
+            <Reaction
+              initial={localReaction || currentReaction || null}
+              onSelect={handleReact}
+              triggerClassName="rounded-full border border-[#6fa63a]/35 bg-[#f8fdf3] px-2.5 py-1 text-sm"
+              popupClassName="border-[#6fa63a]/35"
+            />
           </div>
+
+          {visibleReactionEntries.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {visibleReactionEntries.map(([emoji, count]) => (
+                <span
+                  key={emoji}
+                  className="rounded-full border border-[#6fa63a]/35 bg-[#f8fdf3] px-2 py-0.5 text-xs text-[rgba(23,3,3,0.8)]"
+                >
+                  {emoji} {count}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -200,7 +269,7 @@ const Storycontent = () => {
                   type="button"
                   onClick={handleDelete}
                   disabled={deleteStatus === "loading"}
-                  className="w-full flex items-center justify-center gap-2 rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700 disabled:opacity-60"
+                  className="flex w-full items-center justify-center gap-2 rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700 disabled:opacity-60"
                 >
                   <Trash2 size={14} />
                   {deleteStatus === "loading" ? "Deleting..." : "Delete story"}

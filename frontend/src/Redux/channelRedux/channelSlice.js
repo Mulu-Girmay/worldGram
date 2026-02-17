@@ -10,6 +10,7 @@ import {
   deleteChannel,
   addAdmin,
   removeAdmin,
+  getChannelUnreadCount,
 } from "./channelThunk";
 const initialState = {
   channel: [],
@@ -33,6 +34,8 @@ const initialState = {
   myNextCursor: null,
   currentChannel: null,
   lastMessage: null,
+  unreadCountByChannel: {},
+  unreadStatus: "idle",
 };
 const channelSlice = createSlice({
   name: "channel",
@@ -289,6 +292,22 @@ const channelSlice = createSlice({
           action.payload?.message ||
           action.error?.message ||
           "admin action failed";
+      })
+
+      .addCase(getChannelUnreadCount.pending, (state) => {
+        state.unreadStatus = "loading";
+      })
+      .addCase(getChannelUnreadCount.fulfilled, (state, action) => {
+        state.unreadStatus = "succeeded";
+        const id = action.payload?.id;
+        if (id) {
+          state.unreadCountByChannel[id] = Number(
+            action.payload?.unreadCount || 0,
+          );
+        }
+      })
+      .addCase(getChannelUnreadCount.rejected, (state) => {
+        state.unreadStatus = "failed";
       });
   },
 });

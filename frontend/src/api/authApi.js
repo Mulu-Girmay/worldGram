@@ -21,3 +21,8 @@ export const meApi = async (token) => {
   const { data } = await api.get("/me", { headers });
   return data;
 };
+
+export const updateMeApi = async (payload) => {
+  const { data } = await api.patch("/me", payload);
+  return data;
+};

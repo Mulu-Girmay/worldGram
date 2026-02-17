@@ -13,13 +13,14 @@ const {
 const { refresh, logout } = require("../Controllers/authController");
 const userRouter = express.Router();
 const auth = require("../Middleware/authMiddleware");
+const upload = require("../Middleware/multer");
 userRouter.post("/register", RegisterUser);
 userRouter.post("/login", login);
 userRouter.post("/refresh", refresh);
 userRouter.post("/logout", logout);
 userRouter.get("/me", auth, getMe);
 userRouter.get("/users/:id", auth, getUserById);
-userRouter.patch("/me", auth, updateProfile);
+userRouter.patch("/me", auth, upload.single("media"), updateProfile);
 userRouter.patch("/me/privacy", auth, updatePrivacy);
 userRouter.get("/users", auth, searchUsers);
 userRouter.post("/users/block", auth, blockUser);

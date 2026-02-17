@@ -10,6 +10,7 @@ const {
   listMyChannels,
   subscribeChannel,
   unsubscribeChannel,
+  getChannelUnreadCount,
 } = require("../Controllers/channelController");
 const channelRouter = express.Router();
 const auth = require("../Middleware/authMiddleware");
@@ -18,6 +19,7 @@ const upload = require("../Middleware/multer");
 channelRouter.get("/channels", auth, listChannels);
 channelRouter.get("/channels/me", auth, listMyChannels);
 channelRouter.get("/channels/:id", auth, getChannelById);
+channelRouter.get("/channels/:id/unread-count", auth, getChannelUnreadCount);
 channelRouter.post("/channels/:id/subscribe", auth, subscribeChannel);
 channelRouter.post("/channels/:id/unsubscribe", auth, unsubscribeChannel);
 

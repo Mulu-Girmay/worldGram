@@ -7,6 +7,7 @@ import { useLocation } from "react-router-dom";
 import { io } from "socket.io-client";
 import GroupManagePanel from "./group/GroupManagePanel";
 import { useToast } from "./ToastProvider";
+import Reaction from "./Reaction";
 import {
   selectChatById,
   selectCurrentChat,
@@ -18,10 +19,19 @@ import {
   getChatById,
   getMessages,
   markChatRead,
+  reactToMessage,
+  sendMediaMessage,
   sendMessage,
+  updateChatSettings,
 } from "../Redux/chatRedux/chatThunk";
-import { markMessagesReadByUser, pushIncomingMessage } from "../Redux/chatRedux/chatSlice";
+import {
+  markMessagesReadByUser,
+  pushIncomingMessage,
+  setMessageReactions,
+} from "../Redux/chatRedux/chatSlice";
 import { resolveAssetUrl, resolveProfileUrl, toInitials } from "../utils/media";
+
+const QUICK_REACTIONS = ["👍", "❤️", "🔥", "😂", "😍", "😮"];
 
 const formatTime = (value) => {
   if (!value) return "";
@@ -35,6 +45,47 @@ const normalizeId = (value) => {
   if (typeof value === "string") return value;
   if (typeof value === "object" && value._id) return String(value._id);
   return String(value);
+};
+
+const applyOptimisticReaction = (existingReactions, emoji, userId) => {
+  const normalizedUserId = String(userId || "");
+  const next = (existingReactions || []).map((reaction) => ({
+    ...reaction,
+    reactors: Array.isArray(reaction?.reactors) ? [...reaction.reactors] : [],
+  }));
+
+  const previousIndex = next.findIndex((reaction) =>
+    reaction.reactors
+      .map((id) => (id?._id ? String(id._id) : String(id)))
+      .includes(normalizedUserId),
+  );
+
+  if (previousIndex >= 0) {
+    const previous = next[previousIndex];
+    const prevEmoji = previous?.emoji;
+    previous.reactors = previous.reactors.filter(
+      (id) => (id?._id ? String(id._id) : String(id)) !== normalizedUserId,
+    );
+    previous.count = Math.max(0, Number(previous?.count || 0) - 1);
+    if (prevEmoji === emoji) {
+      return next.filter((reaction) => Number(reaction?.count || 0) > 0);
+    }
+  }
+
+  const targetIndex = next.findIndex((reaction) => reaction?.emoji === emoji);
+  if (targetIndex >= 0) {
+    const target = next[targetIndex];
+    const hasReacted = target.reactors
+      .map((id) => (id?._id ? String(id._id) : String(id)))
+      .includes(normalizedUserId);
+    if (!hasReacted) {
+      target.reactors.push(normalizedUserId);
+      target.count = Number(target?.count || 0) + 1;
+    }
+    return next.filter((reaction) => Number(reaction?.count || 0) > 0);
+  }
+
+  return [...next, { emoji, count: 1, reactors: [normalizedUserId] }];
 };
 
 const Chat = ({
@@ -62,6 +113,12 @@ const Chat = ({
   const [draft, setDraft] = useState("");
   const [presenceMap, setPresenceMap] = useState({});
   const [showGroupSettings, setShowGroupSettings] = useState(false);
+  const [showProfilePanel, setShowProfilePanel] = useState(false);
+  const [showSearchBar, setShowSearchBar] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [showNavMenu, setShowNavMenu] = useState(false);
+  const [replyTarget, setReplyTarget] = useState(null);
+  const [reactionBusyMap, setReactionBusyMap] = useState({});
 
   const activeChat =
     currentChatProp || selectedChatFromStore || currentChatFromStore || null;
@@ -81,6 +138,11 @@ const Chat = ({
 
   useEffect(() => {
     setShowGroupSettings(false);
+    setShowProfilePanel(false);
+    setShowSearchBar(false);
+    setSearchTerm("");
+    setShowNavMenu(false);
+    setReplyTarget(null);
   }, [resolvedChatId]);
 
   useEffect(() => {
@@ -160,6 +222,7 @@ const Chat = ({
         payload: {
           senderId,
           text,
+          replyToMessageId: replyTarget?._id || null,
         },
       }),
     );
@@ -177,15 +240,58 @@ const Chat = ({
       onSend({
         chatId: resolvedChatId,
         text,
+        replyToMessageId: replyTarget?._id || null,
       });
     }
     setDraft("");
+    setReplyTarget(null);
   };
 
-  const handleAttach = (event) => {
+  const handleAttach = async (event) => {
+    const file = event.target.files?.[0] || null;
+    if (!file) return;
+
     if (typeof onAttach === "function") {
-      onAttach(event.target.files?.[0] || null);
+      onAttach(file);
+      event.target.value = "";
+      return;
     }
+
+    if (!resolvedChatId) {
+      toast.error("Open a valid chat before sending media.");
+      event.target.value = "";
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("media", file);
+    if (draft.trim()) {
+      formData.append("text", draft.trim());
+    }
+    if (replyTarget?._id) {
+      formData.append("replyToMessageId", replyTarget._id);
+    }
+
+    const result = await dispatch(
+      sendMediaMessage({
+        chatId: resolvedChatId,
+        formData,
+      }),
+    );
+
+    if (sendMediaMessage.rejected.match(result)) {
+      toast.error(
+        result.payload?.err ||
+          result.payload?.message ||
+          "Failed to send media",
+      );
+      event.target.value = "";
+      return;
+    }
+
+    setDraft("");
+    setReplyTarget(null);
+    event.target.value = "";
   };
 
   const participants = Array.isArray(activeChat?.participants)
@@ -206,6 +312,101 @@ const Chat = ({
     "offline";
   const isGroupChat = activeChat?.type === "group";
 
+  const filteredMessages = useMemo(() => {
+    const query = searchTerm.trim().toLowerCase();
+    if (!query) return renderedMessages;
+
+    return (renderedMessages || []).filter((message) => {
+      const senderId = message?.identity?.senderId;
+      const senderObject =
+        typeof senderId === "object" && senderId !== null ? senderId : null;
+      const senderName = senderObject
+        ? `${senderObject?.identity?.firstName || ""} ${senderObject?.identity?.lastName || ""}`.trim() ||
+          senderObject?.identity?.username ||
+          ""
+        : "";
+      const text = String(message?.content?.text || "").toLowerCase();
+      const media = String(message?.content?.mediaURL || "").toLowerCase();
+      return (
+        text.includes(query) ||
+        senderName.toLowerCase().includes(query) ||
+        media.includes(query)
+      );
+    });
+  }, [renderedMessages, searchTerm]);
+
+  const handleOpenProfile = () => {
+    if (isGroupChat && resolvedGroupId) {
+      setShowGroupSettings(true);
+      return;
+    }
+    setShowProfilePanel(true);
+  };
+
+  const handleToggleSearch = () => {
+    setShowNavMenu(false);
+    setShowSearchBar((prev) => !prev);
+  };
+
+  const handleToggleNavMenu = () => {
+    setShowNavMenu((prev) => !prev);
+  };
+
+  const handleMenuAction = (action) => {
+    setShowNavMenu(false);
+    if (action === "profile") handleOpenProfile();
+    if (action === "search") setShowSearchBar(true);
+    if (action === "markRead" && resolvedChatId) {
+      dispatch(markChatRead(resolvedChatId));
+    }
+    if (action === "mute" && resolvedChatId) {
+      dispatch(
+        updateChatSettings({
+          chatId: resolvedChatId,
+          payload: { isMuted: !Boolean(activeChat?.isMuted) },
+        }),
+      );
+    }
+  };
+
+  const handleReactMessage = async (message, emoji) => {
+    if (!resolvedChatId || !message?._id || !emoji || !currentUser?._id) return;
+    const messageId = message._id;
+    const previousReactions = Array.isArray(message?.reactions)
+      ? message.reactions
+      : [];
+    const nextReactions = applyOptimisticReaction(
+      previousReactions,
+      emoji,
+      currentUser._id,
+    );
+
+    dispatch(setMessageReactions({ messageId, reactions: nextReactions }));
+    setReactionBusyMap((prev) => ({ ...prev, [messageId]: true }));
+
+    try {
+      const result = await dispatch(
+        reactToMessage({
+          chatId: resolvedChatId,
+          messageId,
+          payload: { emoji },
+        }),
+      );
+      if (reactToMessage.rejected.match(result)) {
+        dispatch(
+          setMessageReactions({ messageId, reactions: previousReactions }),
+        );
+        toast.error(
+          result.payload?.err ||
+            result.payload?.message ||
+            "Failed to update reaction",
+        );
+      }
+    } finally {
+      setReactionBusyMap((prev) => ({ ...prev, [messageId]: false }));
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[var(--primary-color)]">
       <ProfileNav
@@ -215,7 +416,55 @@ const Chat = ({
         }
         avatarUrl={otherProfile}
         backPath="/home"
+        onProfileClick={handleOpenProfile}
+        onSearchClick={handleToggleSearch}
+        onMoreClick={handleToggleNavMenu}
       />
+      {showNavMenu && (
+        <div className="mx-auto mt-2 w-full max-w-2xl px-4">
+          <div className="ml-auto w-48 rounded-xl border border-[#6fa63a]/25 bg-white p-1 shadow-[0_10px_24px_rgba(0,0,0,0.12)]">
+            <button
+              type="button"
+              onClick={() => handleMenuAction("profile")}
+              className="w-full rounded-lg px-3 py-2 text-left text-xs hover:bg-[#f3f9ee]"
+            >
+              {isGroupChat ? "Open group profile" : "View profile"}
+            </button>
+            <button
+              type="button"
+              onClick={() => handleMenuAction("search")}
+              className="w-full rounded-lg px-3 py-2 text-left text-xs hover:bg-[#f3f9ee]"
+            >
+              Search messages
+            </button>
+            <button
+              type="button"
+              onClick={() => handleMenuAction("markRead")}
+              className="w-full rounded-lg px-3 py-2 text-left text-xs hover:bg-[#f3f9ee]"
+            >
+              Mark as read
+            </button>
+            <button
+              type="button"
+              onClick={() => handleMenuAction("mute")}
+              className="w-full rounded-lg px-3 py-2 text-left text-xs hover:bg-[#f3f9ee]"
+            >
+              {activeChat?.isMuted ? "Unmute chat" : "Mute chat"}
+            </button>
+          </div>
+        </div>
+      )}
+      {showSearchBar && (
+        <div className="mx-auto mt-2 w-full max-w-2xl px-4">
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Search messages in this chat"
+            className="w-full rounded-xl border border-[#6fa63a]/30 bg-white px-3 py-2 text-sm outline-none focus:border-[#4a7f4a]"
+          />
+        </div>
+      )}
 
       <div className="mx-auto w-full max-w-2xl space-y-3 p-4">
         <div
@@ -261,13 +510,15 @@ const Chat = ({
             </p>
           )}
 
-          {messagesStatus !== "loading" && renderedMessages.length === 0 && (
+          {messagesStatus !== "loading" && filteredMessages.length === 0 && (
             <p className="text-xs text-[rgba(23,3,3,0.6)]">
-              No messages yet. Start the conversation.
+              {searchTerm.trim()
+                ? "No messages found for this search."
+                : "No messages yet. Start the conversation."}
             </p>
           )}
 
-          {renderedMessages.map((message) => {
+          {filteredMessages.map((message) => {
             const senderId = message?.identity?.senderId;
             const senderObject =
               typeof senderId === "object" && senderId !== null ? senderId : null;
@@ -286,6 +537,13 @@ const Chat = ({
             const mediaIsVideo =
               typeof mediaURL === "string" &&
               /\.(mp4|webm|ogg|mov)$/i.test(mediaURL);
+            const repliedToId = message?.Relations?.replyToMessageId || null;
+            const repliedToMessage = repliedToId
+              ? renderedMessages.find((m) => String(m?._id) === String(repliedToId))
+              : null;
+            const repliedToText =
+              repliedToMessage?.content?.text ||
+              (repliedToMessage?.content?.mediaURL ? "Media message" : "");
             const readBy = Array.isArray(message?.state?.readBy)
               ? message.state.readBy.map((id) => normalizeId(id))
               : [];
@@ -293,6 +551,19 @@ const Chat = ({
               readBy.length > 1 || readBy.some((id) => id !== senderNormalizedId)
                 ? "Read"
                 : "Unread";
+            const messageReactions = Array.isArray(message?.reactions)
+              ? message.reactions
+              : [];
+            const visibleMessageReactions = messageReactions.filter(
+              (reaction) => Number(reaction?.count || 0) > 0,
+            );
+            const currentUserReaction =
+              messageReactions.find((reaction) =>
+                (reaction?.reactors || []).some(
+                  (id) =>
+                    String(id?._id || id) === String(currentUser?._id || ""),
+                ),
+              )?.emoji || null;
 
             return (
               <div
@@ -326,6 +597,17 @@ const Chat = ({
                       {senderName}
                     </p>
                   )}
+                  {repliedToId && (
+                    <div
+                      className={`mb-1 rounded-lg border px-2 py-1 text-[11px] ${
+                        isOwn
+                          ? "border-white/30 bg-white/10 text-white/90"
+                          : "border-[#6fa63a]/30 bg-[#f3f9ee] text-[rgba(23,3,3,0.75)]"
+                      }`}
+                    >
+                      Replying to: {repliedToText || "Original message"}
+                    </div>
+                  )}
                   {text ? (
                     <p className="break-words">{text}</p>
                   ) : (
@@ -341,6 +623,21 @@ const Chat = ({
                     </div>
                   )}
                   <div className="mt-1 flex items-center justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setReplyTarget({
+                          _id: message?._id,
+                          text: text || (mediaURL ? "Media message" : "(no text)"),
+                          sender: senderName,
+                        })
+                      }
+                      className={`text-[10px] underline-offset-2 hover:underline ${
+                        isOwn ? "text-white/80" : "text-[#355f35]"
+                      }`}
+                    >
+                      Reply
+                    </button>
                     {isOwn && (
                       <span className="text-[10px] text-white/70">{readStatus}</span>
                     )}
@@ -352,10 +649,73 @@ const Chat = ({
                       {formatTime(message?.createdAt)}
                     </p>
                   </div>
+                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                    {QUICK_REACTIONS.map((emoji) => (
+                      <button
+                        key={`${message?._id}-${emoji}`}
+                        type="button"
+                        onClick={() => handleReactMessage(message, emoji)}
+                        disabled={Boolean(reactionBusyMap[message?._id])}
+                        className={`rounded-full border px-2 py-0.5 text-xs transition ${
+                          currentUserReaction === emoji
+                            ? isOwn
+                              ? "border-white/70 bg-white/15 text-white"
+                              : "border-[#4a7f4a] bg-[#eef8e8] text-[#2f5b2f]"
+                            : isOwn
+                              ? "border-white/30 bg-white/10 text-white/90 hover:bg-white/20"
+                              : "border-[#6fa63a]/35 bg-[#f8fdf3] text-[rgba(23,3,3,0.85)] hover:bg-[#eef8e8]"
+                        } disabled:opacity-60`}
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                    <Reaction
+                      initial={currentUserReaction}
+                      onSelect={(emoji) => handleReactMessage(message, emoji)}
+                      triggerClassName={`rounded-full border px-2 py-0.5 text-xs ${
+                        isOwn
+                          ? "border-white/30 bg-white/10 text-white"
+                          : "border-[#6fa63a]/35 bg-[#f8fdf3] text-[rgba(23,3,3,0.85)]"
+                      }`}
+                      popupClassName="border-[#6fa63a]/35"
+                    />
+                    {visibleMessageReactions.map((reaction) => (
+                      <span
+                        key={`${message?._id}-${reaction?.emoji}`}
+                        className={`rounded-full border px-2 py-0.5 text-[10px] ${
+                          isOwn
+                            ? "border-white/25 bg-white/10 text-white/90"
+                            : "border-[#6fa63a]/35 bg-[#f8fdf3] text-[rgba(23,3,3,0.78)]"
+                        }`}
+                      >
+                        {reaction?.emoji} {Number(reaction?.count || 0)}
+                      </span>
+                    ))}
+                  </div>
                 </div>
               </div>
             );
           })}
+        </div>
+
+        <div className="flex items-end gap-2">
+          {replyTarget && (
+            <div className="w-full rounded-xl border border-[#6fa63a]/30 bg-white/80 px-3 py-2 text-xs">
+              <div className="mb-1 flex items-center justify-between">
+                <p className="font-semibold text-[#2f5b2f]">
+                  Replying to {replyTarget.sender || "message"}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setReplyTarget(null)}
+                  className="text-[10px] text-[rgba(23,3,3,0.62)] hover:text-[rgba(23,3,3,0.9)]"
+                >
+                  <X size={12} />
+                </button>
+              </div>
+              <p className="truncate text-[rgba(23,3,3,0.75)]">{replyTarget.text}</p>
+            </div>
+          )}
         </div>
 
         <div className="flex items-end gap-2">
@@ -406,6 +766,48 @@ const Chat = ({
               </button>
             </div>
             <GroupManagePanel groupId={resolvedGroupId} />
+          </aside>
+        </div>
+      )}
+
+      {showProfilePanel && !isGroupChat && (
+        <div className="fixed inset-0 z-[130]">
+          <div
+            className="absolute inset-0 bg-black/35"
+            onClick={() => setShowProfilePanel(false)}
+          />
+          <aside className="absolute right-0 top-0 h-full w-full max-w-[340px] border-l border-[#6fa63a]/25 bg-[var(--primary-color)] p-3 shadow-[-10px_0_30px_rgba(0,0,0,0.15)]">
+            <div className="mb-3 flex items-center justify-between rounded-xl border border-[#6fa63a]/20 bg-white/70 px-3 py-2">
+              <p className="text-sm font-semibold text-[#2f5b2f]">Profile</p>
+              <button
+                type="button"
+                onClick={() => setShowProfilePanel(false)}
+                className="rounded-lg border border-[#6fa63a]/30 bg-white p-1 text-[#2f5b2f]"
+              >
+                <X size={14} />
+              </button>
+            </div>
+            <div className="rounded-xl border border-[#6fa63a]/20 bg-white/80 p-4">
+              <div className="mb-3 flex justify-center">
+                {otherProfile ? (
+                  <img
+                    src={resolveProfileUrl(otherProfile)}
+                    alt={otherName}
+                    className="h-28 w-28 rounded-full border border-[#6fa63a]/30 object-cover"
+                  />
+                ) : (
+                  <div className="flex h-28 w-28 items-center justify-center rounded-full border border-[#6fa63a]/30 bg-[#eaf4e2] text-xl font-semibold text-[#4a7f4a]">
+                    {toInitials(otherName) || "U"}
+                  </div>
+                )}
+              </div>
+              <p className="text-center text-base font-semibold text-[rgba(23,3,3,0.88)]">
+                {otherName}
+              </p>
+              <p className="mt-1 text-center text-xs capitalize text-[rgba(23,3,3,0.62)]">
+                {otherStatus}
+              </p>
+            </div>
           </aside>
         </div>
       )}

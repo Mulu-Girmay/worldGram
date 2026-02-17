@@ -5,6 +5,7 @@ import {
   meApi,
   refreshApi,
   registerApi,
+  updateMeApi,
 } from "../../api/authApi";
 
 export const registerUser = createAsyncThunk(
@@ -81,6 +82,19 @@ export const logoutUser = createAsyncThunk(
     } catch (err) {
       return rejectWithValue(
         err.response?.data || { message: "logout failed" },
+      );
+    }
+  },
+);
+
+export const updateProfile = createAsyncThunk(
+  "updateProfile",
+  async (payload, { rejectWithValue }) => {
+    try {
+      return await updateMeApi(payload);
+    } catch (err) {
+      return rejectWithValue(
+        err.response?.data || { message: "profile update failed" },
       );
     }
   },

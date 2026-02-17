@@ -23,6 +23,12 @@ export const specificChannelApi = async (id, token) => {
   });
   return data;
 };
+export const channelUnreadCountApi = async (id, token) => {
+  const { data } = await api.get(`/channels/${id}/unread-count`, {
+    headers: authHeaders(token),
+  });
+  return data;
+};
 export const subscribeChannelApi = async (id, token) => {
   const { data } = await api.post(`/channels/${id}/subscribe`, null, {
     headers: authHeaders(token),

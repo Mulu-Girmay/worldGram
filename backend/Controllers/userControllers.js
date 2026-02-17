@@ -119,15 +119,21 @@ exports.getUserById = async (req, res) => {
 
 exports.updateProfile = async (req, res) => {
   try {
-    const { firstName, lastName, username, Bio, profileUrl } = req.body;
+    const { firstName, lastName, username, Bio, profileUrl, phoneNumber } =
+      req.body;
     const user = await User.findById(req.userId);
     if (!user) return res.status(404).json({ err: "User not found" });
 
     if (typeof firstName === "string") user.identity.firstName = firstName;
     if (typeof lastName === "string") user.identity.lastName = lastName;
     if (typeof username === "string") user.identity.username = username;
+    if (typeof phoneNumber === "string") user.identity.phoneNumber = phoneNumber;
     if (typeof Bio === "string") user.identity.Bio = Bio;
-    if (typeof profileUrl === "string") user.identity.profileUrl = profileUrl;
+    if (req.file?.filename) {
+      user.identity.profileUrl = req.file.filename;
+    } else if (typeof profileUrl === "string") {
+      user.identity.profileUrl = profileUrl;
+    }
 
     await user.save();
     res.json({ message: "Profile updated", user: sanitizeUser(user) });

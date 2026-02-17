@@ -95,6 +95,15 @@ const chatSlice = createSlice({
         };
       });
     },
+    setMessageReactions(state, action) {
+      const { messageId, reactions } = action.payload || {};
+      if (!messageId) return;
+      state.messages = (state.messages || []).map((message) =>
+        String(message?._id || "") === String(messageId)
+          ? { ...message, reactions: Array.isArray(reactions) ? reactions : [] }
+          : message,
+      );
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -448,5 +457,6 @@ export const {
   setCurrentChat,
   pushIncomingMessage,
   markMessagesReadByUser,
+  setMessageReactions,
 } = chatSlice.actions;
 export default chatSlice.reducer;

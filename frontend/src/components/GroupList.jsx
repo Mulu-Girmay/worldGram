@@ -8,7 +8,7 @@ import { selectChats } from "../Redux/chatRedux/chatSelector";
 import { useToast } from "./ToastProvider";
 import { joinGroup } from "../Redux/groupRedux/groupThunk";
 
-const GroupList = ({ group }) => {
+const GroupList = ({ group, onOpenChat = null, unreadCount = 0 }) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const chats = useSelector(selectChats);
@@ -33,7 +33,11 @@ const GroupList = ({ group }) => {
 
     if (existing?._id) {
       dispatch(setCurrentChat(existing));
-      navigate("/chat", { state: { chatId: existing._id } });
+      if (typeof onOpenChat === "function") {
+        onOpenChat(existing._id, existing);
+      } else {
+        navigate("/chat", { state: { chatId: existing._id } });
+      }
       return;
     }
 
@@ -46,7 +50,11 @@ const GroupList = ({ group }) => {
       const matched = findGroupChat(beforeCreateList.payload?.items || [], groupId);
       if (matched?._id) {
         dispatch(setCurrentChat(matched));
-        navigate("/chat", { state: { chatId: matched._id } });
+        if (typeof onOpenChat === "function") {
+          onOpenChat(matched._id, matched);
+        } else {
+          navigate("/chat", { state: { chatId: matched._id } });
+        }
         return;
       }
     }
@@ -54,7 +62,11 @@ const GroupList = ({ group }) => {
     const createResult = await dispatch(createGroupChat({ groupId, payload: {} }));
     const chatIdFromCreate = createResult.payload?.chatId || null;
     if (chatIdFromCreate) {
-      navigate("/chat", { state: { chatId: chatIdFromCreate } });
+      if (typeof onOpenChat === "function") {
+        onOpenChat(chatIdFromCreate, null);
+      } else {
+        navigate("/chat", { state: { chatId: chatIdFromCreate } });
+      }
       return;
     }
 
@@ -64,7 +76,11 @@ const GroupList = ({ group }) => {
       const matched = findGroupChat(refreshResult.payload?.items || [], groupId);
       if (matched?._id) {
         dispatch(setCurrentChat(matched));
-        navigate("/chat", { state: { chatId: matched._id } });
+        if (typeof onOpenChat === "function") {
+          onOpenChat(matched._id, matched);
+        } else {
+          navigate("/chat", { state: { chatId: matched._id } });
+        }
         return;
       }
     }
@@ -102,9 +118,15 @@ const GroupList = ({ group }) => {
       </div>
 
       <div className="flex items-center">
-        <span className="rounded-full bg-[#4a7f4a] px-2 py-0.5 text-[10px] font-semibold text-white">
-          {memberCount}
-        </span>
+        {Number(unreadCount) > 0 ? (
+          <span className="rounded-full bg-[#4a7f4a] px-2 py-0.5 text-[10px] font-semibold text-white">
+            {unreadCount}
+          </span>
+        ) : (
+          <span className="rounded-full bg-[#4a7f4a] px-2 py-0.5 text-[10px] font-semibold text-white">
+            {memberCount}
+          </span>
+        )}
       </div>
     </button>
   );

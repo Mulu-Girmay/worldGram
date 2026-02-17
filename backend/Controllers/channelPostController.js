@@ -256,6 +256,15 @@ const parseLimit = (value, fallback = 20, max = 50) => {
   return Math.min(n, max);
 };
 
+const POST_AUTHOR_SELECT =
+  "_id identity.firstName identity.lastName identity.username";
+
+const withPostAuthors = (query) =>
+  query
+    .populate("authorId", POST_AUTHOR_SELECT)
+    .populate("comments.authorId", POST_AUTHOR_SELECT)
+    .populate("comments.replies.authorId", POST_AUTHOR_SELECT);
+
 const canViewChannel = (channel, userId) => {
   const isSubscriber = channel.audience.subscribers
     .map((id) => id.toString())
@@ -286,7 +295,9 @@ exports.getChannelPosts = async (req, res) => {
       query._id = { $lt: cursor };
     }
 
-    const posts = await ChannelPost.find(query).sort({ _id: -1 }).limit(limit);
+    const posts = await withPostAuthors(
+      ChannelPost.find(query).sort({ _id: -1 }).limit(limit),
+    );
     const nextCursor =
       posts.length === limit ? posts[posts.length - 1]._id : null;
 
@@ -305,7 +316,7 @@ exports.getChannelPostById = async (req, res) => {
       return res.status(403).json({ err: "Not allowed to view post" });
     }
 
-    const post = await ChannelPost.findById(postId);
+    const post = await withPostAuthors(ChannelPost.findById(postId));
     if (!post) return res.status(404).json({ err: "Post not found" });
     if (post.channelId.toString() !== channelId) {
       return res.status(400).json({ err: "Post not in this channel" });

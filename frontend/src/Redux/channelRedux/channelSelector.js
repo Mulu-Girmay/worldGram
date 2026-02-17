@@ -40,3 +40,8 @@ export const selectRemoveAdminStatus = (state) =>
   state.channel.removeAdminStatus;
 
 export const selectLastMessage = (state) => state.channel.lastMessage;
+export const selectUnreadCountByChannel = (state) =>
+  state.channel.unreadCountByChannel || {};
+export const selectUnreadStatus = (state) => state.channel.unreadStatus;
+export const selectUnreadCountForChannel = (state, id) =>
+  state.channel.unreadCountByChannel?.[id] || 0;

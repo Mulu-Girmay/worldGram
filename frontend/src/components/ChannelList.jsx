@@ -5,12 +5,16 @@ import { useDispatch } from "react-redux";
 import { setCurrentChannel } from "../Redux/channelRedux/channelSlice";
 import { resolveMediaUrl } from "../utils/media";
 
-const ChannelList = ({ channel }) => {
+const ChannelList = ({ channel, onSelect = null, unreadCount = 0 }) => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
 
   const handleChannel = () => {
     dispatch(setCurrentChannel(channel));
+    if (typeof onSelect === "function") {
+      onSelect(channel);
+      return;
+    }
     navigate("/channel");
   };
 
@@ -41,7 +45,14 @@ const ChannelList = ({ channel }) => {
       <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between gap-2">
           <p className="truncate text-sm font-semibold">{channelName}</p>
-          <span className="text-[10px] text-[var(--text-muted)]">channel</span>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-[var(--text-muted)]">channel</span>
+            {Number(unreadCount) > 0 && (
+              <span className="rounded-full bg-[#4a7f4a] px-2 py-0.5 text-[10px] font-semibold text-white">
+                {unreadCount}
+              </span>
+            )}
+          </div>
         </div>
         <p className="truncate text-xs text-[var(--text-muted)]">{description}</p>
       </div>

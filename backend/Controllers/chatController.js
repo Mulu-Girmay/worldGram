@@ -79,7 +79,7 @@ exports.createChat = async (req, res) => {
 exports.sendMessage = async (req, res) => {
   try {
     const { chatId } = req.params;
-    const { senderId, text } = req.body;
+    const { senderId, text, replyToMessageId } = req.body;
     if (!chatId || !senderId || !text) {
       return res.status(400).json({
         err: "chatId, senderId, and text are required to send a message.",
@@ -91,6 +91,9 @@ exports.sendMessage = async (req, res) => {
       identity: {
         chatId,
         senderId,
+      },
+      Relations: {
+        replyToMessageId: replyToMessageId || null,
       },
       state: {
         readBy: [senderId],
@@ -438,7 +441,7 @@ exports.deleteMessage = async (req, res) => {
 exports.sendMediaMessage = async (req, res) => {
   try {
     const { chatId } = req.params;
-    const { text } = req.body;
+    const { text, replyToMessageId } = req.body;
     if (!req.file && !text) {
       return res.status(400).json({ err: "Text or media is required." });
     }
@@ -454,6 +457,9 @@ exports.sendMediaMessage = async (req, res) => {
 
     const message = await Message.create({
       identity: { chatId, senderId: req.userId },
+      Relations: {
+        replyToMessageId: replyToMessageId || null,
+      },
       state: {
         readBy: [req.userId],
       },

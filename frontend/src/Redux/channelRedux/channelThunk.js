@@ -2,6 +2,7 @@ import { createAsyncThunk } from "@reduxjs/toolkit";
 import {
   addAdminApi,
   addChannelApi,
+  channelUnreadCountApi,
   deleteChannelApi,
   listChannelApi,
   listMyChannelApi,
@@ -158,6 +159,24 @@ export const removeAdmin = createAsyncThunk(
     } catch (err) {
       return rejectWithValue(
         err.response?.data || { message: "removing admin failed" },
+      );
+    }
+  },
+);
+
+export const getChannelUnreadCount = createAsyncThunk(
+  "getChannelUnreadCount",
+  async (id, { getState, rejectWithValue }) => {
+    try {
+      if (!id) {
+        return rejectWithValue({ message: "channel id is required" });
+      }
+      const token = getState().auth?.accessToken;
+      const data = await channelUnreadCountApi(id, token);
+      return { id, unreadCount: Number(data?.unreadCount || 0) };
+    } catch (err) {
+      return rejectWithValue(
+        err.response?.data || { message: "fetching channel unread count failed" },
       );
     }
   },

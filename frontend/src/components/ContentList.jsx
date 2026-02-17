@@ -19,7 +19,7 @@ const formatTime = (value) => {
   return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 };
 
-const ContentList = ({ chat }) => {
+const ContentList = ({ chat, onSelect = null, unreadCount = 0 }) => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const currentUser = useSelector(selectUser);
@@ -46,6 +46,10 @@ const ContentList = ({ chat }) => {
     (lastMessage?.content?.mediaURL ? "Media message" : "No messages yet");
 
   const handleChat = () => {
+    if (typeof onSelect === "function") {
+      onSelect(chat);
+      return;
+    }
     dispatch(setCurrentChat(chat));
     navigate("/chat", { state: { chatId: chat?._id } });
   };
@@ -71,9 +75,16 @@ const ContentList = ({ chat }) => {
       <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between gap-2">
           <p className="truncate text-sm font-semibold">{displayName}</p>
-          <p className="text-[10px] text-[var(--text-muted)]">
-            {formatTime(lastMessage?.createdAt)}
-          </p>
+          <div className="flex items-center gap-2">
+            <p className="text-[10px] text-[var(--text-muted)]">
+              {formatTime(lastMessage?.createdAt)}
+            </p>
+            {Number(unreadCount) > 0 && (
+              <span className="rounded-full bg-[#4a7f4a] px-2 py-0.5 text-[10px] font-semibold text-white">
+                {unreadCount}
+              </span>
+            )}
+          </div>
         </div>
         <p className="truncate text-xs text-[var(--text-muted)]">{lastMessageText}</p>
       </div>

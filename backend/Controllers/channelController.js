@@ -1,5 +1,6 @@
 const Channel = require("../Models/Channel");
 const User = require("../Models/User");
+const ChannelPost = require("../Models/ChannelPost");
 const mongoose = require("mongoose");
 exports.addChannel = async (req, res) => {
   let { name, userName, description } = req.body;
@@ -338,5 +339,36 @@ exports.unsubscribeChannel = async (req, res) => {
     res.json({ message: "Unsubscribed" });
   } catch (error) {
     res.status(500).json({ err: "Failed to unsubscribe" });
+  }
+};
+
+exports.getChannelUnreadCount = async (req, res) => {
+  try {
+    const channel = await Channel.findById(req.params.id);
+    if (!channel) return res.status(404).json({ err: "Channel not found" });
+
+    const isSubscriber = channel.audience.subscribers
+      .map((id) => id.toString())
+      .includes(req.userId);
+    const isAdmin = channel.ownership.admins
+      .map((id) => id.toString())
+      .includes(req.userId);
+    const isOwner = channel.ownership?.ownerId
+      ? channel.ownership.ownerId.toString() === req.userId
+      : false;
+
+    if (!channel.settings.isPublic && !isSubscriber && !isAdmin && !isOwner) {
+      return res.status(403).json({ err: "Not allowed to view channel" });
+    }
+
+    const unreadCount = await ChannelPost.countDocuments({
+      channelId: req.params.id,
+      viewedBy: { $ne: req.userId },
+      authorId: { $ne: req.userId },
+    });
+
+    res.json({ unreadCount });
+  } catch (error) {
+    res.status(500).json({ err: "Failed to fetch unread count" });
   }
 };
