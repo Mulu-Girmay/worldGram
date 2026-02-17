@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 import { ProfileNav } from "./Profile";
 import { useDispatch } from "react-redux";
-import { FileBoxIcon, SendHorizontal } from "lucide-react";
+import { FileBoxIcon, SendHorizontal, X } from "lucide-react";
 import { useLocation } from "react-router-dom";
 import { io } from "socket.io-client";
 import GroupManagePanel from "./group/GroupManagePanel";
@@ -60,6 +60,7 @@ const Chat = ({
 
   const [draft, setDraft] = useState("");
   const [presenceMap, setPresenceMap] = useState({});
+  const [showGroupSettings, setShowGroupSettings] = useState(false);
 
   const activeChat =
     currentChatProp || selectedChatFromStore || currentChatFromStore || null;
@@ -76,6 +77,10 @@ const Chat = ({
     activeChat?.type === "group"
       ? activeChat?.groupId?._id || activeChat?.groupId || null
       : null;
+
+  useEffect(() => {
+    setShowGroupSettings(false);
+  }, [resolvedChatId]);
 
   useEffect(() => {
     if (!resolvedChatId) return;
@@ -198,13 +203,37 @@ const Chat = ({
     presenceMap[normalizeId(otherParticipant?._id)] ||
     otherParticipant?.AccountStatus?.onlineStatus ||
     "offline";
+  const isGroupChat = activeChat?.type === "group";
 
   return (
     <div className="min-h-screen bg-[var(--primary-color)]">
-      <ProfileNav />
+      <ProfileNav
+        title={otherName}
+        subtitle={
+          isGroupChat ? "Group conversation" : (otherStatus || "offline")
+        }
+        avatarUrl={otherProfile}
+        backPath="/home"
+      />
 
       <div className="mx-auto w-full max-w-2xl space-y-3 p-4">
-        <div className="flex items-center gap-3 rounded-xl border border-[#6fa63a]/20 bg-white/60 px-3 py-2">
+        <div
+          role={isGroupChat ? "button" : undefined}
+          tabIndex={isGroupChat ? 0 : undefined}
+          onClick={() => {
+            if (isGroupChat && resolvedGroupId) setShowGroupSettings(true);
+          }}
+          onKeyDown={(e) => {
+            if (!isGroupChat || !resolvedGroupId) return;
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              setShowGroupSettings(true);
+            }
+          }}
+          className={`flex items-center gap-3 rounded-xl border border-[#6fa63a]/20 bg-white/60 px-3 py-2 ${
+            isGroupChat ? "cursor-pointer hover:bg-white/80" : ""
+          }`}
+        >
           {otherProfile ? (
             <img
               src={otherProfile}
@@ -224,14 +253,10 @@ const Chat = ({
           <div>
             <p className="text-sm font-semibold text-[rgba(23,3,3,0.9)]">{otherName}</p>
             <p className="text-xs text-[rgba(23,3,3,0.62)] capitalize">
-              {otherStatus}
+              {isGroupChat ? "Tap to open group profile settings" : otherStatus}
             </p>
           </div>
         </div>
-
-        {activeChat?.type === "group" && (
-          <GroupManagePanel groupId={resolvedGroupId} />
-        )}
 
         <div className="h-[60vh] space-y-2 overflow-y-auto rounded-2xl border border-[#6fa63a]/25 bg-[#f3f9ee] p-3">
           {messagesStatus === "loading" && (
@@ -352,6 +377,29 @@ const Chat = ({
           </button>
         </div>
       </div>
+
+      {showGroupSettings && isGroupChat && resolvedGroupId && (
+        <div className="fixed inset-0 z-[120]">
+          <div
+            className="absolute inset-0 bg-black/35"
+            onClick={() => setShowGroupSettings(false)}
+          />
+          <aside className="absolute right-0 top-0 h-full w-full max-w-[380px] border-l border-[#6fa63a]/25 bg-[var(--primary-color)] p-3 shadow-[-10px_0_30px_rgba(0,0,0,0.15)]">
+            <div className="mb-3 flex items-center justify-between rounded-xl border border-[#6fa63a]/20 bg-white/70 px-3 py-2">
+              <p className="text-sm font-semibold text-[#2f5b2f]">Group profile</p>
+              <button
+                type="button"
+                onClick={() => setShowGroupSettings(false)}
+                className="rounded-lg border border-[#6fa63a]/30 bg-white p-1 text-[#2f5b2f]"
+                aria-label="Close group settings"
+              >
+                <X size={14} />
+              </button>
+            </div>
+            <GroupManagePanel groupId={resolvedGroupId} />
+          </aside>
+        </div>
+      )}
     </div>
   );
 };

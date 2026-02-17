@@ -53,45 +53,94 @@ const HomePage = () => {
   }, [dispatch, groupsStatus, isAuthenticated]);
 
   return (
-    <div className="min-h-screen bg-[#eaf4e2] px-4 py-6">
-      <div className="mx-auto w-full max-w-[900px] space-y-6">
-        <Nav />
+    <div className="min-h-screen p-3 md:p-4">
+      <div className="mx-auto h-[calc(100vh-1.5rem)] max-w-[1300px] grid grid-cols-1 gap-3 md:h-[calc(100vh-2rem)] md:grid-cols-[360px_1fr]">
+        <aside className="flex min-h-0 flex-col rounded-2xl border border-[var(--border-color)] bg-[var(--surface-color)] p-3 shadow-[0_12px_30px_rgba(74,127,74,0.12)]">
+          <Nav />
 
-        {status === "loading" && <p>Loading channels...</p>}
+          <div className="mt-3 min-h-0 flex-1 overflow-y-auto rounded-xl border border-[var(--border-color)] bg-white/75 p-2">
+            <div className="mb-2 px-2 text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">
+              Conversations
+            </div>
 
-        {status === "failed" && <p className="text-red-600">{error}</p>}
+            {chatsStatus === "loading" && (
+              <p className="px-2 py-2 text-xs text-[var(--text-muted)]">
+                Loading chats...
+              </p>
+            )}
+            {chatsStatus === "failed" && (
+              <p className="px-2 py-2 text-xs text-red-600">{chatsError}</p>
+            )}
+            {chats.map((c) => (
+              <ContentList key={c._id} chat={c} />
+            ))}
 
-        {status === "succeeded" &&
-          (channels.length > 0 ? (
-            channels.map((c) => <ChannelList key={c._id} channel={c} />)
-          ) : (
-            <p>No channels found.</p>
-          ))}
+            <div className="my-2 border-t border-[var(--border-color)]" />
+            <div className="mb-2 px-2 text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">
+              Groups
+            </div>
 
-        {groupsStatus === "loading" && <p>Loading groups...</p>}
+            {groupsStatus === "loading" && (
+              <p className="px-2 py-2 text-xs text-[var(--text-muted)]">
+                Loading groups...
+              </p>
+            )}
+            {groupsStatus === "failed" && (
+              <p className="px-2 py-2 text-xs text-red-600">{groupsError}</p>
+            )}
+            {groups.map((g) => (
+              <GroupList key={g._id} group={g} />
+            ))}
 
-        {groupsStatus === "failed" && (
-          <p className="text-red-600">{groupsError}</p>
-        )}
+            <div className="my-2 border-t border-[var(--border-color)]" />
+            <div className="mb-2 px-2 text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">
+              Channels
+            </div>
 
-        {groupsStatus === "succeeded" &&
-          (groups.length > 0 ? (
-            groups.map((g) => <GroupList key={g._id} group={g} />)
-          ) : (
-            <p>No groups found.</p>
-          ))}
+            {status === "loading" && (
+              <p className="px-2 py-2 text-xs text-[var(--text-muted)]">
+                Loading channels...
+              </p>
+            )}
+            {status === "failed" && (
+              <p className="px-2 py-2 text-xs text-red-600">{error}</p>
+            )}
+            {channels.map((c) => (
+              <ChannelList key={c._id} channel={c} />
+            ))}
+          </div>
+        </aside>
 
-        {chatsStatus === "loading" && <p>Loading chats...</p>}
+        <main className="hidden min-h-0 rounded-2xl border border-[var(--border-color)] bg-[var(--surface-color)] shadow-[0_12px_30px_rgba(74,127,74,0.12)] md:flex md:flex-col">
+          <div className="border-b border-[var(--border-color)] px-6 py-4">
+            <h1 className="text-lg font-semibold">Telegram Style Workspace</h1>
+            <p className="text-sm text-[var(--text-muted)]">
+              Select a conversation from the left panel to start messaging.
+            </p>
+          </div>
 
-        {chatsStatus === "failed" && (
-          <p className="text-red-600">{chatsError}</p>
-        )}
-
-        {chats.length > 0 ? (
-          chats.map((c) => <ContentList key={c._id} chat={c} />)
-        ) : (
-          <p>No chats found.</p>
-        )}
+          <div className="grid flex-1 place-items-center p-8">
+            <div className="max-w-[520px] rounded-2xl border border-[var(--border-color)] bg-white p-6 text-center">
+              <p className="text-sm font-semibold text-[#2f5b2f]">
+                Quick summary
+              </p>
+              <div className="mt-4 grid grid-cols-3 gap-3 text-xs">
+                <div className="rounded-xl border border-[var(--border-color)] bg-[var(--surface-muted)] p-3">
+                  <p className="text-[var(--text-muted)]">Chats</p>
+                  <p className="mt-1 text-base font-semibold">{chats.length}</p>
+                </div>
+                <div className="rounded-xl border border-[var(--border-color)] bg-[var(--surface-muted)] p-3">
+                  <p className="text-[var(--text-muted)]">Groups</p>
+                  <p className="mt-1 text-base font-semibold">{groups.length}</p>
+                </div>
+                <div className="rounded-xl border border-[var(--border-color)] bg-[var(--surface-muted)] p-3">
+                  <p className="text-[var(--text-muted)]">Channels</p>
+                  <p className="mt-1 text-base font-semibold">{channels.length}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </main>
       </div>
     </div>
   );

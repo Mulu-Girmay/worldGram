@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { ProfileNav } from "./Profile";
-import { FileBoxIcon, SendHorizontal } from "lucide-react";
+import { FileBoxIcon, SendHorizontal, X } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
 import {
   getChannelPosts,
@@ -71,6 +71,7 @@ const Channel = () => {
   const [forwardError, setForwardError] = useState("");
   const [loadingMore, setLoadingMore] = useState(false);
   const [postsLocal, setPostsLocal] = useState([]);
+  const [showChannelSettings, setShowChannelSettings] = useState(false);
   const [adminToAdd, setAdminToAdd] = useState("");
   const [adminToRemove, setAdminToRemove] = useState("");
   const [channelActionFeedback, setChannelActionFeedback] = useState("");
@@ -120,6 +121,7 @@ const Channel = () => {
   const isUnsubscribing = unsubscribeStatus === "loading";
   const isAddingAdmin = addAdminStatus === "loading";
   const isRemovingAdmin = removeAdminStatus === "loading";
+  const channelTitle = currentChannel?.basicInfo?.name || "Channel";
 
   const resolveMediaSrc = (media) => {
     if (!media) return null;
@@ -155,6 +157,10 @@ const Channel = () => {
     }
     return null;
   };
+
+  const channelAvatar = resolveMediaSrc(
+    currentChannel?.basicInfo?.photo || currentChannel?.basicInfo?.channelPhoto,
+  );
 
   const refreshPosts = () => {
     if (!currentChannel || !currentChannel._id) return;
@@ -554,6 +560,10 @@ const Channel = () => {
     setChannelActionError("");
   }, [currentChannel?._id]);
 
+  useEffect(() => {
+    setShowChannelSettings(false);
+  }, [currentChannel?._id]);
+
   async function handleSubmit(e) {
     e.preventDefault();
     console.log("submitting...");
@@ -598,12 +608,33 @@ const Channel = () => {
 
   return (
     <div className="space-y-4">
-      <ProfileNav />
+      <ProfileNav
+        title={channelTitle}
+        subtitle={`${currentChannel?.membersCount || 0} members`}
+        avatarUrl={channelAvatar}
+        backPath="/home"
+      />
       <section className="relative overflow-hidden rounded-3xl border border-[#6fa63a]/30 bg-[linear-gradient(135deg,#f8fdf3_0%,#eef8e8_60%,#e5f2dc_100%)] p-4 shadow-[0_16px_35px_rgba(74,127,74,0.12)]">
         <div className="pointer-events-none absolute -right-10 -top-8 h-28 w-28 rounded-full bg-[#6fa63a]/15 blur-2xl" />
         <div className="pointer-events-none absolute -bottom-10 -left-8 h-32 w-32 rounded-full bg-[#4a7f4a]/10 blur-2xl" />
 
-        <div className="relative mb-4 flex items-center justify-between rounded-2xl border border-[#6fa63a]/25 bg-white/65 px-3 py-2">
+        <div
+          role={currentChannel?._id ? "button" : undefined}
+          tabIndex={currentChannel?._id ? 0 : undefined}
+          onClick={() => {
+            if (currentChannel?._id) setShowChannelSettings(true);
+          }}
+          onKeyDown={(e) => {
+            if (!currentChannel?._id) return;
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              setShowChannelSettings(true);
+            }
+          }}
+          className={`relative mb-4 flex items-center justify-between rounded-2xl border border-[#6fa63a]/25 bg-white/65 px-3 py-2 ${
+            currentChannel?._id ? "cursor-pointer hover:bg-white/80" : ""
+          }`}
+        >
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 overflow-hidden rounded-full bg-[#4a7f4a] flex items-center justify-center">
               {currentChannel?.basicInfo?.photo ? (
@@ -631,90 +662,16 @@ const Channel = () => {
               <p className="text-sm font-semibold text-[rgba(23,3,3,0.87)]">
                 {currentChannel?.basicInfo?.name || "Select a channel"}
               </p>
+              {currentChannel?._id && (
+                <p className="text-[10px] text-[rgba(23,3,3,0.58)]">
+                  Tap to open channel profile settings
+                </p>
+              )}
             </div>
           </div>
           <p className="rounded-full bg-[#6fa63a]/15 px-2.5 py-1 text-xs font-medium text-[#2f5b2f]">
             {currentChannel?.membersCount || "--"} members
           </p>
-        </div>
-
-        <div className="mb-4 rounded-2xl border border-[#6fa63a]/25 bg-white/70 p-3">
-          <div className="flex flex-wrap items-center gap-2">
-            {currentUserId && (
-              <button
-                type="button"
-                onClick={isSubscriber ? handleUnsubscribe : handleSubscribe}
-                disabled={isSubscribing || isUnsubscribing}
-                className="rounded-lg border border-[#6fa63a]/35 px-3 py-1.5 text-xs font-medium text-[#2f5b2f] hover:bg-[#f3f9ee] disabled:opacity-60"
-              >
-                {isSubscribing || isUnsubscribing
-                  ? "Updating..."
-                  : isSubscriber
-                    ? "Unsubscribe"
-                    : "Subscribe"}
-              </button>
-            )}
-            {isOwnerOrAdmin && (
-              <span className="rounded-full bg-[#6fa63a]/15 px-2 py-1 text-[10px] font-semibold text-[#2f5b2f]">
-                You are {currentChannel?.ownership?.ownerId?.toString?.() === currentUserId ? "Owner" : "Admin"}
-              </span>
-            )}
-          </div>
-
-          {isOwnerOrAdmin && (
-            <div className="mt-3 grid gap-2 sm:grid-cols-2">
-              <form onSubmit={handleAddAdmin} className="rounded-xl border border-[#6fa63a]/20 p-2 bg-[#f9fcf6]">
-                <p className="text-xs font-semibold text-[#2f5b2f]">Add Admin</p>
-                <div className="mt-2 flex gap-2">
-                  <input
-                    value={adminToAdd}
-                    onChange={(e) => setAdminToAdd(e.target.value)}
-                    placeholder="username"
-                    className="w-full rounded-md border border-[#6fa63a]/30 px-2 py-1 text-xs outline-none focus:border-[#4a7f4a]"
-                  />
-                  <button
-                    type="submit"
-                    disabled={!adminToAdd.trim() || isAddingAdmin}
-                    className="rounded-md bg-[#4a7f4a] px-2 py-1 text-xs text-white disabled:opacity-60"
-                  >
-                    {isAddingAdmin ? "Adding..." : "Add"}
-                  </button>
-                </div>
-              </form>
-
-              <form onSubmit={handleRemoveAdmin} className="rounded-xl border border-[#6fa63a]/20 p-2 bg-[#f9fcf6]">
-                <p className="text-xs font-semibold text-[#2f5b2f]">
-                  Remove Admin
-                </p>
-                <div className="mt-2 flex gap-2">
-                  <input
-                    value={adminToRemove}
-                    onChange={(e) => setAdminToRemove(e.target.value)}
-                    placeholder="username"
-                    className="w-full rounded-md border border-[#6fa63a]/30 px-2 py-1 text-xs outline-none focus:border-[#4a7f4a]"
-                  />
-                  <button
-                    type="submit"
-                    disabled={!adminToRemove.trim() || isRemovingAdmin}
-                    className="rounded-md bg-[#4a7f4a] px-2 py-1 text-xs text-white disabled:opacity-60"
-                  >
-                    {isRemovingAdmin ? "Removing..." : "Remove"}
-                  </button>
-                </div>
-              </form>
-            </div>
-          )}
-
-          {(channelActionFeedback || channelLastMessage) && (
-            <p className="mt-2 text-xs text-[#2f5b2f]">
-              {channelActionFeedback || channelLastMessage}
-            </p>
-          )}
-          {(channelActionError || channelError) && (
-            <p className="mt-1 text-xs text-red-600">
-              {channelActionError || channelError}
-            </p>
-          )}
         </div>
 
         <div className="relative max-h-[520px] space-y-3 overflow-y-auto pr-1">
@@ -861,6 +818,126 @@ const Channel = () => {
         )}
       </section>
       <div className="h-2" />
+
+      {showChannelSettings && currentChannel?._id && (
+        <div className="fixed inset-0 z-[120]">
+          <div
+            className="absolute inset-0 bg-black/35"
+            onClick={() => setShowChannelSettings(false)}
+          />
+          <aside className="absolute right-0 top-0 h-full w-full max-w-[380px] border-l border-[#6fa63a]/25 bg-[var(--primary-color)] p-3 shadow-[-10px_0_30px_rgba(0,0,0,0.15)]">
+            <div className="mb-3 flex items-center justify-between rounded-xl border border-[#6fa63a]/20 bg-white/70 px-3 py-2">
+              <div>
+                <p className="text-sm font-semibold text-[#2f5b2f]">
+                  Channel profile
+                </p>
+                <p className="text-[11px] text-[rgba(23,3,3,0.62)]">
+                  {channelTitle}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowChannelSettings(false)}
+                className="rounded-lg border border-[#6fa63a]/30 bg-white p-1 text-[#2f5b2f]"
+                aria-label="Close channel settings"
+              >
+                <X size={14} />
+              </button>
+            </div>
+
+            <div className="space-y-3 rounded-xl border border-[#6fa63a]/20 bg-white/75 p-3">
+              <div className="flex flex-wrap items-center gap-2">
+                {currentUserId && (
+                  <button
+                    type="button"
+                    onClick={isSubscriber ? handleUnsubscribe : handleSubscribe}
+                    disabled={isSubscribing || isUnsubscribing}
+                    className="rounded-lg border border-[#6fa63a]/35 px-3 py-1.5 text-xs font-medium text-[#2f5b2f] hover:bg-[#f3f9ee] disabled:opacity-60"
+                  >
+                    {isSubscribing || isUnsubscribing
+                      ? "Updating..."
+                      : isSubscriber
+                        ? "Unsubscribe"
+                        : "Subscribe"}
+                  </button>
+                )}
+                {isOwnerOrAdmin && (
+                  <span className="rounded-full bg-[#6fa63a]/15 px-2 py-1 text-[10px] font-semibold text-[#2f5b2f]">
+                    You are{" "}
+                    {currentChannel?.ownership?.ownerId?.toString?.() ===
+                    currentUserId
+                      ? "Owner"
+                      : "Admin"}
+                  </span>
+                )}
+              </div>
+
+              {isOwnerOrAdmin && (
+                <div className="grid gap-2">
+                  <form
+                    onSubmit={handleAddAdmin}
+                    className="rounded-xl border border-[#6fa63a]/20 p-2 bg-[#f9fcf6]"
+                  >
+                    <p className="text-xs font-semibold text-[#2f5b2f]">
+                      Add Admin
+                    </p>
+                    <div className="mt-2 flex gap-2">
+                      <input
+                        value={adminToAdd}
+                        onChange={(e) => setAdminToAdd(e.target.value)}
+                        placeholder="username"
+                        className="w-full rounded-md border border-[#6fa63a]/30 px-2 py-1 text-xs outline-none focus:border-[#4a7f4a]"
+                      />
+                      <button
+                        type="submit"
+                        disabled={!adminToAdd.trim() || isAddingAdmin}
+                        className="rounded-md bg-[#4a7f4a] px-2 py-1 text-xs text-white disabled:opacity-60"
+                      >
+                        {isAddingAdmin ? "Adding..." : "Add"}
+                      </button>
+                    </div>
+                  </form>
+
+                  <form
+                    onSubmit={handleRemoveAdmin}
+                    className="rounded-xl border border-[#6fa63a]/20 p-2 bg-[#f9fcf6]"
+                  >
+                    <p className="text-xs font-semibold text-[#2f5b2f]">
+                      Remove Admin
+                    </p>
+                    <div className="mt-2 flex gap-2">
+                      <input
+                        value={adminToRemove}
+                        onChange={(e) => setAdminToRemove(e.target.value)}
+                        placeholder="username"
+                        className="w-full rounded-md border border-[#6fa63a]/30 px-2 py-1 text-xs outline-none focus:border-[#4a7f4a]"
+                      />
+                      <button
+                        type="submit"
+                        disabled={!adminToRemove.trim() || isRemovingAdmin}
+                        className="rounded-md bg-[#4a7f4a] px-2 py-1 text-xs text-white disabled:opacity-60"
+                      >
+                        {isRemovingAdmin ? "Removing..." : "Remove"}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              )}
+
+              {(channelActionFeedback || channelLastMessage) && (
+                <p className="text-xs text-[#2f5b2f]">
+                  {channelActionFeedback || channelLastMessage}
+                </p>
+              )}
+              {(channelActionError || channelError) && (
+                <p className="text-xs text-red-600">
+                  {channelActionError || channelError}
+                </p>
+              )}
+            </div>
+          </aside>
+        </div>
+      )}
 
       {forwardModalOpen && (
         <div className="fixed inset-0 z-[100] bg-black/35 backdrop-blur-[1px] flex items-center justify-center p-4">

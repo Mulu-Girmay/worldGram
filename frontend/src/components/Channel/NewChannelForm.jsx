@@ -1,8 +1,7 @@
 import React, { useState } from "react";
-import { ProfileNav } from "../Profile";
-import { ArrowLeft, Check, ListCheck } from "lucide-react";
-import { useDispatch, useSelector } from "react-redux";
-import { Link, useNavigate } from "react-router-dom";
+import { ArrowLeft, Check } from "lucide-react";
+import { useDispatch } from "react-redux";
+import { useNavigate } from "react-router-dom";
 import { createChannel } from "../../Redux/channelRedux/channelThunk";
 
 const NewChannelForm = () => {
