@@ -4,12 +4,18 @@ import {
   addChannelApi,
   channelUnreadCountApi,
   deleteChannelApi,
+  getChannelAnalyticsApi,
+  getChannelRecentActionsApi,
   listChannelApi,
   listMyChannelApi,
+  muteChannelApi,
   removeAdminApi,
   specificChannelApi,
+  suggestPostApi,
   subscribeChannelApi,
+  unmuteChannelApi,
   unsubscribeChannelApi,
+  updateAdminPermissionsApi,
   updateChannelApi,
 } from "../../api/channelApi";
 
@@ -80,6 +86,34 @@ export const unsubscribeChannel = createAsyncThunk(
     } catch (err) {
       return rejectWithValue(
         err.response?.data || { message: "unsubscribing  channel failed" },
+      );
+    }
+  },
+);
+export const muteChannel = createAsyncThunk(
+  "muteChannel",
+  async (id, { getState, rejectWithValue }) => {
+    try {
+      if (!id) return rejectWithValue({ message: "channel id is required" });
+      const token = getState().auth?.accessToken;
+      return await muteChannelApi(id, token);
+    } catch (err) {
+      return rejectWithValue(
+        err.response?.data || { message: "muting channel failed" },
+      );
+    }
+  },
+);
+export const unmuteChannel = createAsyncThunk(
+  "unmuteChannel",
+  async (id, { getState, rejectWithValue }) => {
+    try {
+      if (!id) return rejectWithValue({ message: "channel id is required" });
+      const token = getState().auth?.accessToken;
+      return await unmuteChannelApi(id, token);
+    } catch (err) {
+      return rejectWithValue(
+        err.response?.data || { message: "unmuting channel failed" },
       );
     }
   },
@@ -159,6 +193,68 @@ export const removeAdmin = createAsyncThunk(
     } catch (err) {
       return rejectWithValue(
         err.response?.data || { message: "removing admin failed" },
+      );
+    }
+  },
+);
+export const updateAdminPermissions = createAsyncThunk(
+  "updateAdminPermissions",
+  async ({ id, payload }, { getState, rejectWithValue }) => {
+    try {
+      if (!id) return rejectWithValue({ message: "channel id is required" });
+      const token = getState().auth?.accessToken;
+      return await updateAdminPermissionsApi(id, payload, token);
+    } catch (err) {
+      return rejectWithValue(
+        err.response?.data || { message: "updating admin permissions failed" },
+      );
+    }
+  },
+);
+export const getChannelRecentActions = createAsyncThunk(
+  "getChannelRecentActions",
+  async ({ id, params = {} }, { getState, rejectWithValue }) => {
+    try {
+      if (!id) return rejectWithValue({ message: "channel id is required" });
+      const token = getState().auth?.accessToken;
+      const data = await getChannelRecentActionsApi(id, params, token);
+      return { id, items: data?.items || [] };
+    } catch (err) {
+      return rejectWithValue(
+        err.response?.data || { message: "fetching channel recent actions failed" },
+      );
+    }
+  },
+);
+export const getChannelAnalytics = createAsyncThunk(
+  "getChannelAnalytics",
+  async (id, { getState, rejectWithValue }) => {
+    try {
+      if (!id) return rejectWithValue({ message: "channel id is required" });
+      const token = getState().auth?.accessToken;
+      const data = await getChannelAnalyticsApi(id, token);
+      return { id, data };
+    } catch (err) {
+      return rejectWithValue(
+        err.response?.data || { message: "fetching channel analytics failed" },
+      );
+    }
+  },
+);
+export const suggestPost = createAsyncThunk(
+  "suggestPost",
+  async ({ id, text }, { getState, rejectWithValue }) => {
+    try {
+      if (!id || !String(text || "").trim()) {
+        return rejectWithValue({
+          message: "channel id and suggestion text are required",
+        });
+      }
+      const token = getState().auth?.accessToken;
+      return await suggestPostApi(id, { text: String(text).trim() }, token);
+    } catch (err) {
+      return rejectWithValue(
+        err.response?.data || { message: "suggesting post failed" },
       );
     }
   },

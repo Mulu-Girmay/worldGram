@@ -164,7 +164,7 @@ io.on("connection", (socket) => {
       const hydratedMessage = await Message.findById(message._id).populate({
         path: "identity.senderId",
         select:
-          "identity.firstName identity.lastName identity.username identity.profileUrl AccountStatus.onlineStatus",
+          "identity.firstName identity.lastName identity.username identity.profileUrl identity.phoneNumber identity.personalChannelUsername identity.Bio identity.emojiStatus privacySettings.privacyPhoneNumber privacySettings.privacyLastSeen AccountStatus.onlineStatus AccountStatus.lastSeenAt AccountStatus.isPremium",
       });
 
       io.to(chatId).emit("new-message", hydratedMessage);

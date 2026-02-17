@@ -29,6 +29,12 @@ const initialState = {
   deleteStatus: "idle",
   pinStatus: "idle",
   error: null,
+  channelPostSettings: {
+    allowComments: true,
+    hasDiscussionGroup: false,
+    allowedReactions: [],
+    contentProtection: false,
+  },
 };
 
 const postSlice = createSlice({
@@ -67,6 +73,12 @@ const postSlice = createSlice({
           state.posts = items;
         }
         state.nextCursor = action.payload?.nextCursor || null;
+        if (action.payload?.channelSettings) {
+          state.channelPostSettings = {
+            ...state.channelPostSettings,
+            ...action.payload.channelSettings,
+          };
+        }
       })
       .addCase(getChannelPosts.rejected, (state, action) => {
         state.postsStatus = "failed";

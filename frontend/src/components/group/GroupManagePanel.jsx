@@ -4,12 +4,25 @@ import { useToast } from "../ToastProvider";
 import {
   addAdmin,
   addMember,
+  boostGroup,
+  convertGroupToBroadcast,
+  createGroupTopic,
+  deleteGroupTopic,
+  endGroupLiveStream,
   findGroup,
+  getGroupRecentActions,
   joinGroup,
   leaveGroup,
+  listGroupTopics,
   listMembers,
   removeAdmin,
   removeMember,
+  setGroupViewMode,
+  startGroupLiveStream,
+  updateGroupAdminProfile,
+  updateGroupSlowMode,
+  updateMemberException,
+  updateGroupTopic,
   updatePermissions,
 } from "../../Redux/groupRedux/groupThunk";
 import {
@@ -17,6 +30,12 @@ import {
   selectGroupError,
   selectGroupMembers,
   selectGroupMembersStatus,
+  selectGroupRecentActions,
+  selectGroupRecentActionsStatus,
+  selectGroupTopics,
+  selectGroupTopicsStatus,
+  selectGroupBoostStatus,
+  selectGroupLiveStreamStatus,
   selectPermissionStatus,
 } from "../../Redux/groupRedux/groupSelector";
 import { resolveProfileUrl, toInitials } from "../../utils/media";
@@ -29,6 +48,12 @@ const GroupManagePanel = ({ groupId }) => {
   const membersStatus = useSelector(selectGroupMembersStatus);
   const groupError = useSelector(selectGroupError);
   const permissionStatus = useSelector(selectPermissionStatus);
+  const topics = useSelector(selectGroupTopics);
+  const topicsStatus = useSelector(selectGroupTopicsStatus);
+  const recentActions = useSelector(selectGroupRecentActions);
+  const recentActionsStatus = useSelector(selectGroupRecentActionsStatus);
+  const boostStatus = useSelector(selectGroupBoostStatus);
+  const liveStreamStatus = useSelector(selectGroupLiveStreamStatus);
 
   const [memberUsername, setMemberUsername] = useState("");
   const [adminUsername, setAdminUsername] = useState("");
@@ -38,12 +63,26 @@ const GroupManagePanel = ({ groupId }) => {
     canSendMedia: true,
     canPinMessages: true,
     canAddMembers: true,
+    canEmbedLinks: true,
+    canCreatePolls: true,
+    canChangeChatInfo: false,
   });
+  const [topicName, setTopicName] = useState("");
+  const [topicDescription, setTopicDescription] = useState("");
+  const [viewMode, setViewMode] = useState("message");
+  const [slowModeSeconds, setSlowModeSeconds] = useState(0);
+  const [adminProfileUsername, setAdminProfileUsername] = useState("");
+  const [adminCustomTitle, setAdminCustomTitle] = useState("");
+  const [adminAnonymous, setAdminAnonymous] = useState(false);
+  const [exceptionMemberId, setExceptionMemberId] = useState("");
+  const [exceptionCanSendMedia, setExceptionCanSendMedia] = useState(true);
 
   useEffect(() => {
     if (!groupId) return;
     dispatch(findGroup(groupId));
     dispatch(listMembers(groupId));
+    dispatch(listGroupTopics(groupId));
+    dispatch(getGroupRecentActions({ id: groupId, params: { limit: 20 } }));
   }, [dispatch, groupId]);
 
   useEffect(() => {
@@ -53,6 +92,10 @@ const GroupManagePanel = ({ groupId }) => {
         ...currentGroup.permissions,
       }));
     }
+    if (currentGroup?.settings?.defaultViewMode) {
+      setViewMode(currentGroup.settings.defaultViewMode);
+    }
+    setSlowModeSeconds(Number(currentGroup?.settings?.slowModeSeconds || 0));
   }, [currentGroup]);
 
   const displayMembers = useMemo(
@@ -64,6 +107,8 @@ const GroupManagePanel = ({ groupId }) => {
     if (!groupId) return;
     dispatch(findGroup(groupId));
     dispatch(listMembers(groupId));
+    dispatch(listGroupTopics(groupId));
+    dispatch(getGroupRecentActions({ id: groupId, params: { limit: 20 } }));
   };
 
   const handleJoin = async () => {
@@ -159,6 +204,155 @@ const GroupManagePanel = ({ groupId }) => {
       toast.error(
         result.payload?.err || result.payload?.message || "Permissions update failed",
       );
+    }
+  };
+
+  const handleCreateTopic = async (e) => {
+    e.preventDefault();
+    if (!topicName.trim()) return;
+    const result = await dispatch(
+      createGroupTopic({
+        id: groupId,
+        payload: { name: topicName.trim(), description: topicDescription.trim() },
+      }),
+    );
+    if (createGroupTopic.fulfilled.match(result)) {
+      toast.success(result.payload?.message || "Topic created");
+      setTopicName("");
+      setTopicDescription("");
+      refreshGroupData();
+    } else {
+      toast.error(result.payload?.err || result.payload?.message || "Create topic failed");
+    }
+  };
+
+  const handleDeleteTopic = async (topicId) => {
+    const result = await dispatch(deleteGroupTopic({ id: groupId, topicId }));
+    if (deleteGroupTopic.fulfilled.match(result)) {
+      toast.success(result.payload?.message || "Topic deleted");
+      refreshGroupData();
+    } else {
+      toast.error(result.payload?.err || result.payload?.message || "Delete topic failed");
+    }
+  };
+
+  const handleUpdateTopic = async (topic) => {
+    const result = await dispatch(
+      updateGroupTopic({
+        id: groupId,
+        topicId: topic._id,
+        payload: { isClosed: !topic.isClosed },
+      }),
+    );
+    if (updateGroupTopic.fulfilled.match(result)) {
+      toast.success(result.payload?.message || "Topic updated");
+      refreshGroupData();
+    } else {
+      toast.error(result.payload?.err || result.payload?.message || "Update topic failed");
+    }
+  };
+
+  const handleSetViewMode = async (mode) => {
+    const result = await dispatch(setGroupViewMode({ id: groupId, viewMode: mode }));
+    if (setGroupViewMode.fulfilled.match(result)) {
+      toast.success(result.payload?.message || "View mode updated");
+      refreshGroupData();
+    } else {
+      toast.error(result.payload?.err || result.payload?.message || "View mode update failed");
+    }
+  };
+
+  const handleSaveSlowMode = async () => {
+    const result = await dispatch(
+      updateGroupSlowMode({ id: groupId, slowModeSeconds: Number(slowModeSeconds) }),
+    );
+    if (updateGroupSlowMode.fulfilled.match(result)) {
+      toast.success(result.payload?.message || "Slow mode updated");
+      refreshGroupData();
+    } else {
+      toast.error(result.payload?.err || result.payload?.message || "Slow mode update failed");
+    }
+  };
+
+  const handleConvertBroadcast = async () => {
+    const result = await dispatch(convertGroupToBroadcast(groupId));
+    if (convertGroupToBroadcast.fulfilled.match(result)) {
+      toast.success(result.payload?.message || "Group converted");
+      refreshGroupData();
+    } else {
+      toast.error(result.payload?.err || result.payload?.message || "Conversion failed");
+    }
+  };
+
+  const handleSaveAdminProfile = async (e) => {
+    e.preventDefault();
+    if (!adminProfileUsername.trim()) return;
+    const result = await dispatch(
+      updateGroupAdminProfile({
+        id: groupId,
+        payload: {
+          adminUsername: adminProfileUsername.trim(),
+          customTitle: adminCustomTitle.trim() || "Admin",
+          isAnonymous: adminAnonymous,
+        },
+      }),
+    );
+    if (updateGroupAdminProfile.fulfilled.match(result)) {
+      toast.success(result.payload?.message || "Admin profile updated");
+      setAdminProfileUsername("");
+      setAdminCustomTitle("");
+      setAdminAnonymous(false);
+      refreshGroupData();
+    } else {
+      toast.error(result.payload?.err || result.payload?.message || "Admin profile update failed");
+    }
+  };
+
+  const handleSaveMemberException = async (e) => {
+    e.preventDefault();
+    if (!exceptionMemberId.trim()) return;
+    const result = await dispatch(
+      updateMemberException({
+        id: groupId,
+        memberId: exceptionMemberId.trim(),
+        overrides: { canSendMedia: exceptionCanSendMedia },
+      }),
+    );
+    if (updateMemberException.fulfilled.match(result)) {
+      toast.success(result.payload?.message || "Member exception updated");
+      refreshGroupData();
+    } else {
+      toast.error(result.payload?.err || result.payload?.message || "Member exception failed");
+    }
+  };
+
+  const handleBoost = async () => {
+    const result = await dispatch(boostGroup(groupId));
+    if (boostGroup.fulfilled.match(result)) {
+      toast.success(result.payload?.message || "Group boosted");
+      refreshGroupData();
+    } else {
+      toast.error(result.payload?.err || result.payload?.message || "Boost failed");
+    }
+  };
+
+  const handleLiveStart = async () => {
+    const result = await dispatch(startGroupLiveStream(groupId));
+    if (startGroupLiveStream.fulfilled.match(result)) {
+      toast.success(result.payload?.message || "Live stream started");
+      refreshGroupData();
+    } else {
+      toast.error(result.payload?.err || result.payload?.message || "Failed to start live stream");
+    }
+  };
+
+  const handleLiveEnd = async () => {
+    const result = await dispatch(endGroupLiveStream(groupId));
+    if (endGroupLiveStream.fulfilled.match(result)) {
+      toast.success(result.payload?.message || "Live stream ended");
+      refreshGroupData();
+    } else {
+      toast.error(result.payload?.err || result.payload?.message || "Failed to end live stream");
     }
   };
 
@@ -332,6 +526,45 @@ const GroupManagePanel = ({ groupId }) => {
           />
           Can add members
         </label>
+        <label className="flex items-center gap-2 text-xs">
+          <input
+            type="checkbox"
+            checked={!!permissionsLocal.canEmbedLinks}
+            onChange={(e) =>
+              setPermissionsLocal((prev) => ({
+                ...prev,
+                canEmbedLinks: e.target.checked,
+              }))
+            }
+          />
+          Can embed links
+        </label>
+        <label className="flex items-center gap-2 text-xs">
+          <input
+            type="checkbox"
+            checked={!!permissionsLocal.canCreatePolls}
+            onChange={(e) =>
+              setPermissionsLocal((prev) => ({
+                ...prev,
+                canCreatePolls: e.target.checked,
+              }))
+            }
+          />
+          Can create polls/quizzes
+        </label>
+        <label className="flex items-center gap-2 text-xs">
+          <input
+            type="checkbox"
+            checked={!!permissionsLocal.canChangeChatInfo}
+            onChange={(e) =>
+              setPermissionsLocal((prev) => ({
+                ...prev,
+                canChangeChatInfo: e.target.checked,
+              }))
+            }
+          />
+          Can change chat info
+        </label>
         <button
           type="submit"
           disabled={permissionStatus === "loading"}
@@ -340,6 +573,174 @@ const GroupManagePanel = ({ groupId }) => {
           {permissionStatus === "loading" ? "Saving..." : "Save permissions"}
         </button>
       </form>
+
+      <form className="space-y-2" onSubmit={handleCreateTopic}>
+        <p className="text-xs font-semibold">Topics</p>
+        <div className="flex gap-2">
+          <input
+            value={topicName}
+            onChange={(e) => setTopicName(e.target.value)}
+            placeholder="new topic name"
+            className="flex-1 rounded-lg border border-[#6fa63a]/35 bg-white px-2 py-1.5 text-xs outline-none"
+          />
+          <button
+            type="submit"
+            className="rounded-lg bg-[#4a7f4a] px-3 py-1 text-xs font-semibold text-white"
+          >
+            Add
+          </button>
+        </div>
+        <input
+          value={topicDescription}
+          onChange={(e) => setTopicDescription(e.target.value)}
+          placeholder="topic description"
+          className="w-full rounded-lg border border-[#6fa63a]/35 bg-white px-2 py-1.5 text-xs outline-none"
+        />
+        {topicsStatus === "loading" && <p className="text-xs">Loading topics...</p>}
+        <div className="space-y-1 max-h-24 overflow-y-auto">
+          {topics.map((topic) => (
+            <div key={topic._id} className="flex items-center justify-between text-xs">
+              <span>
+                #{topic.name} {topic.isClosed ? "(closed)" : ""}
+              </span>
+              <div className="flex gap-1">
+                <button
+                  type="button"
+                  onClick={() => handleUpdateTopic(topic)}
+                  className="rounded border px-2 py-0.5"
+                >
+                  Toggle
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDeleteTopic(topic._id)}
+                  className="rounded border border-red-300 px-2 py-0.5 text-red-700"
+                >
+                  Del
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </form>
+
+      <div className="space-y-2">
+        <p className="text-xs font-semibold">View Mode</p>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => handleSetViewMode("topic")}
+            className={`rounded px-2 py-1 text-xs ${viewMode === "topic" ? "bg-[#4a7f4a] text-white" : "border"}`}
+          >
+            Topic View
+          </button>
+          <button
+            type="button"
+            onClick={() => handleSetViewMode("message")}
+            className={`rounded px-2 py-1 text-xs ${viewMode === "message" ? "bg-[#4a7f4a] text-white" : "border"}`}
+          >
+            Message View
+          </button>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <p className="text-xs font-semibold">Slow Mode</p>
+        <div className="flex gap-2">
+          <select
+            value={slowModeSeconds}
+            onChange={(e) => setSlowModeSeconds(Number(e.target.value))}
+            className="rounded border px-2 py-1 text-xs"
+          >
+            {[0, 10, 30, 60, 300, 900, 3600].map((s) => (
+              <option key={s} value={s}>
+                {s === 0 ? "Off" : `${s}s`}
+              </option>
+            ))}
+          </select>
+          <button type="button" onClick={handleSaveSlowMode} className="rounded border px-2 py-1 text-xs">
+            Save
+          </button>
+        </div>
+      </div>
+
+      <form className="space-y-2" onSubmit={handleSaveAdminProfile}>
+        <p className="text-xs font-semibold">Admin profile</p>
+        <input
+          value={adminProfileUsername}
+          onChange={(e) => setAdminProfileUsername(e.target.value)}
+          placeholder="admin username"
+          className="w-full rounded border px-2 py-1 text-xs"
+        />
+        <input
+          value={adminCustomTitle}
+          onChange={(e) => setAdminCustomTitle(e.target.value)}
+          placeholder="custom title"
+          className="w-full rounded border px-2 py-1 text-xs"
+        />
+        <label className="flex items-center gap-2 text-xs">
+          <input
+            type="checkbox"
+            checked={adminAnonymous}
+            onChange={(e) => setAdminAnonymous(e.target.checked)}
+          />
+          Anonymous mode
+        </label>
+        <button type="submit" className="rounded border px-2 py-1 text-xs">
+          Save admin profile
+        </button>
+      </form>
+
+      <form className="space-y-2" onSubmit={handleSaveMemberException}>
+        <p className="text-xs font-semibold">Member exception</p>
+        <input
+          value={exceptionMemberId}
+          onChange={(e) => setExceptionMemberId(e.target.value)}
+          placeholder="member userId"
+          className="w-full rounded border px-2 py-1 text-xs"
+        />
+        <label className="flex items-center gap-2 text-xs">
+          <input
+            type="checkbox"
+            checked={exceptionCanSendMedia}
+            onChange={(e) => setExceptionCanSendMedia(e.target.checked)}
+          />
+          Can send media
+        </label>
+        <button type="submit" className="rounded border px-2 py-1 text-xs">
+          Save exception
+        </button>
+      </form>
+
+      <div className="space-y-2">
+        <p className="text-xs font-semibold">Boost and Live Stream</p>
+        <div className="flex gap-2">
+          <button type="button" onClick={handleBoost} className="rounded border px-2 py-1 text-xs">
+            {boostStatus === "loading" ? "Boosting..." : "Boost"}
+          </button>
+          <button type="button" onClick={handleLiveStart} className="rounded border px-2 py-1 text-xs">
+            {liveStreamStatus === "loading" ? "..." : "Start Live"}
+          </button>
+          <button type="button" onClick={handleLiveEnd} className="rounded border px-2 py-1 text-xs">
+            End Live
+          </button>
+          <button type="button" onClick={handleConvertBroadcast} className="rounded border px-2 py-1 text-xs">
+            Broadcast
+          </button>
+        </div>
+      </div>
+
+      <div className="space-y-1">
+        <p className="text-xs font-semibold">Recent actions (48h)</p>
+        {recentActionsStatus === "loading" && <p className="text-xs">Loading...</p>}
+        <div className="max-h-24 overflow-y-auto space-y-1">
+          {recentActions.slice(0, 20).map((action) => (
+            <p key={action._id} className="text-[11px] text-[rgba(23,3,3,0.72)]">
+              {action.action}
+            </p>
+          ))}
+        </div>
+      </div>
     </div>
   );
 };

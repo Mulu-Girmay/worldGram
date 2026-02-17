@@ -19,6 +19,7 @@ import {
 import { useToast } from "./ToastProvider";
 import {
   selectPosts,
+  selectChannelPostSettings,
   selectPostsStatus,
   selectPostsNextCursor,
 } from "../Redux/postRedux/postSelector";
@@ -27,8 +28,15 @@ import {
   findChannel,
   subscribeChannel,
   unsubscribeChannel,
+  updateChannel,
+  muteChannel,
+  unmuteChannel,
   addAdmin,
   removeAdmin,
+  updateAdminPermissions,
+  getChannelRecentActions,
+  getChannelAnalytics,
+  suggestPost,
 } from "../Redux/channelRedux/channelThunk";
 import { resolveMediaUrl } from "../utils/media";
 import {
@@ -37,8 +45,16 @@ import {
   selectMyChannelsStatus,
   selectSubscribeStatus,
   selectUnsubscribeStatus,
+  selectChannelMuteStatus,
+  selectChannelUnmuteStatus,
   selectAddAdminStatus,
   selectRemoveAdminStatus,
+  selectAdminPermissionsStatus,
+  selectChannelRecentActions,
+  selectChannelRecentActionsStatus,
+  selectChannelAnalyticsForId,
+  selectChannelAnalyticsStatus,
+  selectSuggestPostStatus,
   selectChannelError,
   selectLastMessage,
 } from "../Redux/channelRedux/channelSelector";
@@ -53,18 +69,32 @@ const Channel = () => {
   const myChannelsStatus = useSelector(selectMyChannelsStatus);
   const subscribeStatus = useSelector(selectSubscribeStatus);
   const unsubscribeStatus = useSelector(selectUnsubscribeStatus);
+  const muteStatus = useSelector(selectChannelMuteStatus);
+  const unmuteStatus = useSelector(selectChannelUnmuteStatus);
   const addAdminStatus = useSelector(selectAddAdminStatus);
   const removeAdminStatus = useSelector(selectRemoveAdminStatus);
+  const adminPermissionsStatus = useSelector(selectAdminPermissionsStatus);
+  const recentActions = useSelector(selectChannelRecentActions);
+  const recentActionsStatus = useSelector(selectChannelRecentActionsStatus);
+  const analyticsStatus = useSelector(selectChannelAnalyticsStatus);
   const channelError = useSelector(selectChannelError);
   const channelLastMessage = useSelector(selectLastMessage);
   const posts = useSelector(selectPosts);
+  const channelPostSettings = useSelector(selectChannelPostSettings);
   const postsStatus = useSelector(selectPostsStatus);
   const postsNextCursor = useSelector(selectPostsNextCursor);
   const user = useSelector(selectUser);
+  const analytics = useSelector((state) =>
+    selectChannelAnalyticsForId(state, currentChannel?._id),
+  );
+  const suggestPostStatus = useSelector(selectSuggestPostStatus);
   const accessToken = useSelector((state) => state.auth?.accessToken || null);
   const socketRef = React.useRef(null);
 
   const [message, setMessage] = useState("");
+  const [signatureTitle, setSignatureTitle] = useState("");
+  const [isSilentPost, setIsSilentPost] = useState(false);
+  const [postSuggestion, setPostSuggestion] = useState("");
   const [mediaFile, setMediaFile] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [forwardModalOpen, setForwardModalOpen] = useState(false);
@@ -78,8 +108,24 @@ const Channel = () => {
   const [showChannelSettings, setShowChannelSettings] = useState(false);
   const [adminToAdd, setAdminToAdd] = useState("");
   const [adminToRemove, setAdminToRemove] = useState("");
+  const [permissionTargetUsername, setPermissionTargetUsername] = useState("");
+  const [permissionForm, setPermissionForm] = useState({
+    canPostMessages: true,
+    canEditMessagesOfOthers: true,
+    canDeleteMessages: true,
+    canManageStories: false,
+    canManageLivestreams: false,
+    canAddAdmins: false,
+  });
   const [channelActionFeedback, setChannelActionFeedback] = useState("");
   const [channelActionError, setChannelActionError] = useState("");
+  const [channelSettingsForm, setChannelSettingsForm] = useState({
+    showAuthorSignatures: false,
+    allowComments: true,
+    allowSuggestedPosts: false,
+    contentProtection: false,
+    allowedReactions: "👍,❤️,🔥,😂,😍,😮",
+  });
   useEffect(() => {
     if (currentChannel && currentChannel._id) {
       dispatch(
@@ -173,12 +219,23 @@ const Channel = () => {
     );
     return subscribers.includes(currentUserId);
   }, [currentChannel?.audience?.subscribers, currentUserId]);
+  const isMuted = Boolean(currentChannel?.viewerState?.isMuted);
 
   const isSubscribing = subscribeStatus === "loading";
   const isUnsubscribing = unsubscribeStatus === "loading";
+  const isMuting = muteStatus === "loading";
+  const isUnmuting = unmuteStatus === "loading";
   const isAddingAdmin = addAdminStatus === "loading";
   const isRemovingAdmin = removeAdminStatus === "loading";
+  const isUpdatingPermissions = adminPermissionsStatus === "loading";
+  const isSuggestingPost = suggestPostStatus === "loading";
   const channelTitle = currentChannel?.basicInfo?.name || "Channel";
+
+  useEffect(() => {
+    if (!currentChannel?._id || !isOwnerOrAdmin) return;
+    dispatch(getChannelRecentActions({ id: currentChannel._id, params: { limit: 20 } }));
+    dispatch(getChannelAnalytics(currentChannel._id));
+  }, [dispatch, currentChannel?._id, isOwnerOrAdmin]);
 
   const resolveMediaSrc = (media) => {
     if (!media) return null;
@@ -267,6 +324,22 @@ const Channel = () => {
       );
     }
   };
+  const handleMuteToggle = async () => {
+    if (!currentChannel?._id) return;
+    try {
+      setChannelActionError("");
+      const action = isMuted ? unmuteChannel : muteChannel;
+      const result = await dispatch(action(currentChannel._id)).unwrap();
+      setChannelActionFeedback(
+        result?.message || (isMuted ? "Channel unmuted" : "Channel muted"),
+      );
+      refreshCurrentChannel();
+    } catch (err) {
+      setChannelActionError(
+        err?.err || err?.message || "Failed to update mute state.",
+      );
+    }
+  };
 
   const handleAddAdmin = async (e) => {
     e.preventDefault();
@@ -286,6 +359,51 @@ const Channel = () => {
     } catch (err) {
       setChannelActionError(
         err?.err || err?.message || "Failed to add admin to this channel.",
+      );
+    }
+  };
+  const handleSaveAdminPermissions = async (e) => {
+    e.preventDefault();
+    if (!currentChannel?._id || !permissionTargetUsername.trim()) return;
+    try {
+      setChannelActionError("");
+      const result = await dispatch(
+        updateAdminPermissions({
+          id: currentChannel._id,
+          payload: {
+            adminUsername: permissionTargetUsername.trim(),
+            permissions: permissionForm,
+          },
+        }),
+      ).unwrap();
+      setChannelActionFeedback(result?.message || "Admin permissions updated");
+      setPermissionTargetUsername("");
+      refreshCurrentChannel();
+      dispatch(
+        getChannelRecentActions({
+          id: currentChannel._id,
+          params: { limit: 20 },
+        }),
+      );
+    } catch (err) {
+      setChannelActionError(
+        err?.err || err?.message || "Failed to update admin permissions.",
+      );
+    }
+  };
+  const handleSuggestPost = async (e) => {
+    e.preventDefault();
+    if (!currentChannel?._id || !postSuggestion.trim()) return;
+    try {
+      setChannelActionError("");
+      const result = await dispatch(
+        suggestPost({ id: currentChannel._id, text: postSuggestion.trim() }),
+      ).unwrap();
+      setChannelActionFeedback(result?.message || "Suggestion submitted");
+      setPostSuggestion("");
+    } catch (err) {
+      setChannelActionError(
+        err?.err || err?.message || "Failed to send post suggestion.",
       );
     }
   };
@@ -501,15 +619,19 @@ const Channel = () => {
   };
 
   const handleCopyPost = (post) => {
-    if (!post?.text) return;
+    const deepLink = post?.deepLink;
+    const valueToCopy = deepLink || post?.text || "";
+    if (!valueToCopy) return;
     if (!navigator?.clipboard?.writeText) {
       toastError("Clipboard is not available in this browser.");
       return;
     }
     navigator.clipboard
-      .writeText(post.text)
-      .then(() => toastSuccess("Text copied"))
-      .catch(() => toastError("Failed to copy text"));
+      .writeText(valueToCopy)
+      .then(() =>
+        toastSuccess(deepLink ? "Post link copied" : "Post text copied"),
+      )
+      .catch(() => toastError("Failed to copy"));
   };
 
   const handleReactPost = async (post, emoji) => {
@@ -546,6 +668,13 @@ const Channel = () => {
 
   const handleAddComment = async (post, text) => {
     if (!currentChannel?._id || !post?._id || !text?.trim()) return;
+    if (
+      !channelPostSettings?.allowComments ||
+      !channelPostSettings?.hasDiscussionGroup
+    ) {
+      toastInfo("Comments are disabled for this channel.");
+      return;
+    }
     try {
       await dispatch(
         addCommentToPost({
@@ -564,6 +693,13 @@ const Channel = () => {
 
   const handleReplyToComment = async (post, commentId, text) => {
     if (!currentChannel?._id || !post?._id || !commentId || !text?.trim()) {
+      return;
+    }
+    if (
+      !channelPostSettings?.allowComments ||
+      !channelPostSettings?.hasDiscussionGroup
+    ) {
+      toastInfo("Replies are disabled for this channel.");
       return;
     }
     try {
@@ -608,6 +744,53 @@ const Channel = () => {
   useEffect(() => {
     setShowChannelSettings(false);
   }, [currentChannel?._id]);
+  useEffect(() => {
+    if (!currentChannel?._id) return;
+    setChannelSettingsForm({
+      showAuthorSignatures: Boolean(currentChannel?.settings?.showAuthorSignatures),
+      allowComments: Boolean(currentChannel?.settings?.allowComments),
+      allowSuggestedPosts: Boolean(currentChannel?.settings?.allowSuggestedPosts),
+      contentProtection: Boolean(currentChannel?.settings?.contentProtection),
+      allowedReactions: Array.isArray(currentChannel?.settings?.allowedReactions)
+        ? currentChannel.settings.allowedReactions.join(",")
+        : "👍,❤️,🔥,😂,😍,😮",
+    });
+  }, [currentChannel?._id]);
+
+  const handleSaveChannelSettings = async (e) => {
+    e.preventDefault();
+    if (!currentChannel?._id) return;
+    const allowedReactions = String(channelSettingsForm.allowedReactions || "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    try {
+      setChannelActionError("");
+      const result = await dispatch(
+        updateChannel({
+          id: currentChannel._id,
+          payload: {
+            updatedData: {
+              "settings.showAuthorSignatures":
+                channelSettingsForm.showAuthorSignatures,
+              "settings.allowComments": channelSettingsForm.allowComments,
+              "settings.allowSuggestedPosts":
+                channelSettingsForm.allowSuggestedPosts,
+              "settings.contentProtection": channelSettingsForm.contentProtection,
+              "settings.allowedReactions": allowedReactions,
+            },
+          },
+        }),
+      ).unwrap();
+      setChannelActionFeedback(result?.message || "Channel settings updated");
+      refreshCurrentChannel();
+      refreshPosts();
+    } catch (err) {
+      setChannelActionError(
+        err?.err || err?.message || "Failed to update channel settings.",
+      );
+    }
+  };
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -616,6 +799,8 @@ const Channel = () => {
     if (!message && !mediaFile) return;
     const formData = new FormData();
     formData.append("text", message);
+    if (signatureTitle.trim()) formData.append("signatureTitle", signatureTitle.trim());
+    formData.append("isSilent", isSilentPost ? "true" : "false");
     if (mediaFile) formData.append("media", mediaFile);
     setSubmitting(true);
     try {
@@ -640,6 +825,8 @@ const Channel = () => {
           }),
         );
         setMessage("");
+        setSignatureTitle("");
+        setIsSilentPost(false);
         setMediaFile(null);
       }
     } catch (err) {
@@ -761,6 +948,14 @@ const Channel = () => {
                     onView={handleAddView}
                     onAddComment={handleAddComment}
                     onReply={handleReplyToComment}
+                    allowedReactions={channelPostSettings?.allowedReactions || []}
+                    commentsEnabled={Boolean(
+                      channelPostSettings?.allowComments &&
+                        channelPostSettings?.hasDiscussionGroup,
+                    )}
+                    contentProtection={Boolean(
+                      channelPostSettings?.contentProtection,
+                    )}
                   />
                 ))
               )
@@ -785,6 +980,14 @@ const Channel = () => {
                   onView={handleAddView}
                   onAddComment={handleAddComment}
                   onReply={handleReplyToComment}
+                  allowedReactions={channelPostSettings?.allowedReactions || []}
+                  commentsEnabled={Boolean(
+                    channelPostSettings?.allowComments &&
+                      channelPostSettings?.hasDiscussionGroup,
+                  )}
+                  contentProtection={Boolean(
+                    channelPostSettings?.contentProtection,
+                  )}
                 />
               ))
             ))}
@@ -832,6 +1035,22 @@ const Channel = () => {
                 Drop an update to your subscribers
               </p>
             </div>
+            <div className="mb-2 grid gap-2 sm:grid-cols-2">
+              <input
+                value={signatureTitle}
+                onChange={(e) => setSignatureTitle(e.target.value)}
+                placeholder="Signature title (optional)"
+                className="rounded-lg border border-[#6fa63a]/30 px-2 py-1 text-xs outline-none focus:border-[#4a7f4a]"
+              />
+              <label className="flex items-center gap-2 rounded-lg border border-[#6fa63a]/30 px-2 py-1 text-xs text-[#2f5b2f]">
+                <input
+                  type="checkbox"
+                  checked={isSilentPost}
+                  onChange={(e) => setIsSilentPost(e.target.checked)}
+                />
+                Send silently
+              </label>
+            </div>
             <div className="flex items-end gap-2">
               <textarea
                 name="message"
@@ -861,6 +1080,52 @@ const Channel = () => {
             </div>
           </form>
         )}
+        {!isOwnerOrAdmin && currentUserId && (
+          <div className="mt-4 rounded-2xl border border-[#6fa63a]/30 bg-white/75 p-3">
+            <button
+              type="button"
+              onClick={handleMuteToggle}
+              disabled={isMuting || isUnmuting}
+              className="w-full rounded-xl border border-[#6fa63a]/35 px-3 py-2 text-sm font-medium text-[#2f5b2f] hover:bg-[#f3f9ee] disabled:opacity-60"
+            >
+              {isMuting || isUnmuting
+                ? "Updating..."
+                : isMuted
+                  ? "Unmute Channel"
+                  : "Mute Channel"}
+            </button>
+            <p className="mt-1 text-[11px] text-[rgba(23,3,3,0.6)]">
+              Subscriber actions are read-only here, similar to Telegram channels.
+            </p>
+          </div>
+        )}
+        {!isOwnerOrAdmin &&
+          isSubscriber &&
+          Boolean(currentChannel?.settings?.allowSuggestedPosts) && (
+            <form
+              onSubmit={handleSuggestPost}
+              className="mt-3 rounded-2xl border border-[#6fa63a]/30 bg-white/75 p-3"
+            >
+              <p className="text-xs font-semibold text-[#2f5b2f]">
+                Suggest a post
+              </p>
+              <div className="mt-2 flex gap-2">
+                <input
+                  value={postSuggestion}
+                  onChange={(e) => setPostSuggestion(e.target.value)}
+                  placeholder="Suggest content to admins..."
+                  className="w-full rounded-md border border-[#6fa63a]/30 px-2 py-1 text-xs outline-none focus:border-[#4a7f4a]"
+                />
+                <button
+                  type="submit"
+                  disabled={!postSuggestion.trim() || isSuggestingPost}
+                  className="rounded-md bg-[#4a7f4a] px-2 py-1 text-xs text-white disabled:opacity-60"
+                >
+                  {isSuggestingPost ? "Sending..." : "Send"}
+                </button>
+              </div>
+            </form>
+          )}
       </section>
       <div className="h-2" />
 
@@ -904,6 +1169,20 @@ const Channel = () => {
                       : isSubscriber
                         ? "Unsubscribe"
                         : "Subscribe"}
+                  </button>
+                )}
+                {currentUserId && (
+                  <button
+                    type="button"
+                    onClick={handleMuteToggle}
+                    disabled={isMuting || isUnmuting}
+                    className="rounded-lg border border-[#6fa63a]/35 px-3 py-1.5 text-xs font-medium text-[#2f5b2f] hover:bg-[#f3f9ee] disabled:opacity-60"
+                  >
+                    {isMuting || isUnmuting
+                      ? "Updating..."
+                      : isMuted
+                        ? "Unmute"
+                        : "Mute"}
                   </button>
                 )}
                 {isOwnerOrAdmin && (
@@ -966,6 +1245,151 @@ const Channel = () => {
                       </button>
                     </div>
                   </form>
+                  <form
+                    onSubmit={handleSaveChannelSettings}
+                    className="rounded-xl border border-[#6fa63a]/20 p-2 bg-[#f9fcf6]"
+                  >
+                    <p className="text-xs font-semibold text-[#2f5b2f]">
+                      Channel Post Settings
+                    </p>
+                    <div className="mt-2 grid gap-2">
+                      <label className="flex items-center justify-between rounded-md border border-[#6fa63a]/20 bg-white px-2 py-1 text-[11px] text-[#2f5b2f]">
+                        Show author signatures
+                        <input
+                          type="checkbox"
+                          checked={channelSettingsForm.showAuthorSignatures}
+                          onChange={(e) =>
+                            setChannelSettingsForm((prev) => ({
+                              ...prev,
+                              showAuthorSignatures: e.target.checked,
+                            }))
+                          }
+                        />
+                      </label>
+                      <label className="flex items-center justify-between rounded-md border border-[#6fa63a]/20 bg-white px-2 py-1 text-[11px] text-[#2f5b2f]">
+                        Enable comments
+                        <input
+                          type="checkbox"
+                          checked={channelSettingsForm.allowComments}
+                          onChange={(e) =>
+                            setChannelSettingsForm((prev) => ({
+                              ...prev,
+                              allowComments: e.target.checked,
+                            }))
+                          }
+                        />
+                      </label>
+                      <label className="flex items-center justify-between rounded-md border border-[#6fa63a]/20 bg-white px-2 py-1 text-[11px] text-[#2f5b2f]">
+                        Enable suggest-post
+                        <input
+                          type="checkbox"
+                          checked={channelSettingsForm.allowSuggestedPosts}
+                          onChange={(e) =>
+                            setChannelSettingsForm((prev) => ({
+                              ...prev,
+                              allowSuggestedPosts: e.target.checked,
+                            }))
+                          }
+                        />
+                      </label>
+                      <label className="flex items-center justify-between rounded-md border border-[#6fa63a]/20 bg-white px-2 py-1 text-[11px] text-[#2f5b2f]">
+                        Content protection
+                        <input
+                          type="checkbox"
+                          checked={channelSettingsForm.contentProtection}
+                          onChange={(e) =>
+                            setChannelSettingsForm((prev) => ({
+                              ...prev,
+                              contentProtection: e.target.checked,
+                            }))
+                          }
+                        />
+                      </label>
+                      <input
+                        value={channelSettingsForm.allowedReactions}
+                        onChange={(e) =>
+                          setChannelSettingsForm((prev) => ({
+                            ...prev,
+                            allowedReactions: e.target.value,
+                          }))
+                        }
+                        placeholder="Allowed reactions, comma separated"
+                        className="w-full rounded-md border border-[#6fa63a]/30 px-2 py-1 text-xs outline-none focus:border-[#4a7f4a]"
+                      />
+                      <button
+                        type="submit"
+                        className="rounded-md bg-[#4a7f4a] px-2 py-1 text-xs text-white"
+                      >
+                        Save channel settings
+                      </button>
+                    </div>
+                  </form>
+                  <form
+                    onSubmit={handleSaveAdminPermissions}
+                    className="rounded-xl border border-[#6fa63a]/20 p-2 bg-[#f9fcf6]"
+                  >
+                    <p className="text-xs font-semibold text-[#2f5b2f]">
+                      Admin Permissions
+                    </p>
+                    <div className="mt-2 grid gap-2">
+                      <input
+                        value={permissionTargetUsername}
+                        onChange={(e) => setPermissionTargetUsername(e.target.value)}
+                        placeholder="admin username"
+                        className="w-full rounded-md border border-[#6fa63a]/30 px-2 py-1 text-xs outline-none focus:border-[#4a7f4a]"
+                      />
+                      {Object.keys(permissionForm).map((key) => (
+                        <label
+                          key={key}
+                          className="flex items-center justify-between rounded-md border border-[#6fa63a]/20 bg-white px-2 py-1 text-[11px] text-[#2f5b2f]"
+                        >
+                          {key}
+                          <input
+                            type="checkbox"
+                            checked={Boolean(permissionForm[key])}
+                            onChange={(e) =>
+                              setPermissionForm((prev) => ({
+                                ...prev,
+                                [key]: e.target.checked,
+                              }))
+                            }
+                          />
+                        </label>
+                      ))}
+                      <button
+                        type="submit"
+                        disabled={
+                          !permissionTargetUsername.trim() || isUpdatingPermissions
+                        }
+                        className="rounded-md bg-[#4a7f4a] px-2 py-1 text-xs text-white disabled:opacity-60"
+                      >
+                        {isUpdatingPermissions ? "Saving..." : "Save permissions"}
+                      </button>
+                    </div>
+                  </form>
+                  <div className="rounded-xl border border-[#6fa63a]/20 p-2 bg-[#f9fcf6]">
+                    <p className="text-xs font-semibold text-[#2f5b2f]">
+                      Recent actions (48h)
+                    </p>
+                    {recentActionsStatus === "loading" && (
+                      <p className="mt-1 text-[11px] text-[rgba(23,3,3,0.65)]">
+                        Loading...
+                      </p>
+                    )}
+                    {recentActions.slice(0, 5).map((item) => (
+                      <p
+                        key={item._id}
+                        className="mt-1 text-[11px] text-[rgba(23,3,3,0.72)]"
+                      >
+                        {item.action}
+                      </p>
+                    ))}
+                    {analyticsStatus === "succeeded" && analytics && (
+                      <p className="mt-2 text-[11px] text-[rgba(23,3,3,0.72)]">
+                        7d views: {analytics?.interactions?.views || 0}
+                      </p>
+                    )}
+                  </div>
                 </div>
               )}
 

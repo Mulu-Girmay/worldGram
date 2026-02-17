@@ -6,6 +6,67 @@ const { reactToEntity } = require("../utils/reaction");
 const { addViewToEntity } = require("../utils/view");
 const { forwardEntity } = require("../utils/forward");
 const Group = require("../Models/Group");
+const GroupAction = require("../Models/GroupAction");
+
+const ids = (arr = []) => arr.map((id) => id?.toString?.() || String(id));
+const isAdmin = (group, userId) =>
+  ids(group?.members?.admins || []).includes(String(userId));
+const effectivePermissions = (group, userId) => {
+  const base = {
+    canSendMessages: true,
+    canSendMedia: true,
+    canSendPhotos: true,
+    canSendVideos: true,
+    canSendStickers: true,
+    canSendGifs: true,
+    canSendVoiceVideo: true,
+    canAddMembers: true,
+    canPinMessages: true,
+    canEmbedLinks: true,
+    canCreatePolls: true,
+    canChangeChatInfo: false,
+    ...(group?.permissions || {}),
+  };
+  const ex = (group?.permissions?.exceptions || []).find(
+    (item) => item?.userId?.toString?.() === String(userId),
+  );
+  return ex ? { ...base, ...(ex?.overrides || {}) } : base;
+};
+
+const sanitizeGroupReadBy = (messages, group) => {
+  const size = (group?.members?.members || []).length;
+  const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+  return (messages || []).map((message) => {
+    const createdAt = new Date(message?.createdAt || 0).getTime();
+    const tooOld = Date.now() - createdAt > sevenDaysMs;
+    if (size >= 100 || tooOld) {
+      const senderId = message?.identity?.senderId?._id || message?.identity?.senderId;
+      return {
+        ...message.toObject?.() || message,
+        state: {
+          ...(message?.state || {}),
+          readBy: senderId ? [senderId] : [],
+        },
+      };
+    }
+    return message;
+  });
+};
+
+const logGroupAction = async (groupId, actorId, action, targetType, targetId, meta) => {
+  try {
+    await GroupAction.create({
+      groupId,
+      actorId,
+      action,
+      targetType: targetType || null,
+      targetId: targetId || null,
+      meta: meta || null,
+    });
+  } catch (error) {
+    console.error("group action log error:", error?.message || error);
+  }
+};
 
 // Create private or group chat
 
@@ -90,7 +151,7 @@ exports.createChat = async (req, res) => {
 exports.sendMessage = async (req, res) => {
   try {
     const { chatId } = req.params;
-    const { text, replyToMessageId } = req.body;
+    const { text, replyToMessageId, topicId } = req.body;
     const senderId = req.userId;
     if (!chatId || !senderId || !text) {
       return res.status(400).json({
@@ -98,13 +159,47 @@ exports.sendMessage = async (req, res) => {
       });
     }
 
-    const chat = await Chat.findById(chatId).select("participants");
+    const chat = await Chat.findById(chatId).select("participants type groupId");
     if (!chat) return res.status(404).json({ err: "Chat not found." });
     const isParticipant = chat.participants
       .map((id) => id.toString())
       .includes(senderId);
     if (!isParticipant) {
       return res.status(403).json({ err: "Not allowed to send message." });
+    }
+    const isGroupChat = chat?.type === "group" && chat?.groupId;
+    let group = null;
+    if (isGroupChat) {
+      group = await Group.findById(chat.groupId);
+      if (!group) return res.status(404).json({ err: "Group not found." });
+      const perms = effectivePermissions(group, senderId);
+      if (group?.settings?.broadcastOnlyAdmins && !isAdmin(group, senderId)) {
+        return res.status(403).json({ err: "Only admins can send messages in this broadcast group." });
+      }
+      if (!perms.canSendMessages && !isAdmin(group, senderId)) {
+        return res.status(403).json({ err: "You are not allowed to send messages in this group." });
+      }
+      if (!perms.canEmbedLinks && /https?:\/\/\S+/i.test(String(text || ""))) {
+        return res.status(403).json({ err: "Links are not allowed in this group." });
+      }
+      const slowModeSeconds = Number(group?.settings?.slowModeSeconds || 0);
+      if (slowModeSeconds > 0 && !isAdmin(group, senderId)) {
+        const lastOwnMessage = await Message.findOne({
+          "identity.chatId": chatId,
+          "identity.senderId": senderId,
+        })
+          .sort({ createdAt: -1 })
+          .select("createdAt");
+        if (lastOwnMessage) {
+          const diffSec =
+            (Date.now() - new Date(lastOwnMessage.createdAt).getTime()) / 1000;
+          if (diffSec < slowModeSeconds) {
+            return res.status(429).json({
+              err: `Slow mode enabled. Wait ${Math.ceil(slowModeSeconds - diffSec)}s.`,
+            });
+          }
+        }
+      }
     }
 
     // Save message
@@ -115,6 +210,7 @@ exports.sendMessage = async (req, res) => {
       },
       Relations: {
         replyToMessageId: replyToMessageId || null,
+        topicId: topicId || null,
       },
       state: {
         readBy: [senderId],
@@ -135,9 +231,14 @@ exports.sendMessage = async (req, res) => {
     const hydratedMessage = await Message.findById(message._id).populate({
       path: "identity.senderId",
       select:
-        "identity.firstName identity.lastName identity.username identity.profileUrl AccountStatus.onlineStatus",
+        "identity.firstName identity.lastName identity.username identity.profileUrl identity.phoneNumber identity.personalChannelUsername identity.Bio identity.emojiStatus privacySettings.privacyPhoneNumber privacySettings.privacyLastSeen AccountStatus.onlineStatus AccountStatus.lastSeenAt AccountStatus.isPremium",
     });
     io.to(chatId).emit("new-message", hydratedMessage);
+    if (group?._id) {
+      await logGroupAction(group._id, senderId, "message_sent", "message", message._id, {
+        topicId: topicId || null,
+      });
+    }
 
     res.status(201).json(hydratedMessage);
   } catch (err) {
@@ -147,11 +248,12 @@ exports.sendMessage = async (req, res) => {
 exports.getMessages = async (req, res) => {
   try {
     const { chatId } = req.params;
+    const { topicId } = req.query;
     if (!chatId) {
       return res.status(400).json({ err: "chatId is required." });
     }
 
-    const chat = await Chat.findById(chatId).select("participants");
+    const chat = await Chat.findById(chatId).select("participants type groupId");
     if (!chat) return res.status(404).json({ err: "Chat not found." });
     const isParticipant = chat.participants
       .map((id) => id.toString())
@@ -160,18 +262,27 @@ exports.getMessages = async (req, res) => {
       return res.status(403).json({ err: "Not allowed to view messages." });
     }
 
-    const messages = await Message.find({
+    const query = {
       "identity.chatId": chatId,
       "state.isDeleted": false,
-    })
+    };
+    if (topicId && mongoose.Types.ObjectId.isValid(topicId)) {
+      query["Relations.topicId"] = topicId;
+    }
+
+    const messages = await Message.find(query)
       .sort({ createdAt: 1 })
       .populate({
         path: "identity.senderId",
         select:
-          "identity.firstName identity.lastName identity.username identity.profileUrl AccountStatus.onlineStatus",
+          "identity.firstName identity.lastName identity.username identity.profileUrl identity.phoneNumber identity.personalChannelUsername identity.Bio identity.emojiStatus privacySettings.privacyPhoneNumber privacySettings.privacyLastSeen AccountStatus.onlineStatus AccountStatus.lastSeenAt AccountStatus.isPremium",
       });
 
-    res.json(messages);
+    if (chat?.type === "group" && chat?.groupId) {
+      const group = await Group.findById(chat.groupId).select("members.members");
+      return res.json(sanitizeGroupReadBy(messages, group));
+    }
+    return res.json(messages);
   } catch (err) {
     res
       .status(500)
@@ -343,14 +454,14 @@ exports.listChats = async (req, res) => {
         populate: {
           path: "identity.senderId",
           select:
-            "identity.firstName identity.lastName identity.username identity.profileUrl AccountStatus.onlineStatus",
+            "identity.firstName identity.lastName identity.username identity.profileUrl identity.phoneNumber identity.personalChannelUsername identity.Bio identity.emojiStatus privacySettings.privacyPhoneNumber privacySettings.privacyLastSeen AccountStatus.onlineStatus AccountStatus.lastSeenAt AccountStatus.isPremium",
         },
       })
       .populate({
         path: "participants",
         model: "User",
         select:
-          "identity.firstName identity.lastName identity.username identity.profileUrl AccountStatus.onlineStatus",
+          "identity.firstName identity.lastName identity.username identity.profileUrl identity.phoneNumber identity.personalChannelUsername identity.Bio identity.emojiStatus privacySettings.privacyPhoneNumber privacySettings.privacyLastSeen AccountStatus.onlineStatus AccountStatus.lastSeenAt AccountStatus.isPremium",
       });
 
     const nextCursor =
@@ -371,14 +482,14 @@ exports.getChatById = async (req, res) => {
         populate: {
           path: "identity.senderId",
           select:
-            "identity.firstName identity.lastName identity.username identity.profileUrl AccountStatus.onlineStatus",
+            "identity.firstName identity.lastName identity.username identity.profileUrl identity.phoneNumber identity.personalChannelUsername identity.Bio identity.emojiStatus privacySettings.privacyPhoneNumber privacySettings.privacyLastSeen AccountStatus.onlineStatus AccountStatus.lastSeenAt AccountStatus.isPremium",
         },
       })
       .populate({
         path: "participants",
         model: "User",
         select:
-          "identity.firstName identity.lastName identity.username identity.profileUrl AccountStatus.onlineStatus",
+          "identity.firstName identity.lastName identity.username identity.profileUrl identity.phoneNumber identity.personalChannelUsername identity.Bio identity.emojiStatus privacySettings.privacyPhoneNumber privacySettings.privacyLastSeen AccountStatus.onlineStatus AccountStatus.lastSeenAt AccountStatus.isPremium",
       });
     if (!chat) return res.status(404).json({ err: "Chat not found." });
 
@@ -398,7 +509,7 @@ exports.getChatById = async (req, res) => {
 exports.getMessagesPaged = async (req, res) => {
   try {
     const { chatId } = req.params;
-    const { cursor } = req.query;
+    const { cursor, topicId } = req.query;
     const limit = parseLimit(req.query.limit);
 
     const chat = await Chat.findById(chatId).select("participants");
@@ -414,6 +525,9 @@ exports.getMessagesPaged = async (req, res) => {
       "identity.chatId": chatId,
       "state.isDeleted": false,
     };
+    if (topicId && mongoose.Types.ObjectId.isValid(topicId)) {
+      query["Relations.topicId"] = topicId;
+    }
     if (cursor && mongoose.Types.ObjectId.isValid(cursor)) {
       query._id = { $lt: cursor };
     }
@@ -424,13 +538,17 @@ exports.getMessagesPaged = async (req, res) => {
       .populate({
         path: "identity.senderId",
         select:
-          "identity.firstName identity.lastName identity.username identity.profileUrl AccountStatus.onlineStatus",
+          "identity.firstName identity.lastName identity.username identity.profileUrl identity.phoneNumber identity.personalChannelUsername identity.Bio identity.emojiStatus privacySettings.privacyPhoneNumber privacySettings.privacyLastSeen AccountStatus.onlineStatus AccountStatus.lastSeenAt AccountStatus.isPremium",
       });
 
     const nextCursor =
       messages.length === limit ? messages[messages.length - 1]._id : null;
 
-    res.json({ items: messages, nextCursor });
+    if (chat?.type === "group" && chat?.groupId) {
+      const group = await Group.findById(chat.groupId).select("members.members");
+      return res.json({ items: sanitizeGroupReadBy(messages, group), nextCursor });
+    }
+    return res.json({ items: messages, nextCursor });
   } catch (err) {
     res.status(500).json({ err: "Failed to fetch messages." });
   }
@@ -454,6 +572,10 @@ exports.editMessage = async (req, res) => {
     message.content.text = text;
     message.state.isEdited = true;
     await message.save();
+    const chat = await Chat.findById(chatId).select("groupId type");
+    if (chat?.type === "group" && chat?.groupId) {
+      await logGroupAction(chat.groupId, req.userId, "message_edited", "message", messageId);
+    }
 
     res.json({ message: "Message edited.", data: message });
   } catch (err) {
@@ -477,6 +599,10 @@ exports.deleteMessage = async (req, res) => {
     message.content.text = null;
     message.content.mediaURL = null;
     await message.save();
+    const chat = await Chat.findById(chatId).select("groupId type");
+    if (chat?.type === "group" && chat?.groupId) {
+      await logGroupAction(chat.groupId, req.userId, "message_deleted", "message", messageId);
+    }
 
     res.json({ message: "Message deleted." });
   } catch (err) {
@@ -487,7 +613,7 @@ exports.deleteMessage = async (req, res) => {
 exports.sendMediaMessage = async (req, res) => {
   try {
     const { chatId } = req.params;
-    const { text, replyToMessageId } = req.body;
+    const { text, replyToMessageId, topicId } = req.body;
     if (!req.file && !text) {
       return res.status(400).json({ err: "Text or media is required." });
     }
@@ -500,11 +626,31 @@ exports.sendMediaMessage = async (req, res) => {
     if (!isParticipant) {
       return res.status(403).json({ err: "Not allowed to send message." });
     }
+    const isGroupChat = chat?.type === "group" && chat?.groupId;
+    let group = null;
+    if (isGroupChat) {
+      group = await Group.findById(chat.groupId);
+      if (!group) return res.status(404).json({ err: "Group not found." });
+      const perms = effectivePermissions(group, req.userId);
+      if (group?.settings?.broadcastOnlyAdmins && !isAdmin(group, req.userId)) {
+        return res.status(403).json({ err: "Only admins can send messages in this broadcast group." });
+      }
+      if (!perms.canSendMedia && !isAdmin(group, req.userId)) {
+        return res.status(403).json({ err: "You are not allowed to send media in this group." });
+      }
+      if (req.file?.mimetype?.startsWith("image/") && !perms.canSendPhotos) {
+        return res.status(403).json({ err: "Sending photos is disabled in this group." });
+      }
+      if (req.file?.mimetype?.startsWith("video/") && !perms.canSendVideos) {
+        return res.status(403).json({ err: "Sending videos is disabled in this group." });
+      }
+    }
 
     const message = await Message.create({
       identity: { chatId, senderId: req.userId },
       Relations: {
         replyToMessageId: replyToMessageId || null,
+        topicId: topicId || null,
       },
       state: {
         readBy: [req.userId],
@@ -534,9 +680,14 @@ exports.sendMediaMessage = async (req, res) => {
     const hydratedMessage = await Message.findById(message._id).populate({
       path: "identity.senderId",
       select:
-        "identity.firstName identity.lastName identity.username identity.profileUrl AccountStatus.onlineStatus",
+        "identity.firstName identity.lastName identity.username identity.profileUrl identity.phoneNumber identity.personalChannelUsername identity.Bio identity.emojiStatus privacySettings.privacyPhoneNumber privacySettings.privacyLastSeen AccountStatus.onlineStatus AccountStatus.lastSeenAt AccountStatus.isPremium",
     });
     io.to(chatId).emit("new-message", hydratedMessage);
+    if (group?._id) {
+      await logGroupAction(group._id, req.userId, "media_message_sent", "message", message._id, {
+        topicId: topicId || null,
+      });
+    }
 
     res.status(201).json(hydratedMessage);
   } catch (err) {

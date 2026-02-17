@@ -25,3 +25,5 @@ export const selectDeleteStatus = (state) => state.post.deleteStatus;
 export const selectPinStatus = (state) => state.post.pinStatus;
 
 export const selectPostError = (state) => state.post.error;
+export const selectChannelPostSettings = (state) =>
+  state.post.channelPostSettings || {};

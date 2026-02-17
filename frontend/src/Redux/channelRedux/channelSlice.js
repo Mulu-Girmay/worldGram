@@ -5,11 +5,17 @@ import {
   findChannel,
   subscribeChannel,
   unsubscribeChannel,
+  muteChannel,
+  unmuteChannel,
   createChannel,
   updateChannel,
   deleteChannel,
   addAdmin,
   removeAdmin,
+  updateAdminPermissions,
+  getChannelRecentActions,
+  getChannelAnalytics,
+  suggestPost,
   getChannelUnreadCount,
 } from "./channelThunk";
 const initialState = {
@@ -36,6 +42,14 @@ const initialState = {
   lastMessage: null,
   unreadCountByChannel: {},
   unreadStatus: "idle",
+  muteStatus: "idle",
+  unmuteStatus: "idle",
+  adminPermissionsStatus: "idle",
+  recentActions: [],
+  recentActionsStatus: "idle",
+  analyticsByChannel: {},
+  analyticsStatus: "idle",
+  suggestPostStatus: "idle",
 };
 const channelSlice = createSlice({
   name: "channel",
@@ -161,6 +175,52 @@ const channelSlice = createSlice({
           action.payload?.error ||
           action.error?.message ||
           "unsubscribe failed";
+      })
+      .addCase(muteChannel.pending, (state) => {
+        state.muteStatus = "loading";
+        state.error = null;
+      })
+      .addCase(muteChannel.fulfilled, (state, action) => {
+        state.muteStatus = "succeeded";
+        state.lastMessage = action.payload?.message || null;
+        if (state.currentChannel) {
+          state.currentChannel.viewerState = {
+            ...(state.currentChannel.viewerState || {}),
+            isMuted: true,
+          };
+        }
+      })
+      .addCase(muteChannel.rejected, (state, action) => {
+        state.muteStatus = "failed";
+        state.error =
+          action.payload?.err ||
+          action.payload?.error ||
+          action.payload?.message ||
+          action.error?.message ||
+          "mute failed";
+      })
+      .addCase(unmuteChannel.pending, (state) => {
+        state.unmuteStatus = "loading";
+        state.error = null;
+      })
+      .addCase(unmuteChannel.fulfilled, (state, action) => {
+        state.unmuteStatus = "succeeded";
+        state.lastMessage = action.payload?.message || null;
+        if (state.currentChannel) {
+          state.currentChannel.viewerState = {
+            ...(state.currentChannel.viewerState || {}),
+            isMuted: false,
+          };
+        }
+      })
+      .addCase(unmuteChannel.rejected, (state, action) => {
+        state.unmuteStatus = "failed";
+        state.error =
+          action.payload?.err ||
+          action.payload?.error ||
+          action.payload?.message ||
+          action.error?.message ||
+          "unmute failed";
       })
 
       // createChannel
@@ -292,6 +352,74 @@ const channelSlice = createSlice({
           action.payload?.message ||
           action.error?.message ||
           "admin action failed";
+      })
+      .addCase(updateAdminPermissions.pending, (state) => {
+        state.adminPermissionsStatus = "loading";
+        state.error = null;
+      })
+      .addCase(updateAdminPermissions.fulfilled, (state, action) => {
+        state.adminPermissionsStatus = "succeeded";
+        state.lastMessage = action.payload?.message || null;
+      })
+      .addCase(updateAdminPermissions.rejected, (state, action) => {
+        state.adminPermissionsStatus = "failed";
+        state.error =
+          action.payload?.err ||
+          action.payload?.error ||
+          action.payload?.message ||
+          action.error?.message ||
+          "update admin permissions failed";
+      })
+      .addCase(getChannelRecentActions.pending, (state) => {
+        state.recentActionsStatus = "loading";
+      })
+      .addCase(getChannelRecentActions.fulfilled, (state, action) => {
+        state.recentActionsStatus = "succeeded";
+        state.recentActions = action.payload?.items || [];
+      })
+      .addCase(getChannelRecentActions.rejected, (state, action) => {
+        state.recentActionsStatus = "failed";
+        state.error =
+          action.payload?.err ||
+          action.payload?.error ||
+          action.payload?.message ||
+          action.error?.message ||
+          "fetch recent actions failed";
+      })
+      .addCase(getChannelAnalytics.pending, (state) => {
+        state.analyticsStatus = "loading";
+      })
+      .addCase(getChannelAnalytics.fulfilled, (state, action) => {
+        state.analyticsStatus = "succeeded";
+        const id = action.payload?.id;
+        if (id) {
+          state.analyticsByChannel[id] = action.payload?.data || {};
+        }
+      })
+      .addCase(getChannelAnalytics.rejected, (state, action) => {
+        state.analyticsStatus = "failed";
+        state.error =
+          action.payload?.err ||
+          action.payload?.error ||
+          action.payload?.message ||
+          action.error?.message ||
+          "fetch analytics failed";
+      })
+      .addCase(suggestPost.pending, (state) => {
+        state.suggestPostStatus = "loading";
+      })
+      .addCase(suggestPost.fulfilled, (state, action) => {
+        state.suggestPostStatus = "succeeded";
+        state.lastMessage = action.payload?.message || null;
+      })
+      .addCase(suggestPost.rejected, (state, action) => {
+        state.suggestPostStatus = "failed";
+        state.error =
+          action.payload?.err ||
+          action.payload?.error ||
+          action.payload?.message ||
+          action.error?.message ||
+          "suggest post failed";
       })
 
       .addCase(getChannelUnreadCount.pending, (state) => {

@@ -26,6 +26,9 @@ const messageSchema = new mongoose.Schema(
       duration: { type: Number },
     },
     Relations: {
+      topicId: {
+        type: mongoose.Schema.Types.ObjectId,
+      },
       replyToMessageId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "Message",

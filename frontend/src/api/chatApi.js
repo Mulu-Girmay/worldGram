@@ -34,9 +34,10 @@ export const getChatByIdApi = async (chatId, token) => {
   return data;
 };
 
-export const getMessagesApi = async (chatId, token) => {
+export const getMessagesApi = async (chatId, token, params = {}) => {
   const { data } = await api.get(`/chats/${chatId}/messages`, {
     headers: authHeaders(token),
+    params,
   });
   return data;
 };

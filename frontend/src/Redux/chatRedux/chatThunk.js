@@ -74,10 +74,10 @@ export const getChatById = createAsyncThunk(
 
 export const getMessages = createAsyncThunk(
   "chat/getMessages",
-  async (chatId, { getState, rejectWithValue }) => {
+  async ({ chatId, params = {} }, { getState, rejectWithValue }) => {
     try {
       const token = getState().auth?.accessToken;
-      return await getMessagesApi(chatId, token);
+      return await getMessagesApi(chatId, token, params);
     } catch (err) {
       return rejectWithValue(err.response?.data || { message: "fetch messages failed" });
     }

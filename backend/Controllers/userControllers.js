@@ -119,8 +119,18 @@ exports.getUserById = async (req, res) => {
 
 exports.updateProfile = async (req, res) => {
   try {
-    const { firstName, lastName, username, Bio, profileUrl, phoneNumber } =
-      req.body;
+    const {
+      firstName,
+      lastName,
+      username,
+      Bio,
+      profileUrl,
+      phoneNumber,
+      bioLink,
+      personalChannelUsername,
+      emojiStatus,
+      isPremium,
+    } = req.body;
     const user = await User.findById(req.userId);
     if (!user) return res.status(404).json({ err: "User not found" });
 
@@ -129,6 +139,21 @@ exports.updateProfile = async (req, res) => {
     if (typeof username === "string") user.identity.username = username;
     if (typeof phoneNumber === "string") user.identity.phoneNumber = phoneNumber;
     if (typeof Bio === "string") user.identity.Bio = Bio;
+    if (typeof bioLink === "string") user.identity.bioLink = bioLink;
+    if (typeof personalChannelUsername === "string") {
+      user.identity.personalChannelUsername = personalChannelUsername;
+    }
+    if (typeof emojiStatus === "string") {
+      user.identity.emojiStatus = emojiStatus;
+    }
+    if (typeof isPremium === "boolean") {
+      user.AccountStatus.isPremium = isPremium;
+    } else if (typeof isPremium === "string") {
+      const normalized = isPremium.trim().toLowerCase();
+      if (normalized === "true" || normalized === "false") {
+        user.AccountStatus.isPremium = normalized === "true";
+      }
+    }
     if (req.file?.filename) {
       user.identity.profileUrl = req.file.filename;
     } else if (typeof profileUrl === "string") {

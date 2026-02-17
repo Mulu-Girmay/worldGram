@@ -41,6 +41,43 @@ export const unsubscribeChannelApi = async (id, token) => {
   });
   return data;
 };
+export const muteChannelApi = async (id, token) => {
+  const { data } = await api.post(`/channels/${id}/mute`, null, {
+    headers: authHeaders(token),
+  });
+  return data;
+};
+export const unmuteChannelApi = async (id, token) => {
+  const { data } = await api.post(`/channels/${id}/unmute`, null, {
+    headers: authHeaders(token),
+  });
+  return data;
+};
+export const updateAdminPermissionsApi = async (id, payload, token) => {
+  const { data } = await api.patch(`/channels/${id}/admin-permissions`, payload, {
+    headers: authHeaders(token),
+  });
+  return data;
+};
+export const getChannelRecentActionsApi = async (id, params = {}, token) => {
+  const { data } = await api.get(`/channels/${id}/recent-actions`, {
+    headers: authHeaders(token),
+    params,
+  });
+  return data;
+};
+export const getChannelAnalyticsApi = async (id, token) => {
+  const { data } = await api.get(`/channels/${id}/analytics`, {
+    headers: authHeaders(token),
+  });
+  return data;
+};
+export const suggestPostApi = async (id, payload, token) => {
+  const { data } = await api.post(`/channels/${id}/suggest-post`, payload, {
+    headers: authHeaders(token),
+  });
+  return data;
+};
 export const addChannelApi = async (payload, token) => {
   const { data } = await api.post(`/addChannel`, payload, {
     headers: authHeaders(token),

@@ -8,6 +8,10 @@ const channelPostSchema = new mongoose.Schema(
       index: true,
     },
     authorId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    authorSignature: {
+      show: { type: Boolean, default: false },
+      title: { type: String, trim: true },
+    },
     text: { type: String },
     media: [{ url: String, type: String, size: Number }],
     views: {
@@ -58,6 +62,8 @@ const channelPostSchema = new mongoose.Schema(
       },
     ],
     isPinned: { type: Boolean, default: false },
+    isSilent: { type: Boolean, default: false },
+    deepLink: { type: String },
     schedulesAt: Date,
   },
   { timestamps: true },

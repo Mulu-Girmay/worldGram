@@ -198,7 +198,8 @@ exports.listStories = async (req, res) => {
     const stories = await Story.find(query)
       .sort({ _id: -1 })
       .limit(limit)
-      .populate("authorId", STORY_AUTHOR_SELECT);
+      .populate("authorId", STORY_AUTHOR_SELECT)
+      .populate("viewers.userId", "_id");
     const visible = [];
     const favoriteContactIds = new Set(
       (
@@ -358,7 +359,8 @@ exports.listHighlights = async (req, res) => {
       isHighlight: true,
     })
       .sort({ _id: -1 })
-      .populate("authorId", STORY_AUTHOR_SELECT);
+      .populate("authorId", STORY_AUTHOR_SELECT)
+      .populate("viewers.userId", "_id");
     const visible = [];
     for (const story of highlights) {
       if (await canViewStory(story, req.userId)) visible.push(story);

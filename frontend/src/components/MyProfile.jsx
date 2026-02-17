@@ -2,8 +2,11 @@ import React, { useEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
   Camera,
+  Crown,
   FileIcon,
+  Globe,
   ImageIcon,
+  Lock,
   LinkIcon,
   Loader2,
   MoreVertical,
@@ -34,7 +37,7 @@ import {
 } from "../Redux/storyRedux/storyThunk";
 import { logoutUser, updateProfile } from "../Redux/userRedux/authThunk";
 import Story from "./Story";
-import { resolveProfileUrl, toInitials } from "../utils/media";
+import { resolveMediaUrl, resolveProfileUrl, toInitials } from "../utils/media";
 import { getMessagesApi, listChatsApi } from "../api/chatApi";
 import { useToast } from "./ToastProvider";
 
@@ -103,6 +106,10 @@ const MyProfile = () => {
     username: "",
     phoneNumber: "",
     Bio: "",
+    bioLink: "",
+    personalChannelUsername: "",
+    emojiStatus: "",
+    isPremium: false,
     profileUrl: "",
   });
   const [avatarFile, setAvatarFile] = useState(null);
@@ -110,6 +117,8 @@ const MyProfile = () => {
   const [editFeedback, setEditFeedback] = useState("");
   const [sharedMediaCounts, setSharedMediaCounts] = useState(EMPTY_MEDIA_COUNTS);
   const [sharedMediaStatus, setSharedMediaStatus] = useState("idle");
+  const [sharedMediaItems, setSharedMediaItems] = useState([]);
+  const [sharedSearchTerm, setSharedSearchTerm] = useState("");
 
   const displayName =
     `${user?.identity?.firstName || ""} ${user?.identity?.lastName || ""}`.trim() ||
@@ -119,8 +128,22 @@ const MyProfile = () => {
   const phone = user?.identity?.phoneNumber || user?.identity?.mobileNumber || "";
   const bio = user?.identity?.Bio || user?.identity?.bio || "No bio yet";
   const status = user?.AccountStatus?.onlineStatus || "offline";
+  const isPremium = Boolean(user?.AccountStatus?.isPremium);
+  const emojiStatus = user?.identity?.emojiStatus || "";
   const profileUrl = resolveProfileUrl(user?.identity?.profileUrl);
   const currentUserId = normalizeId(user?._id || user?.id);
+  const hasActiveStory = (userStories || []).length > 0;
+  const phonePrivacy = user?.privacySettings?.privacyPhoneNumber || "contacts";
+  const lastSeenPrivacy = user?.privacySettings?.privacyLastSeen || "contacts";
+  const lastSeenLabel =
+    user?.AccountStatus?.lastSeenAt
+      ? new Date(user.AccountStatus.lastSeenAt).toLocaleString()
+      : status === "online"
+        ? "Online"
+        : "Recently";
+
+  const getPrivacyIcon = (privacy) =>
+    privacy === "everyone" ? Globe : Lock;
 
   useEffect(() => {
     const userId = user?._id || user?.id;
@@ -138,6 +161,10 @@ const MyProfile = () => {
       username: user?.identity?.username || "",
       phoneNumber: user?.identity?.phoneNumber || "",
       Bio: user?.identity?.Bio || user?.identity?.bio || "",
+      bioLink: user?.identity?.bioLink || "",
+      personalChannelUsername: user?.identity?.personalChannelUsername || "",
+      emojiStatus: user?.identity?.emojiStatus || "",
+      isPremium: Boolean(user?.AccountStatus?.isPremium),
       profileUrl: user?.identity?.profileUrl || "",
     });
     setPhoneDraft(user?.identity?.phoneNumber || "");
@@ -222,6 +249,7 @@ const MyProfile = () => {
         );
 
         const nextCounts = { ...EMPTY_MEDIA_COUNTS };
+        const nextItems = [];
 
         messageResponses.forEach((response) => {
           const messages = Array.isArray(response) ? response : [];
@@ -232,11 +260,21 @@ const MyProfile = () => {
             nextCounts.links += countLinksFromText(message?.content?.text || "");
             const bucket = inferMediaBucket(message);
             if (bucket) nextCounts[bucket] += 1;
+
+            nextItems.push({
+              id: message?._id || `${bucket}-${Math.random()}`,
+              text: message?.content?.text || "",
+              mediaURL: message?.content?.mediaURL || "",
+              fileName: message?.content?.fileName || "",
+              contentType: message?.content?.ContentType || "",
+              bucket: bucket || "text",
+            });
           });
         });
 
         if (!cancelled) {
           setSharedMediaCounts(nextCounts);
+          setSharedMediaItems(nextItems);
           setSharedMediaStatus("succeeded");
         }
       } catch (err) {
@@ -258,6 +296,27 @@ const MyProfile = () => {
   const handleOpenStoryPicker = () => {
     fileRef.current?.click();
   };
+
+  const handleAvatarStoryOpen = () => {
+    if (hasActiveStory && userStories[0]?._id) {
+      navigate("/story", {
+        state: { storyId: userStories[0]._id, authorId: currentUserId },
+      });
+      return;
+    }
+    handleOpenStoryPicker();
+  };
+
+  const sharedFilteredItems = sharedMediaItems.filter((item) => {
+    const q = sharedSearchTerm.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      String(item.text || "").toLowerCase().includes(q) ||
+      String(item.fileName || "").toLowerCase().includes(q) ||
+      String(item.mediaURL || "").toLowerCase().includes(q) ||
+      String(item.contentType || "").toLowerCase().includes(q)
+    );
+  });
 
   const handleCreateStory = async (e) => {
     const file = e.target.files?.[0];
@@ -321,6 +380,10 @@ const MyProfile = () => {
       username: editForm.username.trim(),
       phoneNumber: editForm.phoneNumber.trim(),
       Bio: editForm.Bio.trim(),
+      bioLink: editForm.bioLink.trim(),
+      personalChannelUsername: editForm.personalChannelUsername.trim(),
+      emojiStatus: editForm.emojiStatus.trim(),
+      isPremium: Boolean(editForm.isPremium),
       profileUrl: editForm.profileUrl.trim(),
     };
     let body = payload;
@@ -331,6 +394,10 @@ const MyProfile = () => {
       formData.append("username", payload.username);
       formData.append("phoneNumber", payload.phoneNumber);
       formData.append("Bio", payload.Bio);
+      formData.append("bioLink", payload.bioLink);
+      formData.append("personalChannelUsername", payload.personalChannelUsername);
+      formData.append("emojiStatus", payload.emojiStatus);
+      formData.append("isPremium", String(payload.isPremium));
       if (payload.profileUrl) formData.append("profileUrl", payload.profileUrl);
       formData.append("media", avatarFile);
       body = formData;
@@ -450,19 +517,39 @@ const MyProfile = () => {
 
       <section className="relative overflow-hidden rounded-3xl border border-[#6fa63a]/30 bg-[linear-gradient(130deg,#f8fdf3_0%,#eef8e8_55%,#e2f0d7_100%)] p-5 shadow-[0_16px_34px_rgba(74,127,74,0.12)]">
         <div className="relative flex items-center gap-4">
-          {profileUrl ? (
-            <img
-              src={profileUrl}
-              alt={displayName}
-              className="h-20 w-20 rounded-full border border-[#6fa63a]/35 object-cover"
-            />
-          ) : (
-            <div className="flex h-20 w-20 items-center justify-center rounded-full border border-[#6fa63a]/35 bg-[#eaf4e2] text-xl font-semibold text-[#4a7f4a]">
-              {toInitials(displayName) || "U"}
-            </div>
-          )}
+          <button
+            type="button"
+            onClick={handleAvatarStoryOpen}
+            className={`relative h-20 w-20 rounded-full p-[3px] ${
+              hasActiveStory
+                ? "bg-[linear-gradient(135deg,#4c8bf5,#9b5cf6,#ec4899)]"
+                : "bg-[#6fa63a]/30"
+            }`}
+            title={hasActiveStory ? "View your story" : "Add story"}
+          >
+            {profileUrl ? (
+              <img
+                src={profileUrl}
+                alt={displayName}
+                className="h-full w-full rounded-full border border-[#6fa63a]/35 object-cover bg-white"
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center rounded-full border border-[#6fa63a]/35 bg-[#eaf4e2] text-xl font-semibold text-[#4a7f4a]">
+                {toInitials(displayName) || "U"}
+              </div>
+            )}
+          </button>
           <div>
-            <h2 className="text-xl font-bold text-[rgba(23,3,3,0.9)]">{displayName}</h2>
+            <h2 className="flex items-center gap-2 text-xl font-bold text-[rgba(23,3,3,0.9)]">
+              {displayName}
+              {emojiStatus && <span className="text-lg">{emojiStatus}</span>}
+              {isPremium && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-[#f7e7a8] px-2 py-0.5 text-[10px] font-semibold text-[#7a5a00]">
+                  <Crown size={10} />
+                  Premium
+                </span>
+              )}
+            </h2>
             <p className="text-sm text-[rgba(23,3,3,0.7)]">@{username}</p>
             <span className="mt-1 inline-block rounded-full bg-[#6fa63a]/20 px-2 py-0.5 text-xs font-semibold text-[#2f5b2f]">
               {status}
@@ -482,9 +569,15 @@ const MyProfile = () => {
           <div className="rounded-xl border border-[#6fa63a]/20 bg-white/80 px-3 py-2">
             {!isPhoneEdit ? (
               <div className="flex items-center justify-between gap-2">
-                <p className="text-sm font-semibold text-[rgba(23,3,3,0.88)]">
-                  {phone || "Not set"}
-                </p>
+                <div className="flex items-center gap-2">
+                  {React.createElement(getPrivacyIcon(phonePrivacy), {
+                    size: 13,
+                    className: "text-[#2f5b2f]",
+                  })}
+                  <p className="text-sm font-semibold text-[rgba(23,3,3,0.88)]">
+                    {phone || "Not set"}
+                  </p>
+                </div>
                 <button
                   type="button"
                   onClick={() => setIsPhoneEdit(true)}
@@ -524,6 +617,18 @@ const MyProfile = () => {
             <p className="text-xs text-[rgba(23,3,3,0.65)]">Mobile</p>
           </div>
           <div className="rounded-xl border border-[#6fa63a]/20 bg-white/80 px-3 py-2">
+            <div className="flex items-center gap-2">
+              {React.createElement(getPrivacyIcon(lastSeenPrivacy), {
+                size: 13,
+                className: "text-[#2f5b2f]",
+              })}
+              <p className="text-sm font-semibold text-[rgba(23,3,3,0.88)]">
+                {lastSeenLabel}
+              </p>
+            </div>
+            <p className="text-xs text-[rgba(23,3,3,0.65)]">Last Seen</p>
+          </div>
+          <div className="rounded-xl border border-[#6fa63a]/20 bg-white/80 px-3 py-2">
             <p className="text-sm font-semibold text-[rgba(23,3,3,0.88)]">{bio}</p>
             <p className="text-xs text-[rgba(23,3,3,0.65)]">Bio</p>
           </div>
@@ -536,8 +641,54 @@ const MyProfile = () => {
 
       <section className="rounded-2xl border border-[#6fa63a]/25 bg-[#f3f9ee] p-4 shadow-[0_10px_28px_rgba(74,127,74,0.12)]">
         <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-[#4a7f4a]">
+          Premium & Channel
+        </p>
+        <div className="space-y-2">
+          <div className="rounded-xl border border-[#6fa63a]/20 bg-white/80 px-3 py-2">
+            <p className="text-xs text-[rgba(23,3,3,0.65)]">Emoji Status</p>
+            <p className="text-sm font-semibold text-[rgba(23,3,3,0.88)]">
+              {emojiStatus || "Not set"}
+            </p>
+            <button
+              type="button"
+              onClick={openEditPanel}
+              className="mt-2 rounded-md border border-[#6fa63a]/30 px-2 py-1 text-[11px] text-[#2f5b2f] hover:bg-[#f3f9ee]"
+            >
+              Manage Premium
+            </button>
+          </div>
+          <div className="rounded-xl border border-[#6fa63a]/20 bg-white/80 px-3 py-2">
+            <p className="text-xs text-[rgba(23,3,3,0.65)]">Personal Channel Preview</p>
+            {user?.identity?.personalChannelUsername ? (
+              <button
+                type="button"
+                onClick={() => navigate("/home")}
+                className="mt-1 inline-flex items-center gap-2 rounded-lg border border-[#6fa63a]/25 bg-[#f8fdf3] px-2 py-1 text-xs font-semibold text-[#2f5b2f]"
+              >
+                <Globe size={12} />
+                @{user.identity.personalChannelUsername}
+              </button>
+            ) : (
+              <p className="text-sm text-[rgba(23,3,3,0.7)]">No channel linked.</p>
+            )}
+            {user?.identity?.bioLink && (
+              <p className="mt-1 truncate text-xs text-[#2f5b2f]">{user.identity.bioLink}</p>
+            )}
+          </div>
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-[#6fa63a]/25 bg-[#f3f9ee] p-4 shadow-[0_10px_28px_rgba(74,127,74,0.12)]">
+        <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-[#4a7f4a]">
           Shared Media
         </p>
+        <input
+          type="text"
+          value={sharedSearchTerm}
+          onChange={(e) => setSharedSearchTerm(e.target.value)}
+          placeholder="Search your media, links, and files"
+          className="mb-3 w-full rounded-lg border border-[#6fa63a]/25 bg-white px-3 py-2 text-sm outline-none focus:border-[#4a7f4a]"
+        />
         {sharedMediaStatus === "loading" && (
           <p className="mb-2 text-xs text-[rgba(23,3,3,0.62)]">
             Syncing your shared media...
@@ -559,6 +710,22 @@ const MyProfile = () => {
             </div>
           ))}
         </div>
+        {sharedSearchTerm.trim() && (
+          <div className="mt-3 max-h-36 space-y-1 overflow-y-auto rounded-xl border border-[#6fa63a]/20 bg-white/75 p-2">
+            {sharedFilteredItems.length === 0 ? (
+              <p className="text-xs text-[rgba(23,3,3,0.62)]">No matches found.</p>
+            ) : (
+              sharedFilteredItems.slice(0, 20).map((item) => (
+                <div key={item.id} className="rounded-md border border-[#6fa63a]/15 bg-white px-2 py-1">
+                  <p className="truncate text-xs text-[rgba(23,3,3,0.82)]">
+                    {item.fileName || item.text || item.mediaURL || "Shared item"}
+                  </p>
+                  <p className="text-[10px] text-[rgba(23,3,3,0.55)]">{item.bucket}</p>
+                </div>
+              ))
+            )}
+          </div>
+        )}
       </section>
 
       <section className="rounded-2xl border border-[#6fa63a]/25 bg-[#f3f9ee] p-4 shadow-[0_10px_28px_rgba(74,127,74,0.12)]">
@@ -640,9 +807,19 @@ const MyProfile = () => {
       </section>
 
       <section className="rounded-2xl border border-[#6fa63a]/25 bg-[#f3f9ee] p-4 shadow-[0_10px_28px_rgba(74,127,74,0.12)]">
-        <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-[#4a7f4a]">
-          Highlights
-        </p>
+        <div className="mb-3 flex items-center justify-between">
+          <p className="text-xs font-semibold uppercase tracking-wide text-[#4a7f4a]">
+            Highlights
+          </p>
+          <button
+            type="button"
+            onClick={() => storiesSectionRef.current?.scrollIntoView({ behavior: "smooth" })}
+            className="inline-flex items-center gap-1 rounded-full bg-[#4a7f4a] px-2 py-1 text-[11px] font-semibold text-white"
+          >
+            <Plus size={11} />
+            Add
+          </button>
+        </div>
         {highlightsStatus === "loading" && (
           <p className="text-xs text-[rgba(23,3,3,0.62)]">Loading highlights...</p>
         )}
@@ -651,10 +828,32 @@ const MyProfile = () => {
             No highlights yet. Pin a story from story settings.
           </p>
         )}
-        <div className="space-y-1">
-          {highlights.map((story) => (
-            <Story key={story._id} story={story} />
-          ))}
+        <div className="grid grid-cols-3 gap-2">
+          {highlights.map((story) => {
+            const src = story?.media ? resolveMediaUrl(story.media, story?.mediaType || "image") : null;
+            const views = Array.isArray(story?.viewers) ? story.viewers.length : 0;
+            return (
+              <button
+                key={story._id}
+                type="button"
+                onClick={() => navigate("/story", { state: { storyId: story._id, authorId: currentUserId } })}
+                className="relative overflow-hidden rounded-xl border border-[#6fa63a]/20 bg-white"
+              >
+                {src ? (
+                  story?.mediaType === "video" ? (
+                    <video src={src} className="h-24 w-full object-cover" />
+                  ) : (
+                    <img src={src} alt={story?.caption || "Highlight"} className="h-24 w-full object-cover" />
+                  )
+                ) : (
+                  <div className="grid h-24 w-full place-items-center text-xs text-[#2f5b2f]">ST</div>
+                )}
+                <span className="absolute bottom-1 right-1 rounded-full bg-black/55 px-1.5 py-0.5 text-[10px] text-white">
+                  {views}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </section>
 
@@ -747,6 +946,34 @@ const MyProfile = () => {
                 rows={3}
                 className="w-full resize-none rounded-lg border border-[#6fa63a]/30 bg-white px-3 py-2 text-sm outline-none focus:border-[#4a7f4a]"
               />
+              <input
+                value={editForm.bioLink}
+                onChange={handleEditChange("bioLink")}
+                placeholder="Bio link"
+                className="w-full rounded-lg border border-[#6fa63a]/30 bg-white px-3 py-2 text-sm outline-none focus:border-[#4a7f4a]"
+              />
+              <input
+                value={editForm.personalChannelUsername}
+                onChange={handleEditChange("personalChannelUsername")}
+                placeholder="Personal channel username"
+                className="w-full rounded-lg border border-[#6fa63a]/30 bg-white px-3 py-2 text-sm outline-none focus:border-[#4a7f4a]"
+              />
+              <input
+                value={editForm.emojiStatus}
+                onChange={handleEditChange("emojiStatus")}
+                placeholder="Emoji status (e.g. ✨)"
+                className="w-full rounded-lg border border-[#6fa63a]/30 bg-white px-3 py-2 text-sm outline-none focus:border-[#4a7f4a]"
+              />
+              <label className="flex items-center gap-2 rounded-lg border border-[#6fa63a]/20 bg-[#f8fdf3] px-3 py-2 text-sm text-[rgba(23,3,3,0.82)]">
+                <input
+                  type="checkbox"
+                  checked={Boolean(editForm.isPremium)}
+                  onChange={(e) =>
+                    setEditForm((prev) => ({ ...prev, isPremium: e.target.checked }))
+                  }
+                />
+                Premium enabled
+              </label>
               <input
                 value={editForm.profileUrl}
                 onChange={handleEditChange("profileUrl")}

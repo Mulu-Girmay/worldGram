@@ -125,6 +125,12 @@ const Nav = () => {
                 media && typeof media === "string"
                   ? resolveMediaUrl(media, mediaType)
                   : null;
+              const currentUserId = String(currentUser?._id || currentUser?.id || "");
+              const isViewed = (story?.viewers || []).some(
+                (viewer) =>
+                  String(viewer?.userId?._id || viewer?.userId || viewer) ===
+                  currentUserId,
+              );
               return (
                 <button
                   key={story?._id}
@@ -137,7 +143,11 @@ const Nav = () => {
                       },
                     })
                   }
-                  className="h-10 w-10 shrink-0 overflow-hidden rounded-full border-2 border-[#6fa63a]/60 bg-[#eaf4e2]"
+                  className={`h-10 w-10 shrink-0 overflow-hidden rounded-full border-2 ${
+                    isViewed
+                      ? "border-gray-400/70"
+                      : "border-[#4c8bf5]"
+                  } bg-[#eaf4e2]`}
                   aria-label={`Open ${authorName} story`}
                   title={authorName}
                 >

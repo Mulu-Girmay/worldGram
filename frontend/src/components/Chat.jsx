@@ -30,6 +30,16 @@ import {
   setMessageReactions,
 } from "../Redux/chatRedux/chatSlice";
 import { resolveAssetUrl, resolveProfileUrl, toInitials } from "../utils/media";
+import { selectGroups } from "../Redux/groupRedux/groupSelector";
+import {
+  findGroup,
+  listGroupTopics,
+  setGroupViewMode,
+} from "../Redux/groupRedux/groupThunk";
+import {
+  selectCurrentGroup,
+  selectGroupTopics,
+} from "../Redux/groupRedux/groupSelector";
 
 const QUICK_REACTIONS = ["👍", "❤️", "🔥", "😂", "😍", "😮"];
 
@@ -120,6 +130,12 @@ const Chat = ({
   const [showNavMenu, setShowNavMenu] = useState(false);
   const [replyTarget, setReplyTarget] = useState(null);
   const [reactionBusyMap, setReactionBusyMap] = useState({});
+  const [profileTab, setProfileTab] = useState("media");
+  const groups = useSelector(selectGroups);
+  const currentGroup = useSelector(selectCurrentGroup);
+  const groupTopics = useSelector(selectGroupTopics);
+  const [selectedTopicId, setSelectedTopicId] = useState("");
+  const [groupViewMode, setGroupViewModeState] = useState("message");
 
   const activeChat =
     currentChatProp || selectedChatFromStore || currentChatFromStore || null;
@@ -150,9 +166,34 @@ const Chat = ({
   useEffect(() => {
     if (!resolvedChatId) return;
     dispatch(getChatById(resolvedChatId));
-    dispatch(getMessages(resolvedChatId));
     dispatch(markChatRead(resolvedChatId));
   }, [dispatch, resolvedChatId]);
+
+  useEffect(() => {
+    if (!resolvedGroupId) return;
+    dispatch(findGroup(resolvedGroupId));
+    dispatch(listGroupTopics(resolvedGroupId));
+  }, [dispatch, resolvedGroupId]);
+
+  useEffect(() => {
+    const nextMode = currentGroup?.settings?.defaultViewMode || "message";
+    setGroupViewModeState(nextMode);
+    if (nextMode === "message") {
+      setSelectedTopicId("");
+      return;
+    }
+    const firstTopic = (groupTopics || [])[0]?._id || "";
+    setSelectedTopicId(firstTopic);
+  }, [currentGroup?.settings?.defaultViewMode, groupTopics]);
+
+  useEffect(() => {
+    if (!resolvedChatId) return;
+    const params =
+      groupViewMode === "topic" && selectedTopicId
+        ? { topicId: selectedTopicId }
+        : {};
+    dispatch(getMessages({ chatId: resolvedChatId, params }));
+  }, [dispatch, resolvedChatId, groupViewMode, selectedTopicId]);
 
   useEffect(() => {
     const socket = io("http://localhost:3000", {
@@ -263,6 +304,7 @@ const Chat = ({
         payload: {
           text,
           replyToMessageId: replyTarget?._id || null,
+          topicId: groupViewMode === "topic" && selectedTopicId ? selectedTopicId : null,
         },
       }),
     );
@@ -310,6 +352,9 @@ const Chat = ({
     }
     if (replyTarget?._id) {
       formData.append("replyToMessageId", replyTarget._id);
+    }
+    if (groupViewMode === "topic" && selectedTopicId) {
+      formData.append("topicId", selectedTopicId);
     }
 
     const result = await dispatch(
@@ -359,6 +404,59 @@ const Chat = ({
     : isGroupChat
       ? "Group conversation"
       : (otherStatus || "offline");
+  const otherPhone = otherParticipant?.identity?.phoneNumber || "";
+  const phonePrivacy = otherParticipant?.privacySettings?.privacyPhoneNumber || "contacts";
+  const otherEmojiStatus = otherParticipant?.identity?.emojiStatus || "";
+  const otherIsPremium = Boolean(otherParticipant?.AccountStatus?.isPremium);
+  const otherChannelUsername = otherParticipant?.identity?.personalChannelUsername || "";
+  const otherBio = otherParticipant?.identity?.Bio || "";
+  const isPhoneVisibleToViewer = phonePrivacy === "everyone";
+
+  const formatLastSeen = () => {
+    const lastSeenPrivacy = otherParticipant?.privacySettings?.privacyLastSeen;
+    if (lastSeenPrivacy === "nobody") return "Last seen hidden";
+    if (otherStatus === "online") return "Online";
+    const lastSeenAt = otherParticipant?.AccountStatus?.lastSeenAt;
+    if (!lastSeenAt) return "Recently";
+    const diffMs = Date.now() - new Date(lastSeenAt).getTime();
+    const oneDay = 24 * 60 * 60 * 1000;
+    if (diffMs < oneDay) return "Recently";
+    if (diffMs < 7 * oneDay) return "Within a week";
+    return "Long time ago";
+  };
+
+  const sharedWithUser = useMemo(() => {
+    const docs = [];
+    const links = [];
+    const media = [];
+    const audio = [];
+
+    (renderedMessages || []).forEach((message) => {
+      const text = String(message?.content?.text || "");
+      const mediaURL = String(message?.content?.mediaURL || "");
+      const contentType = String(message?.content?.ContentType || "").toLowerCase();
+      const fileName = String(message?.content?.fileName || "");
+
+      if (/https?:\/\/[^\s]+/i.test(text)) links.push({ id: message?._id, text });
+      if (contentType === "image" || contentType === "video") {
+        media.push({ id: message?._id, mediaURL, text });
+      } else if (contentType === "audio" || contentType === "voice") {
+        audio.push({ id: message?._id, fileName, mediaURL });
+      } else if (contentType === "file") {
+        docs.push({ id: message?._id, fileName, mediaURL });
+      }
+    });
+
+    return { media, docs, links, audio };
+  }, [renderedMessages]);
+
+  const groupsInCommon = useMemo(() => {
+    const otherId = normalizeId(otherParticipant?._id);
+    if (!otherId) return [];
+    return (groups || []).filter((group) =>
+      (group?.members?.members || []).some((id) => normalizeId(id) === otherId),
+    );
+  }, [groups, otherParticipant?._id]);
 
   const filteredMessages = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
@@ -513,6 +611,54 @@ const Chat = ({
       )}
 
       <div className="mx-auto w-full max-w-2xl space-y-3 p-4">
+        {isGroupChat && currentGroup?.settings?.topicsEnabled && (
+          <div className="rounded-xl border border-[#6fa63a]/20 bg-white/70 p-2">
+            <div className="mb-2 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={async () => {
+                  await dispatch(setGroupViewMode({ id: resolvedGroupId, viewMode: "message" }));
+                  setGroupViewModeState("message");
+                }}
+                className={`rounded-full px-3 py-1 text-xs ${
+                  groupViewMode === "message" ? "bg-[#4a7f4a] text-white" : "border"
+                }`}
+              >
+                Message View
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  await dispatch(setGroupViewMode({ id: resolvedGroupId, viewMode: "topic" }));
+                  setGroupViewModeState("topic");
+                }}
+                className={`rounded-full px-3 py-1 text-xs ${
+                  groupViewMode === "topic" ? "bg-[#4a7f4a] text-white" : "border"
+                }`}
+              >
+                Topic View
+              </button>
+            </div>
+            {groupViewMode === "topic" && (
+              <div className="flex gap-2 overflow-x-auto">
+                {(groupTopics || []).map((topic) => (
+                  <button
+                    key={topic._id}
+                    type="button"
+                    onClick={() => setSelectedTopicId(topic._id)}
+                    className={`rounded-full px-3 py-1 text-xs ${
+                      String(selectedTopicId) === String(topic._id)
+                        ? "bg-[#4a7f4a] text-white"
+                        : "border"
+                    }`}
+                  >
+                    #{topic.name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
         <div
           role={isGroupChat ? "button" : undefined}
           tabIndex={isGroupChat ? 0 : undefined}
@@ -833,7 +979,7 @@ const Chat = ({
                 <X size={14} />
               </button>
             </div>
-            <div className="rounded-xl border border-[#6fa63a]/20 bg-white/80 p-4">
+            <div className="space-y-3 rounded-xl border border-[#6fa63a]/20 bg-white/80 p-4">
               <div className="mb-3 flex justify-center">
                 {otherProfile ? (
                   <img
@@ -848,11 +994,112 @@ const Chat = ({
                 )}
               </div>
               <p className="text-center text-base font-semibold text-[rgba(23,3,3,0.88)]">
-                {otherName}
+                {otherName} {otherEmojiStatus}
+                {otherIsPremium && (
+                  <span className="ml-1 inline-block rounded-full bg-[#f7e7a8] px-1.5 py-0.5 text-[10px] font-semibold text-[#7a5a00]">
+                    Premium
+                  </span>
+                )}
               </p>
               <p className="mt-1 text-center text-xs capitalize text-[rgba(23,3,3,0.62)]">
-                {otherStatus}
+                {formatLastSeen()}
               </p>
+              <div className="space-y-1 rounded-lg border border-[#6fa63a]/20 bg-[#f9fcf6] px-3 py-2 text-xs">
+                <p className="font-semibold text-[rgba(23,3,3,0.82)]">
+                  @{otherParticipant?.identity?.username || "unknown"}
+                </p>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const username = otherParticipant?.identity?.username || "";
+                    if (!username || !navigator?.clipboard?.writeText) return;
+                    await navigator.clipboard.writeText(`@${username}`);
+                    toast.info("Username copied");
+                  }}
+                  className="rounded-md border border-[#6fa63a]/20 bg-white px-2 py-1 text-[10px] text-[#2f5b2f]"
+                >
+                  Copy username
+                </button>
+                <p className="text-[rgba(23,3,3,0.65)]">
+                  Phone: {isPhoneVisibleToViewer && otherPhone ? otherPhone : "Hidden"}
+                </p>
+                {otherBio ? (
+                  <p className="text-[rgba(23,3,3,0.7)]">{otherBio}</p>
+                ) : null}
+              </div>
+              {otherChannelUsername ? (
+                <button
+                  type="button"
+                  className="w-full rounded-lg border border-[#6fa63a]/25 bg-[#f9fcf6] px-3 py-2 text-left text-xs font-semibold text-[#2f5b2f]"
+                >
+                  View Channel: @{otherChannelUsername}
+                </button>
+              ) : null}
+
+              <div className="grid grid-cols-4 gap-1 rounded-lg border border-[#6fa63a]/20 bg-[#f9fcf6] p-1">
+                {[
+                  { id: "media", label: "Media" },
+                  { id: "files", label: "Files" },
+                  { id: "links", label: "Links" },
+                  { id: "groups", label: "Groups" },
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setProfileTab(tab.id)}
+                    className={`rounded-md px-2 py-1 text-[10px] ${
+                      profileTab === tab.id
+                        ? "bg-[#4a7f4a] text-white"
+                        : "text-[#2f5b2f]"
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="max-h-40 space-y-1 overflow-y-auto rounded-lg border border-[#6fa63a]/20 bg-[#f9fcf6] p-2 text-xs">
+                {profileTab === "media" &&
+                  (sharedWithUser.media.length === 0 ? (
+                    <p className="text-[rgba(23,3,3,0.62)]">No shared media.</p>
+                  ) : (
+                    sharedWithUser.media.slice(0, 20).map((item) => (
+                      <p key={item.id} className="truncate">
+                        {item.mediaURL || item.text || "Media"}
+                      </p>
+                    ))
+                  ))}
+                {profileTab === "files" &&
+                  (sharedWithUser.docs.length === 0 ? (
+                    <p className="text-[rgba(23,3,3,0.62)]">No shared files.</p>
+                  ) : (
+                    sharedWithUser.docs.slice(0, 20).map((item) => (
+                      <p key={item.id} className="truncate">
+                        {item.fileName || item.mediaURL || "File"}
+                      </p>
+                    ))
+                  ))}
+                {profileTab === "links" &&
+                  (sharedWithUser.links.length === 0 ? (
+                    <p className="text-[rgba(23,3,3,0.62)]">No shared links.</p>
+                  ) : (
+                    sharedWithUser.links.slice(0, 20).map((item) => (
+                      <p key={item.id} className="truncate">
+                        {item.text}
+                      </p>
+                    ))
+                  ))}
+                {profileTab === "groups" &&
+                  (groupsInCommon.length === 0 ? (
+                    <p className="text-[rgba(23,3,3,0.62)]">No groups in common.</p>
+                  ) : (
+                    groupsInCommon.slice(0, 20).map((group) => (
+                      <p key={group?._id} className="truncate">
+                        {group?.basicInfo?.name || "Group"}
+                      </p>
+                    ))
+                  ))}
+              </div>
             </div>
           </aside>
         </div>

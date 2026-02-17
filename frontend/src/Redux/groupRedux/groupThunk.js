@@ -1,19 +1,36 @@
 import { createAsyncThunk } from "@reduxjs/toolkit";
 import {
   addGroupAdminApi,
+  addGroupMiniAppApi,
   addGroupApi,
   addMemberApi,
+  boostGroupApi,
+  convertToBroadcastApi,
+  createTopicApi,
+  deleteTopicApi,
   deleteGroupApi,
+  endGroupLiveStreamApi,
+  getGroupRecentActionsApi,
   joinGroupApi,
+  listTopicsApi,
   leaveGroupApi,
   listGroupMembersApi,
   listGroupsApi,
   listMyGroupsApi,
+  raiseGroupHandApi,
   removeGroupAdminApi,
+  removeGroupMiniAppApi,
   removeMemberApi,
+  setGroupViewModeApi,
   specificGroupApi,
+  startGroupLiveStreamApi,
+  updateAutoOwnershipTransferApi,
+  updateGroupAdminProfileApi,
   updateGroupApi,
+  updateMemberExceptionApi,
   updateGroupPermissionsApi,
+  updateSlowModeApi,
+  updateTopicApi,
 } from "../../api/groupApi";
 
 export const listGroups = createAsyncThunk(
@@ -242,6 +259,250 @@ export const updatePermissions = createAsyncThunk(
     } catch (err) {
       return rejectWithValue(
         err.response?.data || { message: "updating permissions failed" },
+      );
+    }
+  },
+);
+
+export const updateMemberException = createAsyncThunk(
+  "group/updateMemberException",
+  async ({ id, memberId, overrides }, { getState, rejectWithValue }) => {
+    try {
+      if (!id || !memberId || typeof overrides !== "object") {
+        return rejectWithValue({
+          message: "group id, memberId and overrides are required",
+        });
+      }
+      const token = getState().auth?.accessToken;
+      return await updateMemberExceptionApi(id, { memberId, overrides }, token);
+    } catch (err) {
+      return rejectWithValue(
+        err.response?.data || { message: "updating member exception failed" },
+      );
+    }
+  },
+);
+
+export const listGroupTopics = createAsyncThunk(
+  "group/listTopics",
+  async (id, { getState, rejectWithValue }) => {
+    try {
+      const token = getState().auth?.accessToken;
+      return await listTopicsApi(id, token);
+    } catch (err) {
+      return rejectWithValue(
+        err.response?.data || { message: "fetching topics failed" },
+      );
+    }
+  },
+);
+
+export const createGroupTopic = createAsyncThunk(
+  "group/createTopic",
+  async ({ id, payload }, { getState, rejectWithValue }) => {
+    try {
+      const token = getState().auth?.accessToken;
+      return await createTopicApi(id, payload, token);
+    } catch (err) {
+      return rejectWithValue(
+        err.response?.data || { message: "creating topic failed" },
+      );
+    }
+  },
+);
+
+export const updateGroupTopic = createAsyncThunk(
+  "group/updateTopic",
+  async ({ id, topicId, payload }, { getState, rejectWithValue }) => {
+    try {
+      const token = getState().auth?.accessToken;
+      return await updateTopicApi(id, topicId, payload, token);
+    } catch (err) {
+      return rejectWithValue(
+        err.response?.data || { message: "updating topic failed" },
+      );
+    }
+  },
+);
+
+export const deleteGroupTopic = createAsyncThunk(
+  "group/deleteTopic",
+  async ({ id, topicId }, { getState, rejectWithValue }) => {
+    try {
+      const token = getState().auth?.accessToken;
+      return await deleteTopicApi(id, topicId, token);
+    } catch (err) {
+      return rejectWithValue(
+        err.response?.data || { message: "deleting topic failed" },
+      );
+    }
+  },
+);
+
+export const setGroupViewMode = createAsyncThunk(
+  "group/setViewMode",
+  async ({ id, viewMode }, { getState, rejectWithValue }) => {
+    try {
+      const token = getState().auth?.accessToken;
+      return await setGroupViewModeApi(id, { viewMode }, token);
+    } catch (err) {
+      return rejectWithValue(
+        err.response?.data || { message: "updating group view mode failed" },
+      );
+    }
+  },
+);
+
+export const convertGroupToBroadcast = createAsyncThunk(
+  "group/convertToBroadcast",
+  async (id, { getState, rejectWithValue }) => {
+    try {
+      const token = getState().auth?.accessToken;
+      return await convertToBroadcastApi(id, token);
+    } catch (err) {
+      return rejectWithValue(
+        err.response?.data || { message: "converting group failed" },
+      );
+    }
+  },
+);
+
+export const updateGroupSlowMode = createAsyncThunk(
+  "group/updateSlowMode",
+  async ({ id, slowModeSeconds }, { getState, rejectWithValue }) => {
+    try {
+      const token = getState().auth?.accessToken;
+      return await updateSlowModeApi(id, { slowModeSeconds }, token);
+    } catch (err) {
+      return rejectWithValue(
+        err.response?.data || { message: "updating slow mode failed" },
+      );
+    }
+  },
+);
+
+export const updateGroupAdminProfile = createAsyncThunk(
+  "group/updateAdminProfile",
+  async ({ id, payload }, { getState, rejectWithValue }) => {
+    try {
+      const token = getState().auth?.accessToken;
+      return await updateGroupAdminProfileApi(id, payload, token);
+    } catch (err) {
+      return rejectWithValue(
+        err.response?.data || { message: "updating admin profile failed" },
+      );
+    }
+  },
+);
+
+export const updateGroupAutoOwnershipTransfer = createAsyncThunk(
+  "group/updateAutoOwnershipTransfer",
+  async ({ id, payload }, { getState, rejectWithValue }) => {
+    try {
+      const token = getState().auth?.accessToken;
+      return await updateAutoOwnershipTransferApi(id, payload, token);
+    } catch (err) {
+      return rejectWithValue(
+        err.response?.data ||
+          { message: "updating auto ownership transfer failed" },
+      );
+    }
+  },
+);
+
+export const getGroupRecentActions = createAsyncThunk(
+  "group/getRecentActions",
+  async ({ id, params = {} }, { getState, rejectWithValue }) => {
+    try {
+      const token = getState().auth?.accessToken;
+      return await getGroupRecentActionsApi(id, params, token);
+    } catch (err) {
+      return rejectWithValue(
+        err.response?.data || { message: "fetching recent actions failed" },
+      );
+    }
+  },
+);
+
+export const boostGroup = createAsyncThunk(
+  "group/boostGroup",
+  async (id, { getState, rejectWithValue }) => {
+    try {
+      const token = getState().auth?.accessToken;
+      return await boostGroupApi(id, token);
+    } catch (err) {
+      return rejectWithValue(
+        err.response?.data || { message: "boosting group failed" },
+      );
+    }
+  },
+);
+
+export const startGroupLiveStream = createAsyncThunk(
+  "group/startLiveStream",
+  async (id, { getState, rejectWithValue }) => {
+    try {
+      const token = getState().auth?.accessToken;
+      return await startGroupLiveStreamApi(id, token);
+    } catch (err) {
+      return rejectWithValue(
+        err.response?.data || { message: "starting live stream failed" },
+      );
+    }
+  },
+);
+
+export const endGroupLiveStream = createAsyncThunk(
+  "group/endLiveStream",
+  async (id, { getState, rejectWithValue }) => {
+    try {
+      const token = getState().auth?.accessToken;
+      return await endGroupLiveStreamApi(id, token);
+    } catch (err) {
+      return rejectWithValue(
+        err.response?.data || { message: "ending live stream failed" },
+      );
+    }
+  },
+);
+
+export const raiseGroupHand = createAsyncThunk(
+  "group/raiseHand",
+  async (id, { getState, rejectWithValue }) => {
+    try {
+      const token = getState().auth?.accessToken;
+      return await raiseGroupHandApi(id, token);
+    } catch (err) {
+      return rejectWithValue(
+        err.response?.data || { message: "raising hand failed" },
+      );
+    }
+  },
+);
+
+export const addGroupMiniApp = createAsyncThunk(
+  "group/addMiniApp",
+  async ({ id, payload }, { getState, rejectWithValue }) => {
+    try {
+      const token = getState().auth?.accessToken;
+      return await addGroupMiniAppApi(id, payload, token);
+    } catch (err) {
+      return rejectWithValue(
+        err.response?.data || { message: "adding mini app failed" },
+      );
+    }
+  },
+);
+
+export const removeGroupMiniApp = createAsyncThunk(
+  "group/removeMiniApp",
+  async ({ id, appId }, { getState, rejectWithValue }) => {
+    try {
+      const token = getState().auth?.accessToken;
+      return await removeGroupMiniAppApi(id, appId, token);
+    } catch (err) {
+      return rejectWithValue(
+        err.response?.data || { message: "removing mini app failed" },
       );
     }
   },

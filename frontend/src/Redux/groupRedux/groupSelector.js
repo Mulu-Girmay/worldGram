@@ -50,3 +50,12 @@ export const selectAddAdminStatus = (state) => state.group?.addAdminStatus;
 export const selectRemoveAdminStatus = (state) => state.group?.removeAdminStatus;
 export const selectPermissionStatus = (state) => state.group?.permissionStatus;
 export const selectGroupLastMessage = (state) => state.group?.lastMessage;
+export const selectGroupTopics = (state) => state.group?.topics || EMPTY_ARRAY;
+export const selectGroupTopicsStatus = (state) => state.group?.topicsStatus;
+export const selectGroupRecentActions = (state) =>
+  state.group?.recentActions || EMPTY_ARRAY;
+export const selectGroupRecentActionsStatus = (state) =>
+  state.group?.recentActionsStatus;
+export const selectGroupBoostStatus = (state) => state.group?.boostStatus;
+export const selectGroupLiveStreamStatus = (state) =>
+  state.group?.liveStreamStatus;

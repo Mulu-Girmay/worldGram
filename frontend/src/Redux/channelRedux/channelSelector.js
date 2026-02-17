@@ -45,3 +45,16 @@ export const selectUnreadCountByChannel = (state) =>
 export const selectUnreadStatus = (state) => state.channel.unreadStatus;
 export const selectUnreadCountForChannel = (state, id) =>
   state.channel.unreadCountByChannel?.[id] || 0;
+export const selectChannelMuteStatus = (state) => state.channel.muteStatus;
+export const selectChannelUnmuteStatus = (state) => state.channel.unmuteStatus;
+export const selectAdminPermissionsStatus = (state) =>
+  state.channel.adminPermissionsStatus;
+export const selectChannelRecentActions = (state) =>
+  state.channel.recentActions || EMPTY_ARRAY;
+export const selectChannelRecentActionsStatus = (state) =>
+  state.channel.recentActionsStatus;
+export const selectChannelAnalyticsStatus = (state) =>
+  state.channel.analyticsStatus;
+export const selectChannelAnalyticsForId = (state, id) =>
+  state.channel.analyticsByChannel?.[id] || null;
+export const selectSuggestPostStatus = (state) => state.channel.suggestPostStatus;

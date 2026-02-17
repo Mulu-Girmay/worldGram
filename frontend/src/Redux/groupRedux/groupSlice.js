@@ -14,6 +14,23 @@ import {
   removeMember,
   updateGroup,
   updatePermissions,
+  updateMemberException,
+  listGroupTopics,
+  createGroupTopic,
+  updateGroupTopic,
+  deleteGroupTopic,
+  setGroupViewMode,
+  convertGroupToBroadcast,
+  updateGroupSlowMode,
+  updateGroupAdminProfile,
+  updateGroupAutoOwnershipTransfer,
+  getGroupRecentActions,
+  boostGroup,
+  startGroupLiveStream,
+  endGroupLiveStream,
+  raiseGroupHand,
+  addGroupMiniApp,
+  removeGroupMiniApp,
 } from "./groupThunk";
 
 const initialState = {
@@ -42,6 +59,12 @@ const initialState = {
   addAdminStatus: "idle",
   removeAdminStatus: "idle",
   permissionStatus: "idle",
+  topics: [],
+  topicsStatus: "idle",
+  recentActions: [],
+  recentActionsStatus: "idle",
+  boostStatus: "idle",
+  liveStreamStatus: "idle",
 };
 
 const groupSlice = createSlice({
@@ -352,6 +375,146 @@ const groupSlice = createSlice({
           action.payload?.message ||
           action.error?.message ||
           "updating permissions failed";
+      })
+      .addCase(updateMemberException.fulfilled, (state, action) => {
+        state.lastMessage = action.payload?.message || null;
+      })
+      .addCase(listGroupTopics.pending, (state) => {
+        state.topicsStatus = "loading";
+      })
+      .addCase(listGroupTopics.fulfilled, (state, action) => {
+        state.topicsStatus = "succeeded";
+        state.topics = Array.isArray(action.payload?.items)
+          ? action.payload.items
+          : [];
+        if (state.currentGroup) {
+          state.currentGroup.settings = {
+            ...(state.currentGroup.settings || {}),
+            topicsEnabled: Boolean(action.payload?.topicsEnabled),
+            defaultViewMode:
+              action.payload?.defaultViewMode ||
+              state.currentGroup.settings?.defaultViewMode ||
+              "message",
+          };
+        }
+      })
+      .addCase(listGroupTopics.rejected, (state, action) => {
+        state.topicsStatus = "failed";
+        state.error =
+          action.payload?.err ||
+          action.payload?.error ||
+          action.payload?.message ||
+          action.error?.message ||
+          "fetching topics failed";
+      })
+      .addCase(createGroupTopic.fulfilled, (state, action) => {
+        state.lastMessage = action.payload?.message || null;
+        if (action.payload?.topic) state.topics.push(action.payload.topic);
+      })
+      .addCase(updateGroupTopic.fulfilled, (state, action) => {
+        state.lastMessage = action.payload?.message || null;
+        const topic = action.payload?.topic;
+        if (topic?._id) {
+          state.topics = (state.topics || []).map((t) =>
+            t._id === topic._id ? topic : t,
+          );
+        }
+      })
+      .addCase(deleteGroupTopic.fulfilled, (state, action) => {
+        state.lastMessage = action.payload?.message || null;
+      })
+      .addCase(setGroupViewMode.fulfilled, (state, action) => {
+        state.lastMessage = action.payload?.message || null;
+        if (state.currentGroup) {
+          state.currentGroup.settings = {
+            ...(state.currentGroup.settings || {}),
+            defaultViewMode:
+              action.payload?.viewMode ||
+              state.currentGroup.settings?.defaultViewMode ||
+              "message",
+          };
+        }
+      })
+      .addCase(convertGroupToBroadcast.fulfilled, (state, action) => {
+        state.lastMessage = action.payload?.message || null;
+      })
+      .addCase(updateGroupSlowMode.fulfilled, (state, action) => {
+        state.lastMessage = action.payload?.message || null;
+        if (state.currentGroup) {
+          state.currentGroup.settings = {
+            ...(state.currentGroup.settings || {}),
+            slowModeSeconds:
+              Number(action.payload?.slowModeSeconds || 0) ||
+              state.currentGroup.settings?.slowModeSeconds ||
+              0,
+          };
+        }
+      })
+      .addCase(updateGroupAdminProfile.fulfilled, (state, action) => {
+        state.lastMessage = action.payload?.message || null;
+      })
+      .addCase(updateGroupAutoOwnershipTransfer.fulfilled, (state, action) => {
+        state.lastMessage = action.payload?.message || null;
+      })
+      .addCase(getGroupRecentActions.pending, (state) => {
+        state.recentActionsStatus = "loading";
+      })
+      .addCase(getGroupRecentActions.fulfilled, (state, action) => {
+        state.recentActionsStatus = "succeeded";
+        state.recentActions = Array.isArray(action.payload?.items)
+          ? action.payload.items
+          : [];
+      })
+      .addCase(getGroupRecentActions.rejected, (state, action) => {
+        state.recentActionsStatus = "failed";
+        state.error =
+          action.payload?.err ||
+          action.payload?.error ||
+          action.payload?.message ||
+          action.error?.message ||
+          "fetching recent actions failed";
+      })
+      .addCase(boostGroup.pending, (state) => {
+        state.boostStatus = "loading";
+      })
+      .addCase(boostGroup.fulfilled, (state, action) => {
+        state.boostStatus = "succeeded";
+        state.lastMessage = action.payload?.message || null;
+      })
+      .addCase(boostGroup.rejected, (state) => {
+        state.boostStatus = "failed";
+      })
+      .addCase(startGroupLiveStream.pending, (state) => {
+        state.liveStreamStatus = "loading";
+      })
+      .addCase(startGroupLiveStream.fulfilled, (state, action) => {
+        state.liveStreamStatus = "succeeded";
+        state.lastMessage = action.payload?.message || null;
+        if (state.currentGroup) {
+          state.currentGroup.settings = {
+            ...(state.currentGroup.settings || {}),
+            liveStream: action.payload?.liveStream || {},
+          };
+        }
+      })
+      .addCase(endGroupLiveStream.fulfilled, (state, action) => {
+        state.liveStreamStatus = "succeeded";
+        state.lastMessage = action.payload?.message || null;
+        if (state.currentGroup) {
+          state.currentGroup.settings = {
+            ...(state.currentGroup.settings || {}),
+            liveStream: action.payload?.liveStream || {},
+          };
+        }
+      })
+      .addCase(raiseGroupHand.fulfilled, (state, action) => {
+        state.lastMessage = action.payload?.message || null;
+      })
+      .addCase(addGroupMiniApp.fulfilled, (state, action) => {
+        state.lastMessage = action.payload?.message || null;
+      })
+      .addCase(removeGroupMiniApp.fulfilled, (state, action) => {
+        state.lastMessage = action.payload?.message || null;
       });
   },
 });
