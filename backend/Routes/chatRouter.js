@@ -21,11 +21,11 @@ const {
   updateChatSettings,
 } = require("../Controllers/chatController");
 
-router.post("/create", createChat);
-router.post("/create/:groupId", createChat);
+router.post("/create", auth, createChat);
+router.post("/create/:groupId", auth, createChat);
 
-router.post("/:chatId/message", sendMessage);
-router.get("/:chatId/messages", getMessages);
+router.post("/:chatId/message", auth, sendMessage);
+router.get("/:chatId/messages", auth, getMessages);
 router.get("/", auth, listChats);
 router.get("/:chatId", auth, getChatById);
 router.get("/:chatId/messages/paged", auth, getMessagesPaged);

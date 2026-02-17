@@ -3,15 +3,18 @@ import {
   addStory,
   deleteStory,
   getStoryById,
+  listHighlights,
   listStories,
   listUserStories,
   reactStory,
+  updateStory,
   viewStory,
 } from "./storyThunk";
 
 const initialState = {
   stories: [],
   userStories: [],
+  highlights: [],
   currentStory: null,
   error: null,
   lastMessage: null,
@@ -20,11 +23,13 @@ const initialState = {
   userNextCursor: null,
   storiesStatus: "idle",
   userStoriesStatus: "idle",
+  highlightsStatus: "idle",
   currentStoryStatus: "idle",
   addStatus: "idle",
   reactStatus: "idle",
   viewStatus: "idle",
   deleteStatus: "idle",
+  updateStatus: "idle",
 };
 
 const storySlice = createSlice({
@@ -91,6 +96,25 @@ const storySlice = createSlice({
           action.payload?.message ||
           action.error?.message ||
           "failed to list user stories";
+      })
+      .addCase(listHighlights.pending, (state) => {
+        state.highlightsStatus = "loading";
+        state.error = null;
+      })
+      .addCase(listHighlights.fulfilled, (state, action) => {
+        state.highlightsStatus = "succeeded";
+        state.highlights = Array.isArray(action.payload?.items)
+          ? action.payload.items
+          : [];
+      })
+      .addCase(listHighlights.rejected, (state, action) => {
+        state.highlightsStatus = "failed";
+        state.error =
+          action.payload?.err ||
+          action.payload?.error ||
+          action.payload?.message ||
+          action.error?.message ||
+          "failed to list highlights";
       })
       .addCase(getStoryById.pending, (state) => {
         state.currentStoryStatus = "loading";
@@ -189,6 +213,37 @@ const storySlice = createSlice({
           action.payload?.message ||
           action.error?.message ||
           "failed to delete story";
+      })
+      .addCase(updateStory.pending, (state) => {
+        state.updateStatus = "loading";
+        state.error = null;
+      })
+      .addCase(updateStory.fulfilled, (state, action) => {
+        state.updateStatus = "succeeded";
+        state.lastMessage = action.payload?.message || null;
+        const updated = action.payload?.story;
+        if (!updated?._id) return;
+        state.stories = (state.stories || []).map((story) =>
+          story._id === updated._id ? updated : story,
+        );
+        state.userStories = (state.userStories || []).map((story) =>
+          story._id === updated._id ? updated : story,
+        );
+        state.highlights = (state.highlights || []).map((story) =>
+          story._id === updated._id ? updated : story,
+        );
+        if (state.currentStory?._id === updated._id) {
+          state.currentStory = updated;
+        }
+      })
+      .addCase(updateStory.rejected, (state, action) => {
+        state.updateStatus = "failed";
+        state.error =
+          action.payload?.err ||
+          action.payload?.error ||
+          action.payload?.message ||
+          action.error?.message ||
+          "failed to update story";
       });
   },
 });

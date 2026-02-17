@@ -30,7 +30,7 @@ describe("Reaction", () => {
 
     renderWithToast(<Reaction onSelect={onSelect} />);
 
-    const trigger = screen.getByRole("button", { name: "+" });
+    const trigger = screen.getByRole("button", { name: /[+➕]/ });
     await user.click(trigger);
 
     const listbox = screen.getByRole("listbox", { name: /select reaction/i });

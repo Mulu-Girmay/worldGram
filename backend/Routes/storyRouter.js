@@ -6,6 +6,8 @@ const {
   getStoryById,
   listStories,
   listUserStories,
+  listHighlights,
+  updateStory,
   deleteStory,
 } = require("../Controllers/storyController");
 const upload = require("../Middleware/multer");
@@ -31,5 +33,7 @@ storyRouter.post(
 storyRouter.get("/stories", auth, listStories);
 storyRouter.get("/stories/:storyId", auth, getStoryById);
 storyRouter.get("/users/:userId/stories", auth, listUserStories);
+storyRouter.get("/users/:userId/highlights", auth, listHighlights);
+storyRouter.patch("/stories/:storyId", auth, updateStory);
 storyRouter.delete("/stories/:storyId", auth, deleteStory);
 module.exports = storyRouter;

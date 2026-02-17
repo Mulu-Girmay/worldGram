@@ -105,6 +105,25 @@ exports.reactToPost = async (req, res) => {
       reactionsPath: "reactions",
     });
 
+    if (result.status === 200) {
+      const updatedPost = await ChannelPost.findOne({
+        _id: req.params.postId,
+        channelId: req.params.channelId,
+      }).select("_id channelId reactions");
+
+      if (updatedPost) {
+        const io = req.app.get("io");
+        io.to(`channel:${req.params.channelId}`).emit(
+          "channel-post-reaction-updated",
+          {
+            channelId: req.params.channelId,
+            postId: updatedPost._id,
+            reactions: updatedPost.reactions || [],
+          },
+        );
+      }
+    }
+
     return res.status(result.status).json(result.body);
   } catch (err) {
     console.error(err);

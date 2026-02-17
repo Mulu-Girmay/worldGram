@@ -11,7 +11,10 @@ const User = require("./Models/User");
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: "http://localhost:5173",
+    origin: (process.env.CORS_ORIGIN || "http://localhost:5173")
+      .split(",")
+      .map((origin) => origin.trim())
+      .filter(Boolean),
     credentials: true,
   },
 });
@@ -38,6 +41,16 @@ app.use("/api", storyRouter);
 app.use("/api", contactRouter);
 app.use("/api", notificationRouter);
 app.use("/api", activityRouter);
+app.get("/api/health", (req, res) => {
+  res.json({ ok: true, uptime: process.uptime() });
+});
+app.use((req, res) => {
+  res.status(404).json({ err: "Route not found" });
+});
+app.use((err, req, res, next) => {
+  console.error(err);
+  res.status(500).json({ err: "Internal server error" });
+});
 
 const connectdb = async (uri) => {
   try {
@@ -93,6 +106,37 @@ io.on("connection", (socket) => {
       console.log(`Socket ${socket.id} joined chat ${chatId}`);
     } catch (err) {
       console.log("socket join-chat error:", err.message);
+    }
+  });
+
+  socket.on("join-channel", (channelId) => {
+    try {
+      if (!channelId) return;
+      const room = `channel:${channelId}`;
+      socket.join(room);
+      console.log(`Socket ${socket.id} joined channel room ${room}`);
+    } catch (err) {
+      console.log("socket join-channel error:", err.message);
+    }
+  });
+
+  socket.on("typing", async (payload) => {
+    try {
+      const chatId = payload?.chatId;
+      const isTyping = Boolean(payload?.isTyping);
+      if (!chatId) return;
+      const chat = await Chat.findById(chatId).select("participants");
+      const isParticipant = chat?.participants?.some(
+        (id) => id.toString() === socket.userId,
+      );
+      if (!isParticipant) return;
+      socket.to(chatId).emit("chat-typing", {
+        chatId,
+        userId: socket.userId,
+        isTyping,
+      });
+    } catch (err) {
+      console.log("socket typing error:", err.message);
     }
   });
   // Listen for new messages

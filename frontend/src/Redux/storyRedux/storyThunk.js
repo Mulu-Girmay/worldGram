@@ -4,8 +4,10 @@ import {
   deleteStoryApi,
   getStoryByIdApi,
   listStoriesApi,
+  listHighlightsApi,
   listUserStoriesApi,
   reactStoryApi,
+  updateStoryApi,
   viewStoryApi,
 } from "../../api/storyApi";
 
@@ -89,6 +91,34 @@ export const listUserStories = createAsyncThunk(
     } catch (err) {
       return rejectWithValue(
         err.response?.data || { message: "failed to list user stories" },
+      );
+    }
+  },
+);
+
+export const listHighlights = createAsyncThunk(
+  "story/listHighlights",
+  async (userId, { getState, rejectWithValue }) => {
+    try {
+      const token = getState().auth?.accessToken;
+      return await listHighlightsApi(userId, token);
+    } catch (err) {
+      return rejectWithValue(
+        err.response?.data || { message: "failed to list highlights" },
+      );
+    }
+  },
+);
+
+export const updateStory = createAsyncThunk(
+  "story/updateStory",
+  async ({ storyId, payload }, { getState, rejectWithValue }) => {
+    try {
+      const token = getState().auth?.accessToken;
+      return await updateStoryApi(storyId, payload, token);
+    } catch (err) {
+      return rejectWithValue(
+        err.response?.data || { message: "failed to update story" },
       );
     }
   },

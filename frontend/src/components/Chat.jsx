@@ -112,6 +112,7 @@ const Chat = ({
 
   const [draft, setDraft] = useState("");
   const [presenceMap, setPresenceMap] = useState({});
+  const [typingMap, setTypingMap] = useState({});
   const [showGroupSettings, setShowGroupSettings] = useState(false);
   const [showProfilePanel, setShowProfilePanel] = useState(false);
   const [showSearchBar, setShowSearchBar] = useState(false);
@@ -143,6 +144,7 @@ const Chat = ({
     setSearchTerm("");
     setShowNavMenu(false);
     setReplyTarget(null);
+    setTypingMap({});
   }, [resolvedChatId]);
 
   useEffect(() => {
@@ -182,6 +184,18 @@ const Chat = ({
       dispatch(markMessagesReadByUser(payload));
     };
 
+    const handleMessageReactionUpdated = (payload) => {
+      if (String(payload?.chatId || "") !== String(resolvedChatId)) return;
+      const messageId = payload?.messageId;
+      if (!messageId) return;
+      dispatch(
+        setMessageReactions({
+          messageId,
+          reactions: Array.isArray(payload?.reactions) ? payload.reactions : [],
+        }),
+      );
+    };
+
     const handleUserStatus = (payload) => {
       const userId = normalizeId(payload?.userId);
       if (!userId) return;
@@ -191,15 +205,42 @@ const Chat = ({
       }));
     };
 
+    const handleChatTyping = (payload) => {
+      if (String(payload?.chatId || "") !== String(resolvedChatId)) return;
+      const userId = normalizeId(payload?.userId);
+      if (!userId || userId === normalizeId(currentUser?._id)) return;
+      setTypingMap((prev) => ({
+        ...prev,
+        [userId]: Boolean(payload?.isTyping),
+      }));
+    };
+
     socket.on("new-message", handleIncomingMessage);
     socket.on("chat-read", handleChatRead);
+    socket.on("message-reaction-updated", handleMessageReactionUpdated);
     socket.on("user-status", handleUserStatus);
+    socket.on("chat-typing", handleChatTyping);
     return () => {
       socket.off("new-message", handleIncomingMessage);
       socket.off("chat-read", handleChatRead);
+      socket.off("message-reaction-updated", handleMessageReactionUpdated);
       socket.off("user-status", handleUserStatus);
+      socket.off("chat-typing", handleChatTyping);
     };
-  }, [dispatch, resolvedChatId]);
+  }, [dispatch, resolvedChatId, currentUser?._id]);
+
+  useEffect(() => {
+    const socket = socketRef.current;
+    if (!socket || !resolvedChatId || !currentUser?._id) return;
+    const isTyping = Boolean(draft.trim());
+    socket.emit("typing", { chatId: resolvedChatId, isTyping });
+
+    if (!isTyping) return;
+    const timer = window.setTimeout(() => {
+      socket.emit("typing", { chatId: resolvedChatId, isTyping: false });
+    }, 1200);
+    return () => window.clearTimeout(timer);
+  }, [draft, resolvedChatId, currentUser?._id]);
 
   const handleSend = async () => {
     const text = draft.trim();
@@ -220,7 +261,6 @@ const Chat = ({
       sendMessage({
         chatId: resolvedChatId,
         payload: {
-          senderId,
           text,
           replyToMessageId: replyTarget?._id || null,
         },
@@ -311,6 +351,14 @@ const Chat = ({
     otherParticipant?.AccountStatus?.onlineStatus ||
     "offline";
   const isGroupChat = activeChat?.type === "group";
+  const typingUsers = Object.entries(typingMap)
+    .filter(([, isTyping]) => Boolean(isTyping))
+    .map(([userId]) => userId);
+  const subtitleText = typingUsers.length
+    ? "typing..."
+    : isGroupChat
+      ? "Group conversation"
+      : (otherStatus || "offline");
 
   const filteredMessages = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
@@ -411,9 +459,7 @@ const Chat = ({
     <div className="min-h-screen bg-[var(--primary-color)]">
       <ProfileNav
         title={otherName}
-        subtitle={
-          isGroupChat ? "Group conversation" : (otherStatus || "offline")
-        }
+        subtitle={subtitleText}
         avatarUrl={otherProfile}
         backPath="/home"
         onProfileClick={handleOpenProfile}

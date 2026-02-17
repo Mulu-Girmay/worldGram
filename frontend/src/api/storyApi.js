@@ -51,6 +51,20 @@ export const listUserStoriesApi = async (userId, params = {}, token) => {
   return data;
 };
 
+export const listHighlightsApi = async (userId, token) => {
+  const { data } = await api.get(`/users/${userId}/highlights`, {
+    headers: authHeaders(token),
+  });
+  return data;
+};
+
+export const updateStoryApi = async (storyId, payload, token) => {
+  const { data } = await api.patch(`/stories/${storyId}`, payload, {
+    headers: authHeaders(token),
+  });
+  return data;
+};
+
 export const deleteStoryApi = async (storyId, token) => {
   const { data } = await api.delete(`/stories/${storyId}`, {
     headers: authHeaders(token),

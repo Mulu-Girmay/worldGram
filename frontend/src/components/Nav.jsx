@@ -1,14 +1,67 @@
 import React from "react";
-import { Menu, Search, Plus, Users, Megaphone } from "lucide-react";
+import { Menu, Search, Plus, Users, Megaphone, ChevronDown, ChevronUp } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useSelector } from "react-redux";
-import { selectStories } from "../Redux/storyRedux/storySelector";
+import { useDispatch, useSelector } from "react-redux";
+import { addStory, listStories } from "../Redux/storyRedux/storyThunk";
+import { selectStories, selectStoriesStatus } from "../Redux/storyRedux/storySelector";
+import { selectUser } from "../Redux/userRedux/authSelector";
 import { resolveMediaUrl } from "../utils/media";
+import { useToast } from "./ToastProvider";
 
 const Nav = () => {
+  const dispatch = useDispatch();
   const navigate = useNavigate();
+  const { error: toastError } = useToast();
   const stories = useSelector(selectStories);
+  const storiesStatus = useSelector(selectStoriesStatus);
+  const currentUser = useSelector(selectUser);
   const hasStories = Array.isArray(stories) && stories.length > 0;
+  const addStoryInputRef = React.useRef(null);
+  const [storiesExpanded, setStoriesExpanded] = React.useState(false);
+
+  const toStoryErrorMessage = (raw) => {
+    const text = String(raw || "").toLowerCase();
+    if (!text) return "Couldn't add story. Please try again.";
+    if (text.includes("active story"))
+      return "You can only have one active story. Delete your current story first.";
+    if (text.includes("file not found")) return "Please select an image or video.";
+    if (text.includes("network")) return "Network issue. Please check your internet.";
+    return String(raw);
+  };
+
+  const orderedStories = React.useMemo(() => {
+    const ownId = String(currentUser?._id || currentUser?.id || "");
+    const ownStories = (stories || []).filter(
+      (story) => String(story?.authorId?._id || story?.authorId || "") === ownId,
+    );
+    const others = (stories || []).filter(
+      (story) => String(story?.authorId?._id || story?.authorId || "") !== ownId,
+    );
+    return [...ownStories, ...others];
+  }, [stories, currentUser?._id, currentUser?.id]);
+
+  const handleAddStoryClick = () => addStoryInputRef.current?.click();
+
+  const handleAddStoryChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append("media", file);
+    formData.append("privacy", "contacts");
+
+    const result = await dispatch(addStory(formData));
+    if (addStory.rejected.match(result)) {
+      toastError(
+        toStoryErrorMessage(
+          result.payload?.message || result.payload?.err || "Failed to add story",
+        ),
+      );
+      e.target.value = "";
+      return;
+    }
+    await dispatch(listStories({ limit: 20 }));
+    e.target.value = "";
+  };
 
   const goTo = (path) => navigate(path);
 
@@ -24,11 +77,50 @@ const Nav = () => {
           <Menu size={16} />
         </button>
 
-        {hasStories ? (
-          <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto">
-            {stories.slice(0, 12).map((story) => {
+        <div
+          className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto"
+          onWheel={(e) => {
+            if (!storiesExpanded && e.deltaY > 12) {
+              setStoriesExpanded(true);
+            }
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => setStoriesExpanded((value) => !value)}
+            className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-[#6fa63a]/30 bg-white text-[#2f5b2f]"
+            aria-label={storiesExpanded ? "Collapse stories" : "Expand stories"}
+            title={storiesExpanded ? "Collapse stories" : "Expand stories"}
+          >
+            {storiesExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          </button>
+          <button
+            type="button"
+            onClick={handleAddStoryClick}
+            className="grid h-10 w-10 shrink-0 place-items-center rounded-full border-2 border-dashed border-[#6fa63a]/70 bg-[#eaf4e2] text-[#2f5b2f]"
+            aria-label="Add story"
+            title="Add story"
+            disabled={storiesStatus === "loading"}
+          >
+            <Plus size={14} />
+          </button>
+          <input
+            ref={addStoryInputRef}
+            type="file"
+            accept="image/*,video/*"
+            className="hidden"
+            onChange={handleAddStoryChange}
+          />
+          {hasStories ? (
+            orderedStories
+              .slice(0, storiesExpanded ? orderedStories.length : 4)
+              .map((story) => {
               const media = story?.media;
               const mediaType = story?.mediaType || "image";
+              const authorName =
+                `${story?.authorId?.identity?.firstName || ""} ${story?.authorId?.identity?.lastName || ""}`.trim() ||
+                story?.authorId?.identity?.username ||
+                "Story";
               const mediaSrc =
                 media && typeof media === "string"
                   ? resolveMediaUrl(media, mediaType)
@@ -46,7 +138,8 @@ const Nav = () => {
                     })
                   }
                   className="h-10 w-10 shrink-0 overflow-hidden rounded-full border-2 border-[#6fa63a]/60 bg-[#eaf4e2]"
-                  aria-label="Open story"
+                  aria-label={`Open ${authorName} story`}
+                  title={authorName}
                 >
                   {mediaSrc ? (
                     mediaType === "video" ? (
@@ -65,13 +158,13 @@ const Nav = () => {
                   )}
                 </button>
               );
-            })}
-          </div>
-        ) : (
-          <div>
-            <h2 className="text-base font-semibold leading-none">WorldGram</h2>
-          </div>
-        )}
+              })
+          ) : (
+            <div className="pl-1">
+              <h2 className="text-base font-semibold leading-none">WorldGram</h2>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="relative">

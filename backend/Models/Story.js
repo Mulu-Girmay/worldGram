@@ -36,9 +36,13 @@ const storySchema = new mongoose.Schema({
   },
   privacy: {
     type: String,
-    enum: ["public", "contacts", "closeFriends"],
+    enum: ["public", "contacts", "closeFriends", "selectedContacts"],
     default: "contacts",
   },
+  selectedViewerIds: [
+    { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+  ],
+  isHighlight: { type: Boolean, default: false },
   expiredAt: { type: Date, index: { expires: 0 } },
 });
 module.exports = mongoose.model("Story", storySchema);

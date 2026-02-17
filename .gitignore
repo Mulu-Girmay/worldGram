@@ -1,2 +1,8 @@
 node_modules
 .env
+.env.*
+backend/uploads/
+frontend/dist/
+frontend/.vite/
+*.log
+coverage/

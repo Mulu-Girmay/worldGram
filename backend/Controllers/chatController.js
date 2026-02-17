@@ -19,15 +19,18 @@ exports.createChat = async (req, res) => {
       });
     }
     if (type === "private") {
-      if (!Array.isArray(participants) || participants.length < 2) {
+      if (!Array.isArray(participants) || participants.length < 1) {
         return res.status(400).json({
-          err: "Please provide two participants.",
+          err: "Please provide at least one participant.",
         });
       }
       const uniqueParticipants = [...new Set(participants.map(String))];
+      if (!uniqueParticipants.includes(req.userId)) {
+        uniqueParticipants.push(req.userId);
+      }
       if (uniqueParticipants.length !== 2) {
         return res.status(400).json({
-          err: "Private chats must include exactly two unique participants.",
+          err: "Private chats must include you and exactly one other user.",
         });
       }
       const existingChat = await Chat.findOne({
@@ -61,6 +64,14 @@ exports.createChat = async (req, res) => {
           err: "failed to fetch members.",
         });
       }
+      const isMember = participants
+        .map((id) => id.toString())
+        .includes(req.userId);
+      if (!isMember) {
+        return res.status(403).json({
+          err: "Only group members can create/open group chats.",
+        });
+      }
       const chat = await Chat.create({
         type,
         participants: participants,
@@ -79,11 +90,21 @@ exports.createChat = async (req, res) => {
 exports.sendMessage = async (req, res) => {
   try {
     const { chatId } = req.params;
-    const { senderId, text, replyToMessageId } = req.body;
+    const { text, replyToMessageId } = req.body;
+    const senderId = req.userId;
     if (!chatId || !senderId || !text) {
       return res.status(400).json({
-        err: "chatId, senderId, and text are required to send a message.",
+        err: "chatId and text are required to send a message.",
       });
+    }
+
+    const chat = await Chat.findById(chatId).select("participants");
+    if (!chat) return res.status(404).json({ err: "Chat not found." });
+    const isParticipant = chat.participants
+      .map((id) => id.toString())
+      .includes(senderId);
+    if (!isParticipant) {
+      return res.status(403).json({ err: "Not allowed to send message." });
     }
 
     // Save message
@@ -130,6 +151,15 @@ exports.getMessages = async (req, res) => {
       return res.status(400).json({ err: "chatId is required." });
     }
 
+    const chat = await Chat.findById(chatId).select("participants");
+    if (!chat) return res.status(404).json({ err: "Chat not found." });
+    const isParticipant = chat.participants
+      .map((id) => id.toString())
+      .includes(req.userId);
+    if (!isParticipant) {
+      return res.status(403).json({ err: "Not allowed to view messages." });
+    }
+
     const messages = await Message.find({
       "identity.chatId": chatId,
       "state.isDeleted": false,
@@ -161,6 +191,22 @@ exports.reactToMessage = async (req, res) => {
       emoji: req.body.emoji,
       reactionsPath: "reactions",
     });
+
+    if (result.status === 200) {
+      const updatedMessage = await Message.findOne({
+        _id: req.params.messageId,
+        "identity.chatId": req.params.chatId,
+      }).select("_id identity.chatId reactions");
+
+      if (updatedMessage) {
+        const io = req.app.get("io");
+        io.to(req.params.chatId).emit("message-reaction-updated", {
+          chatId: req.params.chatId,
+          messageId: updatedMessage._id,
+          reactions: updatedMessage.reactions || [],
+        });
+      }
+    }
 
     return res.status(result.status).json(result.body);
   } catch (err) {

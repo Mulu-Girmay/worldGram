@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { ProfileNav } from "./Profile";
 import { FileBoxIcon, SendHorizontal, X } from "lucide-react";
+import { io } from "socket.io-client";
 import { useDispatch, useSelector } from "react-redux";
 import {
   getChannelPosts,
@@ -60,6 +61,8 @@ const Channel = () => {
   const postsStatus = useSelector(selectPostsStatus);
   const postsNextCursor = useSelector(selectPostsNextCursor);
   const user = useSelector(selectUser);
+  const accessToken = useSelector((state) => state.auth?.accessToken || null);
+  const socketRef = React.useRef(null);
 
   const [message, setMessage] = useState("");
   const [mediaFile, setMediaFile] = useState(null);
@@ -92,6 +95,59 @@ const Channel = () => {
   useEffect(() => {
     setPostsLocal(posts || []);
   }, [posts]);
+
+  useEffect(() => {
+    const socket = io("http://localhost:3000", {
+      withCredentials: true,
+      auth: accessToken ? { token: accessToken } : {},
+    });
+    socketRef.current = socket;
+    return () => {
+      socket.disconnect();
+      socketRef.current = null;
+    };
+  }, [accessToken]);
+
+  useEffect(() => {
+    const socket = socketRef.current;
+    if (!socket || !currentChannel?._id) return;
+
+    socket.emit("join-channel", currentChannel._id);
+
+    const handleChannelPostReactionUpdated = (payload) => {
+      if (
+        String(payload?.channelId || "") !== String(currentChannel?._id || "")
+      ) {
+        return;
+      }
+      const postId = payload?.postId;
+      if (!postId) return;
+      setPostsLocal((prev) =>
+        (prev || []).map((post) =>
+          String(post?._id || "") === String(postId)
+            ? {
+                ...post,
+                reactions: Array.isArray(payload?.reactions)
+                  ? payload.reactions
+                  : [],
+              }
+            : post,
+        ),
+      );
+    };
+
+    socket.on(
+      "channel-post-reaction-updated",
+      handleChannelPostReactionUpdated,
+    );
+
+    return () => {
+      socket.off(
+        "channel-post-reaction-updated",
+        handleChannelPostReactionUpdated,
+      );
+    };
+  }, [currentChannel?._id]);
 
   const isOwnerOrAdmin = React.useMemo(() => {
     if (!currentChannel || !user) return false;
@@ -468,7 +524,6 @@ const Channel = () => {
           emoji,
         }),
       ).unwrap();
-      refreshPosts();
     } catch (err) {
       console.error("React error:", err);
       toastError(err?.err || err?.message || "Failed to update reaction");

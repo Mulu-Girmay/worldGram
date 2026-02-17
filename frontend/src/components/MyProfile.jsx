@@ -22,14 +22,21 @@ import {
 } from "../Redux/userRedux/authSelector";
 import {
   selectAddStoryStatus,
+  selectHighlights,
+  selectHighlightsStatus,
   selectUserStories,
   selectUserStoriesStatus,
 } from "../Redux/storyRedux/storySelector";
-import { addStory, listUserStories } from "../Redux/storyRedux/storyThunk";
+import {
+  addStory,
+  listHighlights,
+  listUserStories,
+} from "../Redux/storyRedux/storyThunk";
 import { logoutUser, updateProfile } from "../Redux/userRedux/authThunk";
 import Story from "./Story";
 import { resolveProfileUrl, toInitials } from "../utils/media";
 import { getMessagesApi, listChatsApi } from "../api/chatApi";
+import { useToast } from "./ToastProvider";
 
 const mediaItemsBase = [
   { icon: ImageIcon, key: "photosVideos", label: "Photos & Videos" },
@@ -68,9 +75,12 @@ const countLinksFromText = (text = "") => {
 const MyProfile = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
+  const toast = useToast();
   const user = useSelector(selectUser);
   const accessToken = useSelector((state) => state.auth?.accessToken || null);
   const userStories = useSelector(selectUserStories);
+  const highlights = useSelector(selectHighlights);
+  const highlightsStatus = useSelector(selectHighlightsStatus);
   const userStoriesStatus = useSelector(selectUserStoriesStatus);
   const addStoryStatus = useSelector(selectAddStoryStatus);
   const updateStatus = useSelector(selectUpdateProfileStatus);
@@ -81,6 +91,8 @@ const MyProfile = () => {
   const menuRef = useRef(null);
   const [storyCaption, setStoryCaption] = useState("");
   const [storyPrivacy, setStoryPrivacy] = useState("contacts");
+  const [storyDurationHours, setStoryDurationHours] = useState("24");
+  const [selectedViewerIdsText, setSelectedViewerIdsText] = useState("");
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isPhoneEdit, setIsPhoneEdit] = useState(false);
@@ -114,6 +126,7 @@ const MyProfile = () => {
     const userId = user?._id || user?.id;
     if (userId) {
       dispatch(listUserStories({ userId, params: { limit: 20 } }));
+      dispatch(listHighlights(userId));
     }
   }, [dispatch, user?._id, user?.id]);
 
@@ -253,13 +266,31 @@ const MyProfile = () => {
     formData.append("media", file);
     if (storyCaption.trim()) formData.append("caption", storyCaption.trim());
     if (storyPrivacy) formData.append("privacy", storyPrivacy);
+    formData.append("durationHours", storyDurationHours || "24");
+    if (storyPrivacy === "selectedContacts" && selectedViewerIdsText.trim()) {
+      formData.append("selectedViewerIds", selectedViewerIdsText.trim());
+    }
     const result = await dispatch(addStory(formData));
     if (addStory.fulfilled.match(result)) {
       setStoryCaption("");
+      setSelectedViewerIdsText("");
       const userId = user?._id || user?.id;
       if (userId) {
         dispatch(listUserStories({ userId, params: { limit: 20 } }));
+        dispatch(listHighlights(userId));
       }
+    } else {
+      const raw =
+        result.payload?.message || result.payload?.err || "Failed to add story.";
+      const text = String(raw).toLowerCase();
+      const message = text.includes("active story")
+        ? "You can only keep one active story. Delete the current one first."
+        : text.includes("file not found")
+          ? "Please choose an image or video to post."
+          : text.includes("network")
+            ? "Network error. Check your connection and try again."
+            : String(raw);
+      toast.error(message);
     }
     e.target.value = "";
   };
@@ -561,6 +592,27 @@ const MyProfile = () => {
             <option value="public">public</option>
             <option value="contacts">contacts</option>
             <option value="closeFriends">closeFriends</option>
+            <option value="selectedContacts">selectedContacts</option>
+          </select>
+        </div>
+        <div className="mb-3 grid gap-2 sm:grid-cols-[1fr_140px]">
+          <input
+            type="text"
+            value={selectedViewerIdsText}
+            onChange={(e) => setSelectedViewerIdsText(e.target.value)}
+            placeholder="Selected contact IDs (comma-separated)"
+            disabled={storyPrivacy !== "selectedContacts"}
+            className="rounded-lg border border-[#6fa63a]/25 bg-white px-3 py-2 text-sm outline-none focus:border-[#4a7f4a] disabled:opacity-60"
+          />
+          <select
+            value={storyDurationHours}
+            onChange={(e) => setStoryDurationHours(e.target.value)}
+            className="rounded-lg border border-[#6fa63a]/25 bg-white px-2 py-2 text-sm outline-none focus:border-[#4a7f4a]"
+          >
+            <option value="6">6h</option>
+            <option value="12">12h</option>
+            <option value="24">24h</option>
+            <option value="48">48h</option>
           </select>
         </div>
 
@@ -582,6 +634,25 @@ const MyProfile = () => {
         )}
         <div className="space-y-1">
           {userStories.map((story) => (
+            <Story key={story._id} story={story} />
+          ))}
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-[#6fa63a]/25 bg-[#f3f9ee] p-4 shadow-[0_10px_28px_rgba(74,127,74,0.12)]">
+        <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-[#4a7f4a]">
+          Highlights
+        </p>
+        {highlightsStatus === "loading" && (
+          <p className="text-xs text-[rgba(23,3,3,0.62)]">Loading highlights...</p>
+        )}
+        {highlightsStatus !== "loading" && highlights.length === 0 && (
+          <p className="text-xs text-[rgba(23,3,3,0.62)]">
+            No highlights yet. Pin a story from story settings.
+          </p>
+        )}
+        <div className="space-y-1">
+          {highlights.map((story) => (
             <Story key={story._id} story={story} />
           ))}
         </div>

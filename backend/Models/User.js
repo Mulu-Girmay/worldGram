@@ -13,6 +13,7 @@ const userSchema = new mongoose.Schema(
     },
     AccountStatus: {
       isVerified: { type: Boolean, default: false },
+      isPremium: { type: Boolean, default: false },
       isBot: { type: Boolean, default: false },
       isDeleted: { type: Boolean, default: false },
       lastSeenAt: { type: Date },

@@ -3,8 +3,6 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const { generateAccessToken, generateRefreshToken } = require("../utils/token");
 exports.refresh = async (req, res) => {
-  console.log("COOKIES:", req.cookies);
-
   const token = req.cookies.refreshToken;
 
   if (!token) {
@@ -22,10 +20,11 @@ exports.refresh = async (req, res) => {
 
     const newAccess = generateAccessToken(user._id);
 
+    const isProd = process.env.NODE_ENV === "production";
     res.cookie("accessToken", newAccess, {
       httpOnly: true,
-      secure: false,
-      sameSite: "strict",
+      secure: isProd,
+      sameSite: isProd ? "none" : "lax",
     });
 
     res.json({ success: true, accessToken: newAccess });
@@ -36,6 +35,7 @@ exports.refresh = async (req, res) => {
 
 exports.logout = async (req, res) => {
   try {
+    const isProd = process.env.NODE_ENV === "production";
     const token = req.cookies.refreshToken;
 
     if (!token) {
@@ -50,14 +50,14 @@ exports.logout = async (req, res) => {
 
     res.clearCookie("refreshToken", {
       httpOnly: true,
-      sameSite: "strict",
-      secure: false,
+      sameSite: isProd ? "none" : "lax",
+      secure: isProd,
     });
 
     res.clearCookie("accessToken", {
       httpOnly: true,
-      sameSite: "strict",
-      secure: false,
+      sameSite: isProd ? "none" : "lax",
+      secure: isProd,
     });
 
     res.json({ message: "Logged out successfully" });
