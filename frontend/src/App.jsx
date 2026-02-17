@@ -9,7 +9,7 @@ import Channel from "./components/Channel";
 import Chat from "./components/Chat";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Storycontent from "./components/Storycontent";
-import NewChannelForm from "./components/Channel/newChannelForm";
+import NewChannelForm from "./components/Channel/NewChannelForm";
 import NewGroupForm from "./components/group/NewGroupForm";
 import MyProfile from "./components/MyProfile";
 
