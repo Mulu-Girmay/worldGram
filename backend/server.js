@@ -2,10 +2,12 @@ const mongoose = require("mongoose");
 const http = require("http");
 const { Server } = require("socket.io");
 const jwt = require("jsonwebtoken");
+require("dotenv").config();
 
 const app = require("./app");
 const chatRouter = require("./Routes/chatRouter");
 const Chat = require("./Models/Chat");
+const Channel = require("./Models/Channel");
 const Message = require("./Models/Message");
 const User = require("./Models/User");
 const server = http.createServer(app);
@@ -21,9 +23,10 @@ const io = new Server(server, {
 app.set("io", io);
 app.use("/api/chats", chatRouter);
 const cookieParser = require("cookie-parser");
-require("dotenv").config();
-const PORT = process.env.PORT;
+const PORT = Number(process.env.PORT || 3000);
 const URI = process.env.MONGO_URI;
+const JWT_ACCESS_SECRET = process.env.JWT_ACCESS_SECRET;
+const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET;
 const userRouter = require("./Routes/userRoute");
 const channelRouter = require("./Routes/channelRoute");
 const groupRouter = require("./Routes/groupRouter");
@@ -55,11 +58,23 @@ app.use((err, req, res, next) => {
 const connectdb = async (uri) => {
   try {
     await mongoose.connect(uri);
-    console.log("Mongo Successfully Connected");
+    console.info("Mongo Successfully Connected");
   } catch (err) {
-    console.log("error:", err.message);
+    console.error("DB connection error:", err.message);
+    throw err;
   }
 };
+
+if (!URI) {
+  throw new Error("Missing required env var: MONGO_URI");
+}
+if (!JWT_ACCESS_SECRET) {
+  throw new Error("Missing required env var: JWT_ACCESS_SECRET");
+}
+if (!JWT_REFRESH_SECRET) {
+  throw new Error("Missing required env var: JWT_REFRESH_SECRET");
+}
+
 io.use((socket, next) => {
   const cookieHeader = socket.handshake.headers?.cookie || "";
   const cookieToken = cookieHeader
@@ -74,7 +89,7 @@ io.use((socket, next) => {
     cookieToken;
   if (!token) return next(new Error("Unauthorized"));
   try {
-    const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
+    const decoded = jwt.verify(token, JWT_ACCESS_SECRET);
     socket.userId = decoded.userId;
     return next();
   } catch {
@@ -83,10 +98,12 @@ io.use((socket, next) => {
 });
 // Socket logic
 io.on("connection", (socket) => {
-  console.log("User connected:", socket.id);
+  console.info("User connected:", socket.id);
   User.findByIdAndUpdate(socket.userId, {
     "AccountStatus.onlineStatus": "online",
-  }).catch((err) => console.log("socket online status error:", err.message));
+  }).catch((err) =>
+    console.error("socket online status error:", err.message),
+  );
   io.emit("user-status", {
     userId: socket.userId,
     onlineStatus: "online",
@@ -103,20 +120,40 @@ io.on("connection", (socket) => {
       if (!isParticipant) return;
 
       socket.join(chatId);
-      console.log(`Socket ${socket.id} joined chat ${chatId}`);
+      console.info(`Socket ${socket.id} joined chat ${chatId}`);
     } catch (err) {
-      console.log("socket join-chat error:", err.message);
+      console.error("socket join-chat error:", err.message);
     }
   });
 
-  socket.on("join-channel", (channelId) => {
+  socket.on("join-channel", async (channelId) => {
     try {
       if (!channelId) return;
+      const channel = await Channel.findById(channelId).select(
+        "settings.isPublic audience.subscribers ownership.admins ownership.ownerId",
+      );
+      if (!channel) return;
+      const uid = String(socket.userId || "");
+      const subscribers = (channel?.audience?.subscribers || []).map((id) =>
+        id.toString(),
+      );
+      const admins = (channel?.ownership?.admins || []).map((id) =>
+        id.toString(),
+      );
+      const isOwner =
+        channel?.ownership?.ownerId?.toString?.() === uid;
+      const isAllowed =
+        Boolean(channel?.settings?.isPublic) ||
+        subscribers.includes(uid) ||
+        admins.includes(uid) ||
+        isOwner;
+      if (!isAllowed) return;
+
       const room = `channel:${channelId}`;
       socket.join(room);
-      console.log(`Socket ${socket.id} joined channel room ${room}`);
+      console.info(`Socket ${socket.id} joined channel room ${room}`);
     } catch (err) {
-      console.log("socket join-channel error:", err.message);
+      console.error("socket join-channel error:", err.message);
     }
   });
 
@@ -136,7 +173,7 @@ io.on("connection", (socket) => {
         isTyping,
       });
     } catch (err) {
-      console.log("socket typing error:", err.message);
+      console.error("socket typing error:", err.message);
     }
   });
   // Listen for new messages
@@ -169,7 +206,7 @@ io.on("connection", (socket) => {
 
       io.to(chatId).emit("new-message", hydratedMessage);
     } catch (err) {
-      console.log("socket send-message error:", err.message);
+      console.error("socket send-message error:", err.message);
     }
   });
 
@@ -185,12 +222,20 @@ io.on("connection", (socket) => {
         lastSeenAt: new Date(),
       });
     } catch (err) {
-      console.log("socket offline status error:", err.message);
+      console.error("socket offline status error:", err.message);
     }
-    console.log("User disconnected:", socket.id);
+    console.info("User disconnected:", socket.id);
   });
 });
 server.listen(PORT, async () => {
   await connectdb(URI);
-  console.log(`server is running at port ${PORT}`);
+  console.info(`server is running at port ${PORT}`);
+});
+
+process.on("unhandledRejection", (reason) => {
+  console.error("Unhandled promise rejection:", reason);
+});
+
+process.on("uncaughtException", (error) => {
+  console.error("Uncaught exception:", error);
 });

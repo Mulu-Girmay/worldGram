@@ -1,6 +1,9 @@
 node_modules
 .env
 .env.*
+!.env.example
+!backend/.env.example
+!frontend/.env.example
 backend/uploads/
 frontend/dist/
 frontend/.vite/

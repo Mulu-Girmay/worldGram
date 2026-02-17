@@ -44,7 +44,6 @@ const NewChannelForm = () => {
 
     const result = await dispatch(createChannel(formData));
     if (createChannel.fulfilled.match(result)) {
-      console.log(result.payload);
       navigate("/channel");
     }
   };

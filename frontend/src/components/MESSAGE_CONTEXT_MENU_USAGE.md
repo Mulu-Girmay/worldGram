@@ -64,13 +64,13 @@ function MyComponent() {
         isOpen={showMenu}
         onClose={() => setShowMenu(false)}
         message={yourMessage}
-        onEdit={() => console.log("Edit")}
-        onDelete={() => console.log("Delete")}
-        onForward={() => console.log("Forward")}
-        onPin={() => console.log("Pin")}
+        onEdit={() => {}}
+        onDelete={() => {}}
+        onForward={() => {}}
+        onPin={() => {}}
         onCopy={() => navigator.clipboard.writeText(yourMessage.text)}
-        onReply={() => console.log("Reply")}
-        onShare={() => console.log("Share")}
+        onReply={() => {}}
+        onShare={() => {}}
         canEdit={true}
         canDelete={true}
         canPin={true}

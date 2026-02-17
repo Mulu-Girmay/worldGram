@@ -6,22 +6,18 @@ const ChatMessage = ({ message, isOwn, isGroupAdmin = false }) => {
   const [showMenu, setShowMenu] = useState(false);
 
   const handleEdit = () => {
-    console.log("Edit message:", message);
     // Implement edit logic
   };
 
   const handleDelete = () => {
-    console.log("Delete message:", message);
     // Implement delete logic
   };
 
   const handleForward = () => {
-    console.log("Forward message:", message);
     // Implement forward logic
   };
 
   const handlePin = () => {
-    console.log("Pin message:", message);
     // Implement pin logic
   };
 
@@ -33,12 +29,10 @@ const ChatMessage = ({ message, isOwn, isGroupAdmin = false }) => {
   };
 
   const handleReply = () => {
-    console.log("Reply to message:", message);
     // Implement reply logic
   };
 
   const handleShare = () => {
-    console.log("Share message:", message);
     // Implement share logic
   };
 

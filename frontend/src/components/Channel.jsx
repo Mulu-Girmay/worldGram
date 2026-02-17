@@ -39,6 +39,7 @@ import {
   suggestPost,
 } from "../Redux/channelRedux/channelThunk";
 import { resolveMediaUrl } from "../utils/media";
+import { SOCKET_BASE_URL } from "../utils/socket";
 import {
   selectCurrentChannel,
   selectMyChannels,
@@ -135,7 +136,6 @@ const Channel = () => {
         }),
       );
     }
-    console.log("currentChannel:", currentChannel);
   }, [dispatch, currentChannel]);
 
   useEffect(() => {
@@ -143,7 +143,7 @@ const Channel = () => {
   }, [posts]);
 
   useEffect(() => {
-    const socket = io("http://localhost:3000", {
+    const socket = io(SOCKET_BASE_URL, {
       withCredentials: true,
       auth: accessToken ? { token: accessToken } : {},
     });
@@ -794,7 +794,6 @@ const Channel = () => {
 
   async function handleSubmit(e) {
     e.preventDefault();
-    console.log("submitting...");
     if (!currentChannel || !currentChannel._id) return;
     if (!message && !mediaFile) return;
     const formData = new FormData();
@@ -804,16 +803,9 @@ const Channel = () => {
     if (mediaFile) formData.append("media", mediaFile);
     setSubmitting(true);
     try {
-      // log FormData entries for debugging
-      console.log("FormData:", formData);
-      for (const pair of formData.entries()) {
-        console.log("formData entry:", pair[0], pair[1]);
-      }
-
       const action = await dispatch(
         addPost({ channelId: currentChannel._id, formData }),
       );
-      console.log("addPost action:", action);
       if (action?.error) console.error("addPost error:", action.error);
 
       if (action && action.payload) {
@@ -832,8 +824,6 @@ const Channel = () => {
     } catch (err) {
       console.error("dispatch(addPost) threw:", err);
     } finally {
-      console.log("submitted...");
-
       setSubmitting(false);
     }
   }

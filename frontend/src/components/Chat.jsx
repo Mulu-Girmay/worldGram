@@ -30,6 +30,7 @@ import {
   setMessageReactions,
 } from "../Redux/chatRedux/chatSlice";
 import { resolveAssetUrl, resolveProfileUrl, toInitials } from "../utils/media";
+import { SOCKET_BASE_URL } from "../utils/socket";
 import { selectGroups } from "../Redux/groupRedux/groupSelector";
 import {
   findGroup,
@@ -196,7 +197,7 @@ const Chat = ({
   }, [dispatch, resolvedChatId, groupViewMode, selectedTopicId]);
 
   useEffect(() => {
-    const socket = io("http://localhost:3000", {
+    const socket = io(SOCKET_BASE_URL, {
       withCredentials: true,
       auth: accessToken ? { token: accessToken } : {},
     });
