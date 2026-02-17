@@ -19,6 +19,7 @@ exports.RegisterUser = async (req, res) => {
     req.body;
   let hashedPassword = await hashPassword(password);
   try {
+    const isProd = process.env.NODE_ENV === "production";
     let newUser = new User({
       identity: {
         phoneNumber: phoneNumber,
@@ -36,14 +37,14 @@ exports.RegisterUser = async (req, res) => {
 
     res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
-      secure: false,
-      sameSite: "strict",
+      secure: isProd,
+      sameSite: isProd ? "none" : "lax",
     });
 
     res.cookie("accessToken", accessToken, {
       httpOnly: true,
-      secure: false,
-      sameSite: "strict",
+      secure: isProd,
+      sameSite: isProd ? "none" : "lax",
     });
 
     return res.status(202).json({
@@ -56,6 +57,7 @@ exports.RegisterUser = async (req, res) => {
 };
 exports.login = async (req, res) => {
   try {
+    const isProd = process.env.NODE_ENV === "production";
     const { phoneNumber, password } = req.body;
     const user = await User.findOne({
       "identity.phoneNumber": phoneNumber,
@@ -73,14 +75,14 @@ exports.login = async (req, res) => {
     await user.save();
     res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
-      secure: false,
-      sameSite: "strict",
+      secure: isProd,
+      sameSite: isProd ? "none" : "lax",
     });
 
     res.cookie("accessToken", accessToken, {
       httpOnly: true,
-      secure: false,
-      sameSite: "strict",
+      secure: isProd,
+      sameSite: isProd ? "none" : "lax",
     });
 
     return res
