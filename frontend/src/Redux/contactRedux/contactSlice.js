@@ -4,6 +4,7 @@ import {
   listContacts,
   listRegisteredUsers,
   removeContact,
+  updateContact,
 } from "./contactThunk";
 
 const initialState = {
@@ -102,6 +103,34 @@ const contactSlice = createSlice({
           action.payload?.message ||
           action.error?.message ||
           "Removing contact failed";
+      })
+
+      .addCase(updateContact.pending, (state) => {
+        state.mutateStatus = "loading";
+        state.error = null;
+      })
+      .addCase(updateContact.fulfilled, (state, action) => {
+        state.mutateStatus = "succeeded";
+        const updated = action.payload?.contact;
+        const id = String(updated?._id || "");
+        if (!id) return;
+        state.contacts = state.contacts.map((contact) =>
+          String(contact?._id || "") === id
+            ? {
+                ...contact,
+                ...updated,
+              }
+            : contact,
+        );
+      })
+      .addCase(updateContact.rejected, (state, action) => {
+        state.mutateStatus = "failed";
+        state.error =
+          action.payload?.err ||
+          action.payload?.error ||
+          action.payload?.message ||
+          action.error?.message ||
+          "Updating contact failed";
       });
   },
 });

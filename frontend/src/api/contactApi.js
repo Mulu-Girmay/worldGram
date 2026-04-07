@@ -33,3 +33,10 @@ export const removeContactApi = async (contactId, token) => {
   });
   return data;
 };
+
+export const updateContactApi = async (contactId, payload, token) => {
+  const { data } = await api.patch(`/contacts/${contactId}`, payload, {
+    headers: authHeaders(token),
+  });
+  return data;
+};

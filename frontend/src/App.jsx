@@ -15,6 +15,7 @@ import MyProfile from "./components/MyProfile";
 import JoinChannel from "./pages/JoinChannel";
 import JoinGroup from "./pages/JoinGroup";
 import Settings from "./pages/Settings";
+import Contacts from "./pages/Contacts";
 
 const ProtectedRoute = ({ children }) => {
   const isAuthenticated = useSelector(selectIsAuthenticated);
@@ -131,6 +132,14 @@ const App = () => {
           element={
             <ProtectedRoute>
               <Settings />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/contacts"
+          element={
+            <ProtectedRoute>
+              <Contacts />
             </ProtectedRoute>
           }
         />

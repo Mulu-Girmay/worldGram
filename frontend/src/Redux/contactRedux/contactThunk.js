@@ -4,6 +4,7 @@ import {
   listContactsApi,
   listRegisteredUsersApi,
   removeContactApi,
+  updateContactApi,
 } from "../../api/contactApi";
 
 export const listRegisteredUsers = createAsyncThunk(
@@ -58,6 +59,20 @@ export const removeContact = createAsyncThunk(
     } catch (err) {
       return rejectWithValue(
         err.response?.data || { message: "removing contact failed" },
+      );
+    }
+  },
+);
+
+export const updateContact = createAsyncThunk(
+  "contact/updateContact",
+  async ({ contactId, payload }, { getState, rejectWithValue }) => {
+    try {
+      const token = getState().auth?.accessToken;
+      return await updateContactApi(contactId, payload, token);
+    } catch (err) {
+      return rejectWithValue(
+        err.response?.data || { message: "updating contact failed" },
       );
     }
   },

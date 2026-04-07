@@ -248,6 +248,13 @@ const SideBar = () => {
               <span className="ml-auto rounded-full bg-[#6fa63a]/15 px-2 py-0.5 text-[10px] font-semibold text-[#2f5b2f]">
                 {contacts.length}
               </span>
+              <button
+                type="button"
+                onClick={() => navigate("/contacts")}
+                className="rounded-md border border-[#6fa63a]/25 bg-white px-2 py-0.5 text-[10px] font-semibold text-[#2f5b2f] hover:bg-[#f3f9ee]"
+              >
+                Open
+              </button>
             </div>
 
             <input

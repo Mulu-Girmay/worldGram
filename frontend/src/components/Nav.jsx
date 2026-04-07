@@ -242,7 +242,7 @@ const Nav = () => {
         </button>
         <button
           type="button"
-          onClick={() => goTo("/sidebar")}
+          onClick={() => goTo("/contacts")}
           className="flex items-center justify-center gap-1 rounded-xl border border-[var(--border-color)] bg-white p-2 text-xs font-semibold text-[#2f5b2f] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm active:scale-95"
         >
           <Contact size={14} />
