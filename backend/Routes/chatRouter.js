@@ -28,14 +28,20 @@ const chatWriteLimiter = createRateLimiter({
   keyBuilder: (req) => `chat-write:${req.userId || req.ip}`,
 });
 
+const chatCreateLimiter = createRateLimiter({
+  windowMs: 60 * 1000,
+  max: 25,
+  keyBuilder: (req) => `chat-create:${req.userId || req.ip}`,
+});
+
 const chatReactLimiter = createRateLimiter({
   windowMs: 60 * 1000,
   max: 120,
   keyBuilder: (req) => `chat-react:${req.userId || req.ip}`,
 });
 
-router.post("/create", auth, createChat);
-router.post("/create/:groupId", auth, createChat);
+router.post("/create", auth, chatCreateLimiter, createChat);
+router.post("/create/:groupId", auth, chatCreateLimiter, createChat);
 
 router.post("/:chatId/message", auth, chatWriteLimiter, sendMessage);
 router.get("/:chatId/messages", auth, getMessages);

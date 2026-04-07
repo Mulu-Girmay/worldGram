@@ -1,12 +1,127 @@
 const Story = require("../Models/Story");
 const Contact = require("../Models/Contact");
+const User = require("../Models/User");
 const mongoose = require("mongoose");
 const { reactToEntity } = require("../utils/reaction");
 const { addViewToEntity } = require("../utils/view");
 
+const getId = (value) => {
+  if (!value) return "";
+  if (typeof value === "string") return value;
+  if (typeof value === "object" && value._id) return String(value._id);
+  return String(value);
+};
+
+const parseSelectedViewerInputs = (raw) => {
+  const values = Array.isArray(raw)
+    ? raw
+    : String(raw || "")
+        .split(",")
+        .map((token) => token.trim())
+        .filter(Boolean);
+  return [...new Set(values)];
+};
+
+const resolveSelectedViewerIds = async (authorId, selectedViewerInputs) => {
+  const tokens = parseSelectedViewerInputs(selectedViewerInputs).slice(0, 200);
+  if (!tokens.length) return [];
+
+  const objectIds = tokens.filter((token) =>
+    mongoose.Types.ObjectId.isValid(token),
+  );
+  const usernames = tokens
+    .filter((token) => !mongoose.Types.ObjectId.isValid(token))
+    .map((token) => token.replace(/^@/, "").trim())
+    .filter(Boolean);
+
+  let userIdsByUsername = [];
+  if (usernames.length) {
+    const users = await User.find({
+      "identity.username": { $in: usernames },
+    }).select("_id");
+    userIdsByUsername = users.map((u) => String(u._id));
+  }
+
+  const candidateIds = [...new Set([...objectIds, ...userIdsByUsername])]
+    .map((id) => String(id))
+    .filter((id) => id && id !== String(authorId));
+
+  if (!candidateIds.length) return [];
+
+  const allowedContacts = await Contact.find({
+    ownerUserId: authorId,
+    contactUserId: { $in: candidateIds },
+  }).select("contactUserId");
+
+  const allowedSet = new Set(
+    allowedContacts.map((contact) => String(contact.contactUserId || "")),
+  );
+
+  return candidateIds.filter((id) => allowedSet.has(id));
+};
+
+const buildStoryAccessContext = async (viewerId, authorIds = []) => {
+  const uniqueAuthorIds = [
+    ...new Set((authorIds || []).map((id) => String(id)).filter(Boolean)),
+  ];
+  if (!uniqueAuthorIds.length) {
+    return {
+      authorsWhoSavedViewer: new Set(),
+      favoriteAuthorsWhoSavedViewer: new Set(),
+    };
+  }
+
+  const savedViewerContacts = await Contact.find({
+    ownerUserId: { $in: uniqueAuthorIds },
+    contactUserId: viewerId,
+  }).select("ownerUserId isFavorite");
+
+  const authorsWhoSavedViewer = new Set();
+  const favoriteAuthorsWhoSavedViewer = new Set();
+
+  savedViewerContacts.forEach((contact) => {
+    const ownerId = String(contact.ownerUserId || "");
+    if (!ownerId) return;
+    authorsWhoSavedViewer.add(ownerId);
+    if (contact.isFavorite) favoriteAuthorsWhoSavedViewer.add(ownerId);
+  });
+
+  return {
+    authorsWhoSavedViewer,
+    favoriteAuthorsWhoSavedViewer,
+  };
+};
+
+const sanitizeStoryForViewer = (storyDoc, viewerId) => {
+  if (!storyDoc) return null;
+  const story = storyDoc.toObject ? storyDoc.toObject() : { ...storyDoc };
+  const authorId = getId(story.authorId);
+  const requesterId = getId(viewerId);
+  const isOwner = Boolean(authorId && requesterId && authorId === requesterId);
+
+  if (isOwner) return story;
+
+  story.viewers = (story.viewers || []).filter(
+    (viewer) => getId(viewer?.userId) === requesterId,
+  );
+  story.reactions = (story.reactions || []).map((reaction) => ({
+    ...reaction,
+    reactors: (reaction?.reactors || []).filter(
+      (reactor) => getId(reactor) === requesterId,
+    ),
+  }));
+  story.selectedViewerIds = [];
+  return story;
+};
+
 exports.addStory = async (req, res) => {
   try {
-    const { caption = "", privacy, durationHours, selectedViewerIds } = req.body;
+    const {
+      caption = "",
+      privacy,
+      durationHours,
+      selectedViewerIds,
+    } = req.body;
     const userId = req.userId;
 
     if (!userId) {
@@ -44,17 +159,19 @@ exports.addStory = async (req, res) => {
     const mediaType = req.file.mimetype?.startsWith("video/")
       ? "video"
       : "image";
-    const expiresAt = new Date(now.getTime() + safeDurationHours * 60 * 60 * 1000);
+    const expiresAt = new Date(
+      now.getTime() + safeDurationHours * 60 * 60 * 1000,
+    );
     const selectedIds =
       safePrivacy === "selectedContacts"
-        ? (Array.isArray(selectedViewerIds)
-            ? selectedViewerIds
-            : String(selectedViewerIds || "")
-                .split(",")
-                .map((id) => id.trim())
-                .filter(Boolean)
-          ).filter((id) => mongoose.Types.ObjectId.isValid(id))
+        ? await resolveSelectedViewerIds(userId, selectedViewerIds)
         : [];
+    if (safePrivacy === "selectedContacts" && selectedIds.length === 0) {
+      return res.status(400).json({
+        message:
+          "Selected contacts list must include at least one of your contacts.",
+      });
+    }
 
     const adding = new Story({
       authorId: userId,
@@ -77,6 +194,11 @@ exports.addStory = async (req, res) => {
 
 exports.reactToStory = async (req, res) => {
   try {
+    const story = await Story.findById(req.params.storyId);
+    if (!story) return res.status(404).json({ err: "Story not found" });
+    const allowed = await canViewStory(story, req.userId);
+    if (!allowed) return res.status(403).json({ err: "Not allowed" });
+
     const result = await reactToEntity({
       Model: Story,
       findQuery: { _id: req.params.storyId },
@@ -94,6 +216,11 @@ exports.reactToStory = async (req, res) => {
 
 exports.addViewToStory = async (req, res) => {
   try {
+    const story = await Story.findById(req.params.storyId);
+    if (!story) return res.status(404).json({ err: "Story not found" });
+    const allowed = await canViewStory(story, req.userId);
+    if (!allowed) return res.status(403).json({ err: "Not allowed" });
+
     const result = await addViewToEntity({
       Model: Story,
       findQuery: { _id: req.params.storyId },
@@ -122,35 +249,26 @@ const STORY_AUTHOR_SELECT =
 const STORY_VIEWER_SELECT =
   "_id identity.firstName identity.lastName identity.username identity.profileUrl";
 
-const getId = (value) => {
-  if (!value) return "";
-  if (typeof value === "string") return value;
-  if (typeof value === "object" && value._id) return String(value._id);
-  return String(value);
-};
-
-const canViewStory = async (story, userId) => {
+const canViewStory = async (story, userId, context = null) => {
   const authorId = getId(story.authorId);
   const viewerId = getId(userId);
 
   if (authorId && viewerId && authorId === viewerId) return true;
   if (story.privacy === "public") return true;
   if (story.privacy === "contacts") {
-    // Telegram-like behavior: show contacts stories when either side has
-    // the other saved (viewer saved author OR author saved viewer).
-    const [viewerHasAuthor, authorHasViewer] = await Promise.all([
-      Contact.findOne({
-        ownerUserId: viewerId,
-        contactUserId: authorId,
-      }),
-      Contact.findOne({
-        ownerUserId: authorId,
-        contactUserId: viewerId,
-      }),
-    ]);
-    return Boolean(viewerHasAuthor || authorHasViewer);
+    if (context?.authorsWhoSavedViewer) {
+      return context.authorsWhoSavedViewer.has(authorId);
+    }
+    const authorHasViewer = await Contact.findOne({
+      ownerUserId: authorId,
+      contactUserId: viewerId,
+    });
+    return Boolean(authorHasViewer);
   }
   if (story.privacy === "closeFriends") {
+    if (context?.favoriteAuthorsWhoSavedViewer) {
+      return context.favoriteAuthorsWhoSavedViewer.has(authorId);
+    }
     const contact = await Contact.findOne({
       ownerUserId: authorId,
       contactUserId: viewerId,
@@ -177,7 +295,7 @@ exports.getStoryById = async (req, res) => {
     const allowed = await canViewStory(story, req.userId);
     if (!allowed) return res.status(403).json({ err: "Not allowed" });
 
-    res.json(story);
+    res.json(sanitizeStoryForViewer(story, req.userId));
   } catch (err) {
     res.status(500).json({ err: "Failed to fetch story" });
   }
@@ -200,6 +318,11 @@ exports.listStories = async (req, res) => {
       .limit(limit)
       .populate("authorId", STORY_AUTHOR_SELECT)
       .populate("viewers.userId", "_id");
+    const storyAuthorIds = stories.map((story) => getId(story.authorId));
+    const accessContext = await buildStoryAccessContext(
+      req.userId,
+      storyAuthorIds,
+    );
     const visible = [];
     const favoriteContactIds = new Set(
       (
@@ -218,7 +341,9 @@ exports.listStories = async (req, res) => {
     );
 
     for (const story of stories) {
-      if (await canViewStory(story, req.userId)) visible.push(story);
+      if (await canViewStory(story, req.userId, accessContext)) {
+        visible.push(sanitizeStoryForViewer(story, req.userId));
+      }
     }
 
     const prioritized = visible.sort((a, b) => {
@@ -234,7 +359,10 @@ exports.listStories = async (req, res) => {
       const aRegular = regularContactIds.has(aid);
       const bRegular = regularContactIds.has(bid);
       if (aRegular !== bRegular) return aRegular ? -1 : 1;
-      return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+      return (
+        new Date(b.createdAt || 0).getTime() -
+        new Date(a.createdAt || 0).getTime()
+      );
     });
 
     const nextCursor =
@@ -261,9 +389,12 @@ exports.listUserStories = async (req, res) => {
       .sort({ _id: -1 })
       .limit(limit)
       .populate("authorId", STORY_AUTHOR_SELECT);
+    const accessContext = await buildStoryAccessContext(req.userId, [userId]);
     const visible = [];
     for (const story of stories) {
-      if (await canViewStory(story, req.userId)) visible.push(story);
+      if (await canViewStory(story, req.userId, accessContext)) {
+        visible.push(sanitizeStoryForViewer(story, req.userId));
+      }
     }
 
     const nextCursor =
@@ -299,13 +430,8 @@ exports.updateStory = async (req, res) => {
       return res.status(403).json({ err: "Not allowed" });
     }
 
-    const {
-      caption,
-      privacy,
-      durationHours,
-      selectedViewerIds,
-      isHighlight,
-    } = req.body;
+    const { caption, privacy, durationHours, selectedViewerIds, isHighlight } =
+      req.body;
 
     if (typeof caption === "string") {
       story.caption = caption.trim();
@@ -318,19 +444,26 @@ exports.updateStory = async (req, res) => {
     ];
     if (allowedPrivacy.includes(privacy)) {
       story.privacy = privacy;
+      if (privacy !== "selectedContacts") {
+        story.selectedViewerIds = [];
+      }
     }
     if (typeof isHighlight === "boolean") {
       story.isHighlight = isHighlight;
     }
-    if (story.privacy === "selectedContacts" && selectedViewerIds !== undefined) {
-      const selectedIds = (
-        Array.isArray(selectedViewerIds)
-          ? selectedViewerIds
-          : String(selectedViewerIds || "")
-              .split(",")
-              .map((id) => id.trim())
-              .filter(Boolean)
-      ).filter((id) => mongoose.Types.ObjectId.isValid(id));
+    if (
+      story.privacy === "selectedContacts" &&
+      selectedViewerIds !== undefined
+    ) {
+      const selectedIds = await resolveSelectedViewerIds(
+        req.userId,
+        selectedViewerIds,
+      );
+      if (selectedIds.length === 0) {
+        return res.status(400).json({
+          err: "Selected contacts list must include at least one of your contacts.",
+        });
+      }
       story.selectedViewerIds = selectedIds;
     }
     const allowedDurationHours = [6, 12, 24, 48];
@@ -361,9 +494,12 @@ exports.listHighlights = async (req, res) => {
       .sort({ _id: -1 })
       .populate("authorId", STORY_AUTHOR_SELECT)
       .populate("viewers.userId", "_id");
+    const accessContext = await buildStoryAccessContext(req.userId, [userId]);
     const visible = [];
     for (const story of highlights) {
-      if (await canViewStory(story, req.userId)) visible.push(story);
+      if (await canViewStory(story, req.userId, accessContext)) {
+        visible.push(sanitizeStoryForViewer(story, req.userId));
+      }
     }
     res.json({ items: visible });
   } catch (err) {

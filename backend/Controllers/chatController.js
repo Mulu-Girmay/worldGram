@@ -7,6 +7,7 @@ const { addViewToEntity } = require("../utils/view");
 const { forwardEntity } = require("../utils/forward");
 const Group = require("../Models/Group");
 const GroupAction = require("../Models/GroupAction");
+const User = require("../Models/User");
 
 const ids = (arr = []) => arr.map((id) => id?.toString?.() || String(id));
 const isAdmin = (group, userId) =>
@@ -76,6 +77,34 @@ const logGroupAction = async (
   }
 };
 
+const withViewerState = (chatDoc, userId) => {
+  if (!chatDoc) return null;
+  const chat = chatDoc.toObject ? chatDoc.toObject() : { ...chatDoc };
+  const viewer = (chat?.viewerSettings || []).find(
+    (item) => String(item?.userId || "") === String(userId || ""),
+  );
+  chat.viewerState = {
+    isPinned:
+      typeof viewer?.isPinned === "boolean"
+        ? viewer.isPinned
+        : Boolean(chat?.isPinned),
+    isMuted:
+      typeof viewer?.isMuted === "boolean"
+        ? viewer.isMuted
+        : Boolean(chat?.isMuted),
+  };
+  return chat;
+};
+
+const ensureChatParticipant = async (chatId, userId) => {
+  const chat = await Chat.findById(chatId).select("participants");
+  if (!chat) return { chat: null, isParticipant: false };
+  const isParticipant = (chat.participants || [])
+    .map((id) => id.toString())
+    .includes(String(userId || ""));
+  return { chat, isParticipant };
+};
+
 // Create private or group chat
 
 exports.createChat = async (req, res) => {
@@ -100,6 +129,25 @@ exports.createChat = async (req, res) => {
       if (uniqueParticipants.length !== 2) {
         return res.status(400).json({
           err: "Private chats must include you and exactly one other user.",
+        });
+      }
+      const otherParticipantId = uniqueParticipants.find(
+        (id) => String(id) !== String(req.userId),
+      );
+      if (!mongoose.Types.ObjectId.isValid(otherParticipantId)) {
+        return res.status(400).json({
+          err: "Invalid participant id for private chat.",
+        });
+      }
+      if (String(otherParticipantId) === String(req.userId)) {
+        return res.status(400).json({
+          err: "You cannot create a private chat with yourself.",
+        });
+      }
+      const otherUserExists = await User.exists({ _id: otherParticipantId });
+      if (!otherUserExists) {
+        return res.status(404).json({
+          err: "Private chat participant not found.",
         });
       }
       const existingChat = await Chat.findOne({
@@ -171,7 +219,8 @@ exports.sendMessage = async (req, res) => {
     const { chatId } = req.params;
     const { text, replyToMessageId, topicId } = req.body;
     const senderId = req.userId;
-    if (!chatId || !senderId || !text) {
+    const normalizedText = String(text || "").trim();
+    if (!chatId || !senderId || !normalizedText) {
       return res.status(400).json({
         err: "chatId and text are required to send a message.",
       });
@@ -243,7 +292,7 @@ exports.sendMessage = async (req, res) => {
       },
       content: {
         ContentType: "text",
-        text,
+        text: normalizedText,
       },
     });
 
@@ -327,6 +376,13 @@ exports.getMessages = async (req, res) => {
 
 exports.reactToMessage = async (req, res) => {
   try {
+    const { chat, isParticipant } = await ensureChatParticipant(
+      req.params.chatId,
+      req.userId,
+    );
+    if (!chat) return res.status(404).json({ err: "Chat not found." });
+    if (!isParticipant) return res.status(403).json({ err: "Not allowed." });
+
     const result = await reactToEntity({
       Model: Message,
       findQuery: {
@@ -363,6 +419,13 @@ exports.reactToMessage = async (req, res) => {
 
 exports.addViewToMessage = async (req, res) => {
   try {
+    const { chat, isParticipant } = await ensureChatParticipant(
+      req.params.chatId,
+      req.userId,
+    );
+    if (!chat) return res.status(404).json({ err: "Chat not found." });
+    if (!isParticipant) return res.status(403).json({ err: "Not allowed." });
+
     const result = await addViewToEntity({
       Model: Message,
       findQuery: {
@@ -383,6 +446,13 @@ exports.addViewToMessage = async (req, res) => {
 
 exports.forwardMessage = async (req, res) => {
   try {
+    const { chat, isParticipant } = await ensureChatParticipant(
+      req.params.chatId,
+      req.userId,
+    );
+    if (!chat) return res.status(404).json({ err: "Chat not found." });
+    if (!isParticipant) return res.status(403).json({ err: "Not allowed." });
+
     const targ = req.body.destination;
     if (!targ || !targ.type || !targ.id) {
       return res.status(400).json({ err: "Destination required!" });
@@ -502,7 +572,8 @@ exports.listChats = async (req, res) => {
     const nextCursor =
       chats.length === limit ? chats[chats.length - 1]._id : null;
 
-    res.json({ items: chats, nextCursor });
+    const items = chats.map((chat) => withViewerState(chat, req.userId));
+    res.json({ items, nextCursor });
   } catch (err) {
     res.status(500).json({ err: "Failed to list chats." });
   }
@@ -535,7 +606,7 @@ exports.getChatById = async (req, res) => {
       return res.status(403).json({ err: "Not allowed to view this chat." });
     }
 
-    res.json(chat);
+    res.json(withViewerState(chat, req.userId));
   } catch (err) {
     res.status(500).json({ err: "Failed to get chat." });
   }
@@ -599,8 +670,9 @@ exports.getMessagesPaged = async (req, res) => {
 exports.editMessage = async (req, res) => {
   try {
     const { chatId, messageId } = req.params;
-    const { text } = req.body;
-    if (!text) return res.status(400).json({ err: "Text is required." });
+    const normalizedText = String(req.body?.text || "").trim();
+    if (!normalizedText)
+      return res.status(400).json({ err: "Text is required." });
 
     const message = await Message.findById(messageId);
     if (!message) return res.status(404).json({ err: "Message not found." });
@@ -611,7 +683,7 @@ exports.editMessage = async (req, res) => {
       return res.status(403).json({ err: "Not allowed to edit." });
     }
 
-    message.content.text = text;
+    message.content.text = normalizedText;
     message.state.isEdited = true;
     await message.save();
     const chat = await Chat.findById(chatId).select("groupId type");
@@ -837,11 +909,36 @@ exports.updateChatSettings = async (req, res) => {
       return res.status(403).json({ err: "Not allowed." });
     }
 
-    if (typeof isPinned === "boolean") chat.isPinned = isPinned;
-    if (typeof isMuted === "boolean") chat.isMuted = isMuted;
+    chat.viewerSettings = Array.isArray(chat.viewerSettings)
+      ? chat.viewerSettings
+      : [];
+    const idx = chat.viewerSettings.findIndex(
+      (item) => String(item?.userId || "") === String(req.userId),
+    );
+    const current =
+      idx >= 0
+        ? chat.viewerSettings[idx]
+        : {
+            userId: req.userId,
+            isPinned: Boolean(chat.isPinned),
+            isMuted: Boolean(chat.isMuted),
+          };
+    const next = {
+      ...current,
+      userId: req.userId,
+      isPinned:
+        typeof isPinned === "boolean" ? isPinned : Boolean(current.isPinned),
+      isMuted:
+        typeof isMuted === "boolean" ? isMuted : Boolean(current.isMuted),
+    };
+    if (idx >= 0) chat.viewerSettings[idx] = next;
+    else chat.viewerSettings.push(next);
     await chat.save();
 
-    res.json({ message: "Chat settings updated.", chat });
+    res.json({
+      message: "Chat settings updated.",
+      chat: withViewerState(chat, req.userId),
+    });
   } catch (err) {
     res.status(500).json({ err: "Failed to update chat settings." });
   }

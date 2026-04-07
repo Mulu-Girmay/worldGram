@@ -419,6 +419,9 @@ const Chat = ({
     otherParticipant?.identity?.personalChannelUsername || "";
   const otherBio = otherParticipant?.identity?.Bio || "";
   const isPhoneVisibleToViewer = phonePrivacy === "everyone";
+  const isMutedForViewer = Boolean(
+    activeChat?.viewerState?.isMuted ?? activeChat?.isMuted,
+  );
 
   const formatLastSeen = () => {
     const lastSeenPrivacy = otherParticipant?.privacySettings?.privacyLastSeen;
@@ -520,7 +523,7 @@ const Chat = ({
       dispatch(
         updateChatSettings({
           chatId: resolvedChatId,
-          payload: { isMuted: !Boolean(activeChat?.isMuted) },
+          payload: { isMuted: !isMutedForViewer },
         }),
       );
     }
@@ -604,7 +607,7 @@ const Chat = ({
               onClick={() => handleMenuAction("mute")}
               className="w-full rounded-lg px-3 py-2 text-left text-xs hover:bg-[#f3f9ee]"
             >
-              {activeChat?.isMuted ? "Unmute chat" : "Mute chat"}
+              {isMutedForViewer ? "Unmute chat" : "Mute chat"}
             </button>
           </div>
         </div>

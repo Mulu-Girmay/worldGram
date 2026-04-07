@@ -28,6 +28,7 @@ import { listRegisteredUsers } from "../Redux/contactRedux/contactThunk";
 import { createChat, listChats } from "../Redux/chatRedux/chatThunk";
 import { setCurrentChat } from "../Redux/chatRedux/chatSlice";
 import { resolveProfileUrl, toInitials } from "../utils/media";
+import { useToast } from "./ToastProvider";
 
 const SideBar = () => {
   const navigate = useNavigate();
@@ -38,6 +39,7 @@ const SideBar = () => {
   const usersError = useSelector(selectContactError);
   const [searchValue, setSearchValue] = useState("");
   const dispatch = useDispatch();
+  const toast = useToast();
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -100,6 +102,11 @@ const SideBar = () => {
         resolvedChatId = resolvedChat._id;
         dispatch(setCurrentChat(resolvedChat));
       }
+    }
+
+    if (!resolvedChatId) {
+      toast.error("Unable to open private chat right now.");
+      return;
     }
 
     navigate("/chat", { state: { chatId: resolvedChatId } });

@@ -65,7 +65,9 @@ const normalizeId = (value) => {
 };
 
 const extractExtension = (value = "") => {
-  const clean = String(value || "").split("?")[0].toLowerCase();
+  const clean = String(value || "")
+    .split("?")[0]
+    .toLowerCase();
   const index = clean.lastIndexOf(".");
   return index >= 0 ? clean.slice(index + 1) : "";
 };
@@ -115,7 +117,8 @@ const MyProfile = () => {
   const [avatarFile, setAvatarFile] = useState(null);
   const [avatarPreview, setAvatarPreview] = useState("");
   const [editFeedback, setEditFeedback] = useState("");
-  const [sharedMediaCounts, setSharedMediaCounts] = useState(EMPTY_MEDIA_COUNTS);
+  const [sharedMediaCounts, setSharedMediaCounts] =
+    useState(EMPTY_MEDIA_COUNTS);
   const [sharedMediaStatus, setSharedMediaStatus] = useState("idle");
   const [sharedMediaItems, setSharedMediaItems] = useState([]);
   const [sharedSearchTerm, setSharedSearchTerm] = useState("");
@@ -125,7 +128,8 @@ const MyProfile = () => {
     user?.identity?.username ||
     "Guest";
   const username = user?.identity?.username || "guest";
-  const phone = user?.identity?.phoneNumber || user?.identity?.mobileNumber || "";
+  const phone =
+    user?.identity?.phoneNumber || user?.identity?.mobileNumber || "";
   const bio = user?.identity?.Bio || user?.identity?.bio || "No bio yet";
   const status = user?.AccountStatus?.onlineStatus || "offline";
   const isPremium = Boolean(user?.AccountStatus?.isPremium);
@@ -135,15 +139,13 @@ const MyProfile = () => {
   const hasActiveStory = (userStories || []).length > 0;
   const phonePrivacy = user?.privacySettings?.privacyPhoneNumber || "contacts";
   const lastSeenPrivacy = user?.privacySettings?.privacyLastSeen || "contacts";
-  const lastSeenLabel =
-    user?.AccountStatus?.lastSeenAt
-      ? new Date(user.AccountStatus.lastSeenAt).toLocaleString()
-      : status === "online"
-        ? "Online"
-        : "Recently";
+  const lastSeenLabel = user?.AccountStatus?.lastSeenAt
+    ? new Date(user.AccountStatus.lastSeenAt).toLocaleString()
+    : status === "online"
+      ? "Online"
+      : "Recently";
 
-  const getPrivacyIcon = (privacy) =>
-    privacy === "everyone" ? Globe : Lock;
+  const getPrivacyIcon = (privacy) => (privacy === "everyone" ? Globe : Lock);
 
   useEffect(() => {
     const userId = user?._id || user?.id;
@@ -201,13 +203,16 @@ const MyProfile = () => {
     let cancelled = false;
 
     const inferMediaBucket = (message) => {
-      const contentType = String(message?.content?.ContentType || "").toLowerCase();
+      const contentType = String(
+        message?.content?.ContentType || "",
+      ).toLowerCase();
       const mediaURL = message?.content?.mediaURL || "";
       const fileName = message?.content?.fileName || "";
       const duration = Number(message?.content?.duration || 0);
       const ext = extractExtension(fileName || mediaURL);
 
-      if (contentType === "image" || contentType === "video") return "photosVideos";
+      if (contentType === "image" || contentType === "video")
+        return "photosVideos";
       if (contentType === "voice") return "voices";
       if (contentType === "audio") {
         if (duration > 0) return "voices";
@@ -221,7 +226,20 @@ const MyProfile = () => {
       }
 
       if (mediaURL) {
-        if (["jpg", "jpeg", "png", "gif", "webp", "bmp", "svg", "mp4", "mov", "webm"].includes(ext)) {
+        if (
+          [
+            "jpg",
+            "jpeg",
+            "png",
+            "gif",
+            "webp",
+            "bmp",
+            "svg",
+            "mp4",
+            "mov",
+            "webm",
+          ].includes(ext)
+        ) {
           return "photosVideos";
         }
         if (["mp3", "wav", "flac", "aac", "m4a"].includes(ext)) return "music";
@@ -257,7 +275,9 @@ const MyProfile = () => {
             const senderId = normalizeId(message?.identity?.senderId);
             if (senderId !== currentUserId) return;
 
-            nextCounts.links += countLinksFromText(message?.content?.text || "");
+            nextCounts.links += countLinksFromText(
+              message?.content?.text || "",
+            );
             const bucket = inferMediaBucket(message);
             if (bucket) nextCounts[bucket] += 1;
 
@@ -311,10 +331,18 @@ const MyProfile = () => {
     const q = sharedSearchTerm.trim().toLowerCase();
     if (!q) return true;
     return (
-      String(item.text || "").toLowerCase().includes(q) ||
-      String(item.fileName || "").toLowerCase().includes(q) ||
-      String(item.mediaURL || "").toLowerCase().includes(q) ||
-      String(item.contentType || "").toLowerCase().includes(q)
+      String(item.text || "")
+        .toLowerCase()
+        .includes(q) ||
+      String(item.fileName || "")
+        .toLowerCase()
+        .includes(q) ||
+      String(item.mediaURL || "")
+        .toLowerCase()
+        .includes(q) ||
+      String(item.contentType || "")
+        .toLowerCase()
+        .includes(q)
     );
   });
 
@@ -340,7 +368,9 @@ const MyProfile = () => {
       }
     } else {
       const raw =
-        result.payload?.message || result.payload?.err || "Failed to add story.";
+        result.payload?.message ||
+        result.payload?.err ||
+        "Failed to add story.";
       const text = String(raw).toLowerCase();
       const message = text.includes("active story")
         ? "You can only keep one active story. Delete the current one first."
@@ -395,7 +425,10 @@ const MyProfile = () => {
       formData.append("phoneNumber", payload.phoneNumber);
       formData.append("Bio", payload.Bio);
       formData.append("bioLink", payload.bioLink);
-      formData.append("personalChannelUsername", payload.personalChannelUsername);
+      formData.append(
+        "personalChannelUsername",
+        payload.personalChannelUsername,
+      );
       formData.append("emojiStatus", payload.emojiStatus);
       formData.append("isPremium", String(payload.isPremium));
       if (payload.profileUrl) formData.append("profileUrl", payload.profileUrl);
@@ -433,7 +466,9 @@ const MyProfile = () => {
       return;
     }
     setEditFeedback(
-      result.payload?.err || result.payload?.message || "Failed to update phone number.",
+      result.payload?.err ||
+        result.payload?.message ||
+        "Failed to update phone number.",
     );
   };
 
@@ -448,7 +483,10 @@ const MyProfile = () => {
 
   const handleScrollToStories = () => {
     setIsMenuOpen(false);
-    storiesSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    storiesSectionRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
   };
 
   const handleCopyUsername = async () => {
@@ -471,12 +509,22 @@ const MyProfile = () => {
         <button type="button" onClick={() => navigate("/home")}>
           <ArrowLeft size={16} />
         </button>
-        <p className="text-sm font-semibold text-[rgba(23,3,3,0.87)]">Profile</p>
+        <p className="text-sm font-semibold text-[rgba(23,3,3,0.87)]">
+          Profile
+        </p>
         <div className="relative flex items-center gap-2" ref={menuRef}>
-          <button type="button" onClick={openEditPanel} aria-label="Edit profile">
+          <button
+            type="button"
+            onClick={openEditPanel}
+            aria-label="Edit profile"
+          >
             <Pen size={15} />
           </button>
-          <button type="button" onClick={handleOpenMenu} aria-label="More profile actions">
+          <button
+            type="button"
+            onClick={handleOpenMenu}
+            aria-label="More profile actions"
+          >
             <MoreVertical size={15} />
           </button>
 
@@ -629,11 +677,15 @@ const MyProfile = () => {
             <p className="text-xs text-[rgba(23,3,3,0.65)]">Last Seen</p>
           </div>
           <div className="rounded-xl border border-[#6fa63a]/20 bg-white/80 px-3 py-2">
-            <p className="text-sm font-semibold text-[rgba(23,3,3,0.88)]">{bio}</p>
+            <p className="text-sm font-semibold text-[rgba(23,3,3,0.88)]">
+              {bio}
+            </p>
             <p className="text-xs text-[rgba(23,3,3,0.65)]">Bio</p>
           </div>
           <div className="rounded-xl border border-[#6fa63a]/20 bg-white/80 px-3 py-2">
-            <p className="text-sm font-semibold text-[rgba(23,3,3,0.88)]">@{username}</p>
+            <p className="text-sm font-semibold text-[rgba(23,3,3,0.88)]">
+              @{username}
+            </p>
             <p className="text-xs text-[rgba(23,3,3,0.65)]">Username</p>
           </div>
         </div>
@@ -658,21 +710,26 @@ const MyProfile = () => {
             </button>
           </div>
           <div className="rounded-xl border border-[#6fa63a]/20 bg-white/80 px-3 py-2">
-            <p className="text-xs text-[rgba(23,3,3,0.65)]">Personal Channel Preview</p>
+            <p className="text-xs text-[rgba(23,3,3,0.65)]">
+              Personal Channel Preview
+            </p>
             {user?.identity?.personalChannelUsername ? (
               <button
                 type="button"
                 onClick={() => navigate("/home")}
                 className="mt-1 inline-flex items-center gap-2 rounded-lg border border-[#6fa63a]/25 bg-[#f8fdf3] px-2 py-1 text-xs font-semibold text-[#2f5b2f]"
               >
-                <Globe size={12} />
-                @{user.identity.personalChannelUsername}
+                <Globe size={12} />@{user.identity.personalChannelUsername}
               </button>
             ) : (
-              <p className="text-sm text-[rgba(23,3,3,0.7)]">No channel linked.</p>
+              <p className="text-sm text-[rgba(23,3,3,0.7)]">
+                No channel linked.
+              </p>
             )}
             {user?.identity?.bioLink && (
-              <p className="mt-1 truncate text-xs text-[#2f5b2f]">{user.identity.bioLink}</p>
+              <p className="mt-1 truncate text-xs text-[#2f5b2f]">
+                {user.identity.bioLink}
+              </p>
             )}
           </div>
         </div>
@@ -713,14 +770,24 @@ const MyProfile = () => {
         {sharedSearchTerm.trim() && (
           <div className="mt-3 max-h-36 space-y-1 overflow-y-auto rounded-xl border border-[#6fa63a]/20 bg-white/75 p-2">
             {sharedFilteredItems.length === 0 ? (
-              <p className="text-xs text-[rgba(23,3,3,0.62)]">No matches found.</p>
+              <p className="text-xs text-[rgba(23,3,3,0.62)]">
+                No matches found.
+              </p>
             ) : (
               sharedFilteredItems.slice(0, 20).map((item) => (
-                <div key={item.id} className="rounded-md border border-[#6fa63a]/15 bg-white px-2 py-1">
+                <div
+                  key={item.id}
+                  className="rounded-md border border-[#6fa63a]/15 bg-white px-2 py-1"
+                >
                   <p className="truncate text-xs text-[rgba(23,3,3,0.82)]">
-                    {item.fileName || item.text || item.mediaURL || "Shared item"}
+                    {item.fileName ||
+                      item.text ||
+                      item.mediaURL ||
+                      "Shared item"}
                   </p>
-                  <p className="text-[10px] text-[rgba(23,3,3,0.55)]">{item.bucket}</p>
+                  <p className="text-[10px] text-[rgba(23,3,3,0.55)]">
+                    {item.bucket}
+                  </p>
                 </div>
               ))
             )}
@@ -767,7 +834,7 @@ const MyProfile = () => {
             type="text"
             value={selectedViewerIdsText}
             onChange={(e) => setSelectedViewerIdsText(e.target.value)}
-            placeholder="Selected contact IDs (comma-separated)"
+            placeholder="Selected contacts (@username or ID, comma-separated)"
             disabled={storyPrivacy !== "selectedContacts"}
             className="rounded-lg border border-[#6fa63a]/25 bg-white px-3 py-2 text-sm outline-none focus:border-[#4a7f4a] disabled:opacity-60"
           />
@@ -813,7 +880,9 @@ const MyProfile = () => {
           </p>
           <button
             type="button"
-            onClick={() => storiesSectionRef.current?.scrollIntoView({ behavior: "smooth" })}
+            onClick={() =>
+              storiesSectionRef.current?.scrollIntoView({ behavior: "smooth" })
+            }
             className="inline-flex items-center gap-1 rounded-full bg-[#4a7f4a] px-2 py-1 text-[11px] font-semibold text-white"
           >
             <Plus size={11} />
@@ -821,7 +890,9 @@ const MyProfile = () => {
           </button>
         </div>
         {highlightsStatus === "loading" && (
-          <p className="text-xs text-[rgba(23,3,3,0.62)]">Loading highlights...</p>
+          <p className="text-xs text-[rgba(23,3,3,0.62)]">
+            Loading highlights...
+          </p>
         )}
         {highlightsStatus !== "loading" && highlights.length === 0 && (
           <p className="text-xs text-[rgba(23,3,3,0.62)]">
@@ -830,23 +901,37 @@ const MyProfile = () => {
         )}
         <div className="grid grid-cols-3 gap-2">
           {highlights.map((story) => {
-            const src = story?.media ? resolveMediaUrl(story.media, story?.mediaType || "image") : null;
-            const views = Array.isArray(story?.viewers) ? story.viewers.length : 0;
+            const src = story?.media
+              ? resolveMediaUrl(story.media, story?.mediaType || "image")
+              : null;
+            const views = Array.isArray(story?.viewers)
+              ? story.viewers.length
+              : 0;
             return (
               <button
                 key={story._id}
                 type="button"
-                onClick={() => navigate("/story", { state: { storyId: story._id, authorId: currentUserId } })}
+                onClick={() =>
+                  navigate("/story", {
+                    state: { storyId: story._id, authorId: currentUserId },
+                  })
+                }
                 className="relative overflow-hidden rounded-xl border border-[#6fa63a]/20 bg-white"
               >
                 {src ? (
                   story?.mediaType === "video" ? (
                     <video src={src} className="h-24 w-full object-cover" />
                   ) : (
-                    <img src={src} alt={story?.caption || "Highlight"} className="h-24 w-full object-cover" />
+                    <img
+                      src={src}
+                      alt={story?.caption || "Highlight"}
+                      className="h-24 w-full object-cover"
+                    />
                   )
                 ) : (
-                  <div className="grid h-24 w-full place-items-center text-xs text-[#2f5b2f]">ST</div>
+                  <div className="grid h-24 w-full place-items-center text-xs text-[#2f5b2f]">
+                    ST
+                  </div>
                 )}
                 <span className="absolute bottom-1 right-1 rounded-full bg-black/55 px-1.5 py-0.5 text-[10px] text-white">
                   {views}
@@ -885,7 +970,9 @@ const MyProfile = () => {
                 <div className="relative">
                   {avatarPreview || editForm.profileUrl ? (
                     <img
-                      src={avatarPreview || resolveProfileUrl(editForm.profileUrl)}
+                      src={
+                        avatarPreview || resolveProfileUrl(editForm.profileUrl)
+                      }
                       alt="Profile preview"
                       className="h-20 w-20 rounded-full border border-[#6fa63a]/35 object-cover"
                     />
@@ -969,7 +1056,10 @@ const MyProfile = () => {
                   type="checkbox"
                   checked={Boolean(editForm.isPremium)}
                   onChange={(e) =>
-                    setEditForm((prev) => ({ ...prev, isPremium: e.target.checked }))
+                    setEditForm((prev) => ({
+                      ...prev,
+                      isPremium: e.target.checked,
+                    }))
                   }
                 />
                 Premium enabled
@@ -984,7 +1074,9 @@ const MyProfile = () => {
               {(editFeedback || authError) && (
                 <p
                   className={`text-xs ${
-                    updateStatus === "failed" ? "text-red-600" : "text-[#2f5b2f]"
+                    updateStatus === "failed"
+                      ? "text-red-600"
+                      : "text-[#2f5b2f]"
                   }`}
                 >
                   {editFeedback || authError}
@@ -996,7 +1088,9 @@ const MyProfile = () => {
                 disabled={updateStatus === "loading"}
                 className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#4a7f4a] px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
               >
-                {updateStatus === "loading" && <Loader2 size={14} className="animate-spin" />}
+                {updateStatus === "loading" && (
+                  <Loader2 size={14} className="animate-spin" />
+                )}
                 {updateStatus === "loading" ? "Saving..." : "Save changes"}
               </button>
             </form>

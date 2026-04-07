@@ -4,6 +4,13 @@ const chatSchema = new mongoose.Schema(
     type: { type: String, enum: ["private", "group", "channel"] },
     participants: [{ type: mongoose.Schema.Types.ObjectId }],
     groupId: { type: mongoose.Schema.Types.ObjectId, ref: "Group" },
+    viewerSettings: [
+      {
+        userId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+        isPinned: { type: Boolean, default: false },
+        isMuted: { type: Boolean, default: false },
+      },
+    ],
 
     lastMessageId: { type: mongoose.Schema.Types.ObjectId, ref: "Message" },
     isPinned: { type: Boolean, default: false },

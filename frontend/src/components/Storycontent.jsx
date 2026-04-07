@@ -517,7 +517,7 @@ const Storycontent = () => {
                       }))
                     }
                     disabled={editForm.privacy !== "selectedContacts"}
-                    placeholder="Selected contact IDs (comma-separated)"
+                    placeholder="Selected contacts (@username or ID, comma-separated)"
                     className="mt-2 w-full rounded-md border border-[#6fa63a]/30 px-2 py-1 text-xs outline-none focus:border-[#4a7f4a] disabled:opacity-60"
                   />
                   <label className="mt-2 flex items-center gap-2 text-xs text-[rgba(23,3,3,0.8)]">
