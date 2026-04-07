@@ -5,9 +5,11 @@ import {
   channelUnreadCountApi,
   deleteChannelApi,
   getChannelAnalyticsApi,
+  getChannelInviteLinkApi,
   getChannelRecentActionsApi,
   listChannelApi,
   listMyChannelApi,
+  joinChannelByInviteTokenApi,
   muteChannelApi,
   removeAdminApi,
   specificChannelApi,
@@ -221,7 +223,9 @@ export const getChannelRecentActions = createAsyncThunk(
       return { id, items: data?.items || [] };
     } catch (err) {
       return rejectWithValue(
-        err.response?.data || { message: "fetching channel recent actions failed" },
+        err.response?.data || {
+          message: "fetching channel recent actions failed",
+        },
       );
     }
   },
@@ -260,6 +264,38 @@ export const suggestPost = createAsyncThunk(
   },
 );
 
+export const getChannelInviteLink = createAsyncThunk(
+  "getChannelInviteLink",
+  async (id, { getState, rejectWithValue }) => {
+    try {
+      if (!id) return rejectWithValue({ message: "channel id is required" });
+      const token = getState().auth?.accessToken;
+      return await getChannelInviteLinkApi(id, token);
+    } catch (err) {
+      return rejectWithValue(
+        err.response?.data || { message: "fetching invite link failed" },
+      );
+    }
+  },
+);
+
+export const joinChannelByInviteToken = createAsyncThunk(
+  "joinChannelByInviteToken",
+  async ({ inviteToken }, { getState, rejectWithValue }) => {
+    try {
+      if (!inviteToken) {
+        return rejectWithValue({ message: "invite token is required" });
+      }
+      const token = getState().auth?.accessToken;
+      return await joinChannelByInviteTokenApi(inviteToken, token);
+    } catch (err) {
+      return rejectWithValue(
+        err.response?.data || { message: "joining channel failed" },
+      );
+    }
+  },
+);
+
 export const getChannelUnreadCount = createAsyncThunk(
   "getChannelUnreadCount",
   async (id, { getState, rejectWithValue }) => {
@@ -272,7 +308,9 @@ export const getChannelUnreadCount = createAsyncThunk(
       return { id, unreadCount: Number(data?.unreadCount || 0) };
     } catch (err) {
       return rejectWithValue(
-        err.response?.data || { message: "fetching channel unread count failed" },
+        err.response?.data || {
+          message: "fetching channel unread count failed",
+        },
       );
     }
   },

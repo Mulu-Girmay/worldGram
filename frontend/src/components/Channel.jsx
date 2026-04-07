@@ -34,6 +34,7 @@ import {
   addAdmin,
   removeAdmin,
   updateAdminPermissions,
+  getChannelInviteLink,
   getChannelRecentActions,
   getChannelAnalytics,
   suggestPost,
@@ -64,7 +65,11 @@ import ChannelPostCard from "./ChannelPostCard";
 
 const Channel = () => {
   const dispatch = useDispatch();
-  const { success: toastSuccess, error: toastError, info: toastInfo } = useToast();
+  const {
+    success: toastSuccess,
+    error: toastError,
+    info: toastInfo,
+  } = useToast();
   const currentChannel = useSelector(selectCurrentChannel);
   const myChannels = useSelector(selectMyChannels);
   const myChannelsStatus = useSelector(selectMyChannelsStatus);
@@ -120,6 +125,7 @@ const Channel = () => {
   });
   const [channelActionFeedback, setChannelActionFeedback] = useState("");
   const [channelActionError, setChannelActionError] = useState("");
+  const [inviteLinkBusy, setInviteLinkBusy] = useState(false);
   const [channelSettingsForm, setChannelSettingsForm] = useState({
     showAuthorSignatures: false,
     allowComments: true,
@@ -214,8 +220,8 @@ const Channel = () => {
 
   const isSubscriber = React.useMemo(() => {
     if (!currentUserId) return false;
-    const subscribers = (currentChannel?.audience?.subscribers || []).map((id) =>
-      id.toString(),
+    const subscribers = (currentChannel?.audience?.subscribers || []).map(
+      (id) => id.toString(),
     );
     return subscribers.includes(currentUserId);
   }, [currentChannel?.audience?.subscribers, currentUserId]);
@@ -230,10 +236,20 @@ const Channel = () => {
   const isUpdatingPermissions = adminPermissionsStatus === "loading";
   const isSuggestingPost = suggestPostStatus === "loading";
   const channelTitle = currentChannel?.basicInfo?.name || "Channel";
+  const channelSubscriberCount = Number(
+    currentChannel?.audience?.subscriberCount ??
+      currentChannel?.audience?.subscribers?.length ??
+      0,
+  );
 
   useEffect(() => {
     if (!currentChannel?._id || !isOwnerOrAdmin) return;
-    dispatch(getChannelRecentActions({ id: currentChannel._id, params: { limit: 20 } }));
+    dispatch(
+      getChannelRecentActions({
+        id: currentChannel._id,
+        params: { limit: 20 },
+      }),
+    );
     dispatch(getChannelAnalytics(currentChannel._id));
   }, [dispatch, currentChannel?._id, isOwnerOrAdmin]);
 
@@ -299,7 +315,9 @@ const Channel = () => {
     if (!currentChannel?._id) return;
     try {
       setChannelActionError("");
-      const result = await dispatch(subscribeChannel(currentChannel._id)).unwrap();
+      const result = await dispatch(
+        subscribeChannel(currentChannel._id),
+      ).unwrap();
       setChannelActionFeedback(result?.message || "Subscribed");
       refreshCurrentChannel();
     } catch (err) {
@@ -441,7 +459,9 @@ const Channel = () => {
     }
     const previousText = post?.text;
     setPostsLocal((prev) =>
-      (prev || []).map((p) => (p._id === post._id ? { ...p, text: newText } : p)),
+      (prev || []).map((p) =>
+        p._id === post._id ? { ...p, text: newText } : p,
+      ),
     );
     const formData = new FormData();
     formData.append("text", newText);
@@ -514,14 +534,16 @@ const Channel = () => {
       return;
     }
 
-    const previousForwardCount =
-      forwardTargetPost?.forward?.count || 0;
+    const previousForwardCount = forwardTargetPost?.forward?.count || 0;
     setPostsLocal((prev) =>
       (prev || []).map((p) =>
         p._id === forwardTargetPost._id
           ? {
               ...p,
-              forward: { ...(p.forward || {}), count: previousForwardCount + 1 },
+              forward: {
+                ...(p.forward || {}),
+                count: previousForwardCount + 1,
+              },
             }
           : p,
       ),
@@ -747,11 +769,17 @@ const Channel = () => {
   useEffect(() => {
     if (!currentChannel?._id) return;
     setChannelSettingsForm({
-      showAuthorSignatures: Boolean(currentChannel?.settings?.showAuthorSignatures),
+      showAuthorSignatures: Boolean(
+        currentChannel?.settings?.showAuthorSignatures,
+      ),
       allowComments: Boolean(currentChannel?.settings?.allowComments),
-      allowSuggestedPosts: Boolean(currentChannel?.settings?.allowSuggestedPosts),
+      allowSuggestedPosts: Boolean(
+        currentChannel?.settings?.allowSuggestedPosts,
+      ),
       contentProtection: Boolean(currentChannel?.settings?.contentProtection),
-      allowedReactions: Array.isArray(currentChannel?.settings?.allowedReactions)
+      allowedReactions: Array.isArray(
+        currentChannel?.settings?.allowedReactions,
+      )
         ? currentChannel.settings.allowedReactions.join(",")
         : "👍,❤️,🔥,😂,😍,😮",
     });
@@ -776,7 +804,8 @@ const Channel = () => {
               "settings.allowComments": channelSettingsForm.allowComments,
               "settings.allowSuggestedPosts":
                 channelSettingsForm.allowSuggestedPosts,
-              "settings.contentProtection": channelSettingsForm.contentProtection,
+              "settings.contentProtection":
+                channelSettingsForm.contentProtection,
               "settings.allowedReactions": allowedReactions,
             },
           },
@@ -792,13 +821,39 @@ const Channel = () => {
     }
   };
 
+  const handleCopyInviteLink = async () => {
+    if (!currentChannel?._id) return;
+    try {
+      setInviteLinkBusy(true);
+      const result = await dispatch(
+        getChannelInviteLink(currentChannel._id),
+      ).unwrap();
+      const inviteLink = result?.inviteLink;
+      if (!inviteLink) {
+        toastError("Could not generate invite link.");
+        return;
+      }
+      if (!navigator?.clipboard?.writeText) {
+        toastError("Clipboard is not available in this browser.");
+        return;
+      }
+      await navigator.clipboard.writeText(inviteLink);
+      toastSuccess("Invite link copied");
+    } catch (err) {
+      toastError(err?.err || err?.message || "Failed to copy invite link");
+    } finally {
+      setInviteLinkBusy(false);
+    }
+  };
+
   async function handleSubmit(e) {
     e.preventDefault();
     if (!currentChannel || !currentChannel._id) return;
     if (!message && !mediaFile) return;
     const formData = new FormData();
     formData.append("text", message);
-    if (signatureTitle.trim()) formData.append("signatureTitle", signatureTitle.trim());
+    if (signatureTitle.trim())
+      formData.append("signatureTitle", signatureTitle.trim());
     formData.append("isSilent", isSilentPost ? "true" : "false");
     if (mediaFile) formData.append("media", mediaFile);
     setSubmitting(true);
@@ -832,7 +887,7 @@ const Channel = () => {
     <div className="space-y-4">
       <ProfileNav
         title={channelTitle}
-        subtitle={`${currentChannel?.membersCount || 0} members`}
+        subtitle={`${channelSubscriberCount} subscribers`}
         avatarUrl={channelAvatar}
         backPath="/home"
       />
@@ -892,7 +947,7 @@ const Channel = () => {
             </div>
           </div>
           <p className="rounded-full bg-[#6fa63a]/15 px-2.5 py-1 text-xs font-medium text-[#2f5b2f]">
-            {currentChannel?.membersCount || "--"} members
+            {channelSubscriberCount} subscribers
           </p>
         </div>
 
@@ -938,10 +993,12 @@ const Channel = () => {
                     onView={handleAddView}
                     onAddComment={handleAddComment}
                     onReply={handleReplyToComment}
-                    allowedReactions={channelPostSettings?.allowedReactions || []}
+                    allowedReactions={
+                      channelPostSettings?.allowedReactions || []
+                    }
                     commentsEnabled={Boolean(
                       channelPostSettings?.allowComments &&
-                        channelPostSettings?.hasDiscussionGroup,
+                      channelPostSettings?.hasDiscussionGroup,
                     )}
                     contentProtection={Boolean(
                       channelPostSettings?.contentProtection,
@@ -973,7 +1030,7 @@ const Channel = () => {
                   allowedReactions={channelPostSettings?.allowedReactions || []}
                   commentsEnabled={Boolean(
                     channelPostSettings?.allowComments &&
-                      channelPostSettings?.hasDiscussionGroup,
+                    channelPostSettings?.hasDiscussionGroup,
                   )}
                   contentProtection={Boolean(
                     channelPostSettings?.contentProtection,
@@ -1060,7 +1117,6 @@ const Channel = () => {
                 />
               </label>
               <button
-                onClick={handleSubmit}
                 type="submit"
                 disabled={submitting}
                 className="rounded-xl bg-[#4a7f4a] p-2 text-white transition hover:bg-[#3f6e3f]"
@@ -1085,7 +1141,8 @@ const Channel = () => {
                   : "Mute Channel"}
             </button>
             <p className="mt-1 text-[11px] text-[rgba(23,3,3,0.6)]">
-              Subscriber actions are read-only here, similar to Telegram channels.
+              Subscriber actions are read-only here, similar to Telegram
+              channels.
             </p>
           </div>
         )}
@@ -1185,6 +1242,25 @@ const Channel = () => {
                   </span>
                 )}
               </div>
+
+              {isOwnerOrAdmin && (
+                <div className="rounded-xl border border-[#6fa63a]/20 bg-[#f9fcf6] p-3">
+                  <p className="text-xs font-semibold text-[#2f5b2f]">
+                    Invite link
+                  </p>
+                  <p className="mt-1 text-[11px] text-[rgba(23,3,3,0.62)]">
+                    Share this link to let people join the channel directly.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleCopyInviteLink}
+                    disabled={inviteLinkBusy}
+                    className="mt-2 w-full rounded-lg border border-[#6fa63a]/35 px-3 py-2 text-xs font-medium text-[#2f5b2f] hover:bg-[#f3f9ee] disabled:opacity-60"
+                  >
+                    {inviteLinkBusy ? "Preparing link..." : "Copy invite link"}
+                  </button>
+                </div>
+              )}
 
               {isOwnerOrAdmin && (
                 <div className="grid gap-2">
@@ -1324,7 +1400,9 @@ const Channel = () => {
                     <div className="mt-2 grid gap-2">
                       <input
                         value={permissionTargetUsername}
-                        onChange={(e) => setPermissionTargetUsername(e.target.value)}
+                        onChange={(e) =>
+                          setPermissionTargetUsername(e.target.value)
+                        }
                         placeholder="admin username"
                         className="w-full rounded-md border border-[#6fa63a]/30 px-2 py-1 text-xs outline-none focus:border-[#4a7f4a]"
                       />
@@ -1349,11 +1427,14 @@ const Channel = () => {
                       <button
                         type="submit"
                         disabled={
-                          !permissionTargetUsername.trim() || isUpdatingPermissions
+                          !permissionTargetUsername.trim() ||
+                          isUpdatingPermissions
                         }
                         className="rounded-md bg-[#4a7f4a] px-2 py-1 text-xs text-white disabled:opacity-60"
                       >
-                        {isUpdatingPermissions ? "Saving..." : "Save permissions"}
+                        {isUpdatingPermissions
+                          ? "Saving..."
+                          : "Save permissions"}
                       </button>
                     </div>
                   </form>
@@ -1440,8 +1521,7 @@ const Channel = () => {
 
               {filteredForwardChannels.map((ch) => {
                 const uid = (user?._id || user?.id || "").toString();
-                const isOwner =
-                  ch?.ownership?.ownerId?.toString?.() === uid;
+                const isOwner = ch?.ownership?.ownerId?.toString?.() === uid;
                 const photo = ch?.basicInfo?.channelPhoto;
                 const photoSrc = photo ? resolveMediaUrl(photo, "image") : null;
 

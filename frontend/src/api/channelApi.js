@@ -54,9 +54,13 @@ export const unmuteChannelApi = async (id, token) => {
   return data;
 };
 export const updateAdminPermissionsApi = async (id, payload, token) => {
-  const { data } = await api.patch(`/channels/${id}/admin-permissions`, payload, {
-    headers: authHeaders(token),
-  });
+  const { data } = await api.patch(
+    `/channels/${id}/admin-permissions`,
+    payload,
+    {
+      headers: authHeaders(token),
+    },
+  );
   return data;
 };
 export const getChannelRecentActionsApi = async (id, params = {}, token) => {
@@ -76,6 +80,22 @@ export const suggestPostApi = async (id, payload, token) => {
   const { data } = await api.post(`/channels/${id}/suggest-post`, payload, {
     headers: authHeaders(token),
   });
+  return data;
+};
+export const getChannelInviteLinkApi = async (id, token) => {
+  const { data } = await api.get(`/channels/${id}/invite-link`, {
+    headers: authHeaders(token),
+  });
+  return data;
+};
+export const joinChannelByInviteTokenApi = async (inviteToken, token) => {
+  const { data } = await api.post(
+    `/channels/invite/${inviteToken}/join`,
+    null,
+    {
+      headers: authHeaders(token),
+    },
+  );
   return data;
 };
 export const addChannelApi = async (payload, token) => {

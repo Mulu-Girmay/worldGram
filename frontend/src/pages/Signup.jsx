@@ -43,6 +43,15 @@ const Signup = () => {
 
     const result = await dispatch(registerUser(formValues));
     if (registerUser.fulfilled.match(result)) {
+      const pendingInviteToken = sessionStorage.getItem(
+        "pendingChannelInviteToken",
+      );
+      if (pendingInviteToken) {
+        navigate(
+          `/join-channel?token=${encodeURIComponent(pendingInviteToken)}`,
+        );
+        return;
+      }
       navigate("/home");
     }
   };

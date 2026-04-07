@@ -13,7 +13,8 @@ const parseLimit = (value, fallback = 20, max = 50) => {
   return Math.min(n, max);
 };
 
-const asStringIds = (arr = []) => arr.map((id) => id?.toString?.() || String(id));
+const asStringIds = (arr = []) =>
+  arr.map((id) => id?.toString?.() || String(id));
 const POST_AUTHOR_SELECT =
   "_id identity.firstName identity.lastName identity.username";
 
@@ -44,18 +45,18 @@ const hasAdminPermission = (channel, userId, key) => {
 };
 
 const canViewChannel = (channel, userId) => {
-  const isSubscriber = asStringIds(channel?.audience?.subscribers || []).includes(
-    String(userId),
+  const isSubscriber = asStringIds(
+    channel?.audience?.subscribers || [],
+  ).includes(String(userId));
+  return (
+    channel?.settings?.isPublic ||
+    isSubscriber ||
+    isOwnerOrAdmin(channel, userId)
   );
-  return channel?.settings?.isPublic || isSubscriber || isOwnerOrAdmin(channel, userId);
 };
 
 const getPostDeepLink = (channel, postId) => {
   const publicBase = process.env.APP_PUBLIC_URL || "http://localhost:5173";
-  const username = channel?.basicInfo?.userName;
-  if (username) {
-    return `https://t.me/${username}/${postId}`;
-  }
   return `${publicBase}/home?channel=${channel?._id}&post=${postId}`;
 };
 
@@ -154,9 +155,15 @@ exports.editPost = async (req, res) => {
     }
 
     const canEditOwn = post.authorId?.toString?.() === String(userId);
-    const canEditAny = hasAdminPermission(channel, userId, "canEditMessagesOfOthers");
+    const canEditAny = hasAdminPermission(
+      channel,
+      userId,
+      "canEditMessagesOfOthers",
+    );
     if (!canEditOwn && !canEditAny) {
-      return res.status(403).json({ err: "You are not allowed to edit this post" });
+      return res
+        .status(403)
+        .json({ err: "You are not allowed to edit this post" });
     }
 
     const mediaUpdate =
@@ -192,7 +199,9 @@ exports.editPost = async (req, res) => {
       targetId: postId,
     });
 
-    res.status(200).json({ message: "Post edited successfully", post: updatedPost });
+    res
+      .status(200)
+      .json({ message: "Post edited successfully", post: updatedPost });
   } catch (err) {
     console.error(err);
     res.status(500).json({ err: err.message });
@@ -211,8 +220,14 @@ exports.reactToPost = async (req, res) => {
     if (!emoji) return res.status(400).json({ err: "Emoji is required" });
 
     const allowed = channel?.settings?.allowedReactions || [];
-    if (Array.isArray(allowed) && allowed.length > 0 && !allowed.includes(emoji)) {
-      return res.status(400).json({ err: "Reaction is not allowed in this channel" });
+    if (
+      Array.isArray(allowed) &&
+      allowed.length > 0 &&
+      !allowed.includes(emoji)
+    ) {
+      return res
+        .status(400)
+        .json({ err: "Reaction is not allowed in this channel" });
     }
 
     const result = await reactToEntity({
@@ -281,7 +296,10 @@ exports.addCommentToPost = async (req, res) => {
     if (!canViewChannel(channel, userId)) {
       return res.status(403).json({ err: "Not allowed to comment" });
     }
-    if (!channel?.settings?.allowComments || !channel?.settings?.discussionGroupId) {
+    if (
+      !channel?.settings?.allowComments ||
+      !channel?.settings?.discussionGroupId
+    ) {
       return res.status(403).json({
         err: "Comments are available only when discussion is enabled",
       });
@@ -331,7 +349,10 @@ exports.replyToComment = async (req, res) => {
     if (!canViewChannel(channel, userId)) {
       return res.status(403).json({ err: "Not allowed to reply" });
     }
-    if (!channel?.settings?.allowComments || !channel?.settings?.discussionGroupId) {
+    if (
+      !channel?.settings?.allowComments ||
+      !channel?.settings?.discussionGroupId
+    ) {
       return res.status(403).json({
         err: "Replies are available only when discussion is enabled",
       });
@@ -389,7 +410,8 @@ exports.forwardPost = async (req, res) => {
       return res.status(404).json({ err: "Post not found" });
     }
     const hasText = Boolean(forwardedPost.text);
-    const hasMedia = Array.isArray(forwardedPost.media) && forwardedPost.media.length > 0;
+    const hasMedia =
+      Array.isArray(forwardedPost.media) && forwardedPost.media.length > 0;
     if (!hasText && !hasMedia) {
       return res.status(400).json({ err: "Cannot forward empty post" });
     }
@@ -498,9 +520,15 @@ exports.deletePost = async (req, res) => {
     }
 
     const canDeleteOwn = post.authorId?.toString?.() === String(req.userId);
-    const canDeleteAny = hasAdminPermission(channel, req.userId, "canDeleteMessages");
+    const canDeleteAny = hasAdminPermission(
+      channel,
+      req.userId,
+      "canDeleteMessages",
+    );
     if (!canDeleteOwn && !canDeleteAny) {
-      return res.status(403).json({ err: "You are not allowed to delete this post" });
+      return res
+        .status(403)
+        .json({ err: "You are not allowed to delete this post" });
     }
 
     await ChannelPost.findByIdAndDelete(postId);

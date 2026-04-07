@@ -202,7 +202,6 @@ const ChannelPostCard = ({
     }
     setShowComments(true);
     setTimeout(() => commentInputRef.current?.focus(), 0);
-    if (onReply) return onReply(post);
   };
 
   const handleShare = () => {

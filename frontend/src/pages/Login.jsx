@@ -32,6 +32,15 @@ const Login = () => {
       return setFormError("Password must be at least 6 characters");
     const result = await dispatch(loginUser(formValues));
     if (loginUser.fulfilled.match(result)) {
+      const pendingInviteToken = sessionStorage.getItem(
+        "pendingChannelInviteToken",
+      );
+      if (pendingInviteToken) {
+        navigate(
+          `/join-channel?token=${encodeURIComponent(pendingInviteToken)}`,
+        );
+        return;
+      }
       navigate("/home");
     }
   };

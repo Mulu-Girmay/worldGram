@@ -45,6 +45,7 @@ app.use("/api", storyRouter);
 app.use("/api", contactRouter);
 app.use("/api", notificationRouter);
 app.use("/api", activityRouter);
+
 app.get("/api/health", (req, res) => {
   res.json({ ok: true, uptime: process.uptime() });
 });

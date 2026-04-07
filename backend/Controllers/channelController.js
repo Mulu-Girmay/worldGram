@@ -3,6 +3,7 @@ const User = require("../Models/User");
 const ChannelPost = require("../Models/ChannelPost");
 const ChannelAction = require("../Models/ChannelAction");
 const mongoose = require("mongoose");
+const crypto = require("crypto");
 
 const parseLimit = (value, fallback = 20, max = 50) => {
   const n = parseInt(value, 10);
@@ -10,7 +11,11 @@ const parseLimit = (value, fallback = 20, max = 50) => {
   return Math.min(n, max);
 };
 
-const asStringIds = (arr = []) => arr.map((id) => id?.toString?.() || String(id));
+const escapeRegex = (value = "") =>
+  String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const asStringIds = (arr = []) =>
+  arr.map((id) => id?.toString?.() || String(id));
 
 const isChannelOwner = (channel, userId) =>
   Boolean(channel?.ownership?.ownerId?.toString?.() === String(userId));
@@ -33,10 +38,32 @@ const hasAdminPermission = (channel, userId, key) => {
 };
 
 const canViewChannel = (channel, userId) => {
-  const isSubscriber = asStringIds(channel?.audience?.subscribers || []).includes(
-    String(userId),
+  const isSubscriber = asStringIds(
+    channel?.audience?.subscribers || [],
+  ).includes(String(userId));
+  return (
+    channel?.settings?.isPublic ||
+    isSubscriber ||
+    isOwnerOrAdmin(channel, userId)
   );
-  return channel?.settings?.isPublic || isSubscriber || isOwnerOrAdmin(channel, userId);
+};
+
+const buildPublicAppUrl = () =>
+  (process.env.APP_PUBLIC_URL || "http://localhost:5173").replace(/\/$/, "");
+
+const buildInviteUrl = (inviteToken) =>
+  `${buildPublicAppUrl()}/join-channel?token=${encodeURIComponent(inviteToken)}`;
+
+const ensureInviteToken = async (channel) => {
+  if (!channel) return null;
+  if (channel?.settings?.inviteLink) {
+    return channel.settings.inviteLink;
+  }
+  const inviteToken = crypto.randomBytes(18).toString("hex");
+  channel.settings = channel.settings || {};
+  channel.settings.inviteLink = inviteToken;
+  await channel.save();
+  return inviteToken;
 };
 
 const logChannelAction = async ({
@@ -83,6 +110,7 @@ exports.addChannel = async (req, res) => {
       },
       settings: {
         isPublic: true,
+        inviteLink: crypto.randomBytes(18).toString("hex"),
         allowJoinRequests: false,
         allowComments: true,
         showAuthorSignatures: false,
@@ -336,8 +364,11 @@ exports.updateAdminPermissions = async (req, res) => {
         .json({ err: "Only channel owner can manage admin permissions" });
     }
 
-    const adminUser = await User.findOne({ "identity.username": adminUsername });
-    if (!adminUser) return res.status(404).json({ err: "Admin user not found" });
+    const adminUser = await User.findOne({
+      "identity.username": adminUsername,
+    });
+    if (!adminUser)
+      return res.status(404).json({ err: "Admin user not found" });
     const adminId = adminUser._id.toString();
     if (!isChannelAdmin(channel, adminId)) {
       return res.status(400).json({ err: "User is not a channel admin" });
@@ -383,7 +414,9 @@ exports.getChannelRecentActions = async (req, res) => {
     const channel = await Channel.findById(req.params.id);
     if (!channel) return res.status(404).json({ err: "Channel not found" });
     if (!isOwnerOrAdmin(channel, req.userId)) {
-      return res.status(403).json({ err: "Not allowed to view recent actions" });
+      return res
+        .status(403)
+        .json({ err: "Not allowed to view recent actions" });
     }
 
     const since = new Date(Date.now() - 48 * 60 * 60 * 1000);
@@ -414,15 +447,21 @@ exports.getChannelById = async (req, res) => {
       return res.status(403).json({ err: "Not allowed to view channel" });
     }
 
-    const muted = asStringIds(channel?.audience?.mutedSubscribers || []).includes(
-      String(req.userId),
-    );
+    const inviteToken = await ensureInviteToken(channel);
+
+    const muted = asStringIds(
+      channel?.audience?.mutedSubscribers || [],
+    ).includes(String(req.userId));
     const payload = channel.toObject();
     payload.viewerState = {
       isMuted: muted,
       hasPendingJoinRequest: asStringIds(
         channel?.audience?.pendingJoinRequests || [],
       ).includes(String(req.userId)),
+    };
+    payload.settings = {
+      ...(payload.settings || {}),
+      inviteLink: inviteToken,
     };
 
     res.json(payload);
@@ -435,9 +474,16 @@ exports.listChannels = async (req, res) => {
   try {
     const { cursor, q } = req.query;
     const limit = parseLimit(req.query.limit);
-    const query = {};
+    const query = {
+      $or: [
+        { "settings.isPublic": true },
+        { "ownership.ownerId": req.userId },
+        { "ownership.admins": req.userId },
+        { "audience.subscribers": req.userId },
+      ],
+    };
     if (q) {
-      query["basicInfo.name"] = { $regex: q, $options: "i" };
+      query["basicInfo.name"] = { $regex: escapeRegex(q), $options: "i" };
     }
     if (cursor && mongoose.Types.ObjectId.isValid(cursor)) {
       query._id = { $lt: cursor };
@@ -482,6 +528,12 @@ exports.subscribeChannel = async (req, res) => {
     const channel = await Channel.findById(req.params.id);
     if (!channel) return res.status(404).json({ err: "Channel not found" });
 
+    if (!channel?.settings?.isPublic) {
+      return res.status(403).json({
+        err: "Private channels can only be joined via invite link.",
+      });
+    }
+
     const subscribers = asStringIds(channel.audience.subscribers || []);
     if (subscribers.includes(req.userId)) {
       return res.status(409).json({ err: "Already subscribed" });
@@ -519,12 +571,73 @@ exports.subscribeChannel = async (req, res) => {
   }
 };
 
+exports.getChannelInviteLink = async (req, res) => {
+  try {
+    const channel = await Channel.findById(req.params.id);
+    if (!channel) return res.status(404).json({ err: "Channel not found" });
+    if (!isOwnerOrAdmin(channel, req.userId)) {
+      return res.status(403).json({ err: "Not allowed to view invite link" });
+    }
+
+    const inviteToken = await ensureInviteToken(channel);
+    return res.json({
+      channelId: channel._id,
+      inviteToken,
+      inviteLink: buildInviteUrl(inviteToken),
+    });
+  } catch (error) {
+    return res.status(500).json({ err: "Failed to fetch invite link" });
+  }
+};
+
+exports.joinChannelByInviteToken = async (req, res) => {
+  try {
+    const inviteToken = String(req.params.inviteToken || "").trim();
+    if (!inviteToken) {
+      return res.status(400).json({ err: "Invite token is required" });
+    }
+
+    const channel = await Channel.findOne({
+      "settings.inviteLink": inviteToken,
+    });
+    if (!channel) {
+      return res.status(404).json({ err: "Invite link is invalid or expired" });
+    }
+
+    const subscriberIds = asStringIds(channel?.audience?.subscribers || []);
+    if (!subscriberIds.includes(String(req.userId))) {
+      channel.audience.subscribers = channel.audience.subscribers || [];
+      channel.audience.subscribers.push(req.userId);
+      channel.audience.subscriberCount = channel.audience.subscribers.length;
+      channel.audience.pendingJoinRequests = (
+        channel.audience.pendingJoinRequests || []
+      ).filter((id) => id.toString() !== String(req.userId));
+      await channel.save();
+      await logChannelAction({
+        channelId: channel._id,
+        actorId: req.userId,
+        action: "subscriber_joined_via_invite",
+      });
+    }
+
+    return res.json({
+      message: "Joined channel",
+      channelId: channel._id,
+      alreadyMember: subscriberIds.includes(String(req.userId)),
+    });
+  } catch (error) {
+    return res.status(500).json({ err: "Failed to join channel by invite" });
+  }
+};
+
 exports.approveJoinRequest = async (req, res) => {
   try {
     const channel = await Channel.findById(req.params.id);
     if (!channel) return res.status(404).json({ err: "Channel not found" });
     if (!isOwnerOrAdmin(channel, req.userId)) {
-      return res.status(403).json({ err: "Not allowed to approve join requests" });
+      return res
+        .status(403)
+        .json({ err: "Not allowed to approve join requests" });
     }
     const requestUserId = req.params.requestUserId;
     const pending = asStringIds(channel?.audience?.pendingJoinRequests || []);
@@ -592,7 +705,8 @@ exports.muteChannel = async (req, res) => {
 
     const muted = asStringIds(channel?.audience?.mutedSubscribers || []);
     if (!muted.includes(req.userId)) {
-      channel.audience.mutedSubscribers = channel.audience.mutedSubscribers || [];
+      channel.audience.mutedSubscribers =
+        channel.audience.mutedSubscribers || [];
       channel.audience.mutedSubscribers.push(req.userId);
       await channel.save();
       await logChannelAction({
@@ -612,7 +726,9 @@ exports.unmuteChannel = async (req, res) => {
     const channel = await Channel.findById(req.params.id);
     if (!channel) return res.status(404).json({ err: "Channel not found" });
     if (!canViewChannel(channel, req.userId)) {
-      return res.status(403).json({ err: "Not allowed to unmute this channel" });
+      return res
+        .status(403)
+        .json({ err: "Not allowed to unmute this channel" });
     }
 
     channel.audience.mutedSubscribers = (
@@ -641,7 +757,8 @@ exports.suggestPost = async (req, res) => {
       return res.status(403).json({ err: "Not allowed to suggest a post" });
     }
     const text = String(req.body?.text || "").trim();
-    if (!text) return res.status(400).json({ err: "Post suggestion text required" });
+    if (!text)
+      return res.status(400).json({ err: "Post suggestion text required" });
 
     await logChannelAction({
       channelId: channel._id,
