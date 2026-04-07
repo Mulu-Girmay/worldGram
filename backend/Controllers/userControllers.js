@@ -7,6 +7,7 @@ const sanitizeUser = (user) => {
     delete u.identity.password;
     delete u.identity.refreshToken;
   }
+  delete u.refreshToken;
   return u;
 };
 let hashPassword = async (plainPassword) => {
@@ -14,6 +15,9 @@ let hashPassword = async (plainPassword) => {
   const hash = await bcrypt.hash(plainPassword, saltRounds);
   return hash;
 };
+
+const escapeRegex = (value = "") =>
+  String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 exports.RegisterUser = async (req, res) => {
   const { phoneNumber, password, username, firstName, lastName, Bio } =
     req.body;
@@ -32,7 +36,7 @@ exports.RegisterUser = async (req, res) => {
     });
     const accessToken = generateAccessToken(newUser._id);
     const refreshToken = generateRefreshToken(newUser._id);
-    newUser.refreshToken = refreshToken;
+    newUser.identity.refreshToken = refreshToken;
     await newUser.save();
 
     res.cookie("refreshToken", refreshToken, {
@@ -47,7 +51,7 @@ exports.RegisterUser = async (req, res) => {
       sameSite: isProd ? "none" : "lax",
     });
 
-    return res.status(202).json({
+    return res.status(201).json({
       user: sanitizeUser(newUser),
       accessToken,
     });
@@ -71,7 +75,7 @@ exports.login = async (req, res) => {
     }
     const accessToken = generateAccessToken(user._id);
     const refreshToken = generateRefreshToken(user._id);
-    user.refreshToken = refreshToken;
+    user.identity.refreshToken = refreshToken;
     await user.save();
     res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
@@ -85,13 +89,11 @@ exports.login = async (req, res) => {
       sameSite: isProd ? "none" : "lax",
     });
 
-    return res
-      .status(200)
-      .json({
-        user: sanitizeUser(user),
-        accessToken,
-        message: "Login Successful",
-      });
+    return res.status(200).json({
+      user: sanitizeUser(user),
+      accessToken,
+      message: "Login Successful",
+    });
   } catch (err) {
     return res.status(400).json({ error: err.message });
   }
@@ -131,7 +133,6 @@ exports.updateProfile = async (req, res) => {
       bioLink,
       personalChannelUsername,
       emojiStatus,
-      isPremium,
     } = req.body;
     const user = await User.findById(req.userId);
     if (!user) return res.status(404).json({ err: "User not found" });
@@ -139,7 +140,8 @@ exports.updateProfile = async (req, res) => {
     if (typeof firstName === "string") user.identity.firstName = firstName;
     if (typeof lastName === "string") user.identity.lastName = lastName;
     if (typeof username === "string") user.identity.username = username;
-    if (typeof phoneNumber === "string") user.identity.phoneNumber = phoneNumber;
+    if (typeof phoneNumber === "string")
+      user.identity.phoneNumber = phoneNumber;
     if (typeof Bio === "string") user.identity.Bio = Bio;
     if (typeof bioLink === "string") user.identity.bioLink = bioLink;
     if (typeof personalChannelUsername === "string") {
@@ -147,14 +149,6 @@ exports.updateProfile = async (req, res) => {
     }
     if (typeof emojiStatus === "string") {
       user.identity.emojiStatus = emojiStatus;
-    }
-    if (typeof isPremium === "boolean") {
-      user.AccountStatus.isPremium = isPremium;
-    } else if (typeof isPremium === "string") {
-      const normalized = isPremium.trim().toLowerCase();
-      if (normalized === "true" || normalized === "false") {
-        user.AccountStatus.isPremium = normalized === "true";
-      }
     }
     if (req.file?.filename) {
       user.identity.profileUrl = req.file.filename;
@@ -195,18 +189,35 @@ exports.updatePrivacy = async (req, res) => {
 exports.searchUsers = async (req, res) => {
   try {
     const q = (req.query.q || "").trim();
-    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 20, 1), 50);
+    const limit = Math.min(
+      Math.max(parseInt(req.query.limit, 10) || 20, 1),
+      50,
+    );
     const query = {
       _id: { $ne: req.userId },
     };
 
+    if (q && q.length < 2) {
+      return res.json([]);
+    }
+
     if (q) {
+      const safeQ = escapeRegex(q);
+      const digitsOnly = q.replace(/\D/g, "");
       query.$or = [
-        { "identity.username": { $regex: q, $options: "i" } },
-        { "identity.phoneNumber": { $regex: q, $options: "i" } },
-        { "identity.firstName": { $regex: q, $options: "i" } },
-        { "identity.lastName": { $regex: q, $options: "i" } },
+        { "identity.username": { $regex: safeQ, $options: "i" } },
+        { "identity.firstName": { $regex: safeQ, $options: "i" } },
+        { "identity.lastName": { $regex: safeQ, $options: "i" } },
       ];
+
+      if (digitsOnly.length >= 7) {
+        query.$or.push({
+          $and: [
+            { "privacySettings.privacyPhoneNumber": "everyone" },
+            { "identity.phoneNumber": { $regex: escapeRegex(digitsOnly) } },
+          ],
+        });
+      }
     }
 
     const users = await User.find(query).sort({ _id: -1 }).limit(limit);

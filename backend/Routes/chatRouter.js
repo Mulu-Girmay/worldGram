@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const upload = require("../Middleware/multer");
 const auth = require("../Middleware/authMiddleware");
+const { createRateLimiter } = require("../Middleware/rateLimit");
 
 const {
   createChat,
@@ -21,10 +22,22 @@ const {
   updateChatSettings,
 } = require("../Controllers/chatController");
 
+const chatWriteLimiter = createRateLimiter({
+  windowMs: 60 * 1000,
+  max: 80,
+  keyBuilder: (req) => `chat-write:${req.userId || req.ip}`,
+});
+
+const chatReactLimiter = createRateLimiter({
+  windowMs: 60 * 1000,
+  max: 120,
+  keyBuilder: (req) => `chat-react:${req.userId || req.ip}`,
+});
+
 router.post("/create", auth, createChat);
 router.post("/create/:groupId", auth, createChat);
 
-router.post("/:chatId/message", auth, sendMessage);
+router.post("/:chatId/message", auth, chatWriteLimiter, sendMessage);
 router.get("/:chatId/messages", auth, getMessages);
 router.get("/", auth, listChats);
 router.get("/:chatId", auth, getChatById);
@@ -34,6 +47,7 @@ router.delete("/:chatId/message/:messageId", auth, deleteMessage);
 router.post(
   "/:chatId/message/media",
   auth,
+  chatWriteLimiter,
   upload.single("media"),
   sendMediaMessage,
 );
@@ -43,16 +57,14 @@ router.patch("/:chatId/settings", auth, updateChatSettings);
 router.post(
   "/reactMessage/:chatId/:messageId",
   auth,
+  chatReactLimiter,
   reactToMessage,
 );
-router.post(
-  "/:chatId/messages/:messageId/view",
-  auth,
-  addViewToMessage,
-);
+router.post("/:chatId/messages/:messageId/view", auth, addViewToMessage);
 router.post(
   "/forwardMessage/:chatId/:messageId",
   auth,
+  chatWriteLimiter,
   forwardMessage,
 );
 module.exports = router;

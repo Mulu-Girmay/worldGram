@@ -27,10 +27,8 @@ A Telegram-style real-time messaging application with:
 
 ## Environment Variables
 
-Copy these examples and adjust values:
-
-- `backend/.env.example` -> `backend/.env`
-- `frontend/.env.example` -> `frontend/.env`
+-> `backend/.env`
+-> `frontend/.env`
 
 ### Backend required vars
 

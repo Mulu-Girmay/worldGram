@@ -14,7 +14,7 @@ exports.refresh = async (req, res) => {
 
     const user = await User.findById(decoded.userId);
 
-    if (!user || user.refreshToken !== token) {
+    if (!user || user?.identity?.refreshToken !== token) {
       return res.sendStatus(403);
     }
 
@@ -45,7 +45,7 @@ exports.logout = async (req, res) => {
     const decoded = jwt.verify(token, process.env.JWT_REFRESH_SECRET);
 
     await User.findByIdAndUpdate(decoded.userId, {
-      refreshToken: null,
+      "identity.refreshToken": null,
     });
 
     res.clearCookie("refreshToken", {

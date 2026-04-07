@@ -40,9 +40,10 @@ const sanitizeGroupReadBy = (messages, group) => {
     const createdAt = new Date(message?.createdAt || 0).getTime();
     const tooOld = Date.now() - createdAt > sevenDaysMs;
     if (size >= 100 || tooOld) {
-      const senderId = message?.identity?.senderId?._id || message?.identity?.senderId;
+      const senderId =
+        message?.identity?.senderId?._id || message?.identity?.senderId;
       return {
-        ...message.toObject?.() || message,
+        ...(message.toObject?.() || message),
         state: {
           ...(message?.state || {}),
           readBy: senderId ? [senderId] : [],
@@ -53,7 +54,14 @@ const sanitizeGroupReadBy = (messages, group) => {
   });
 };
 
-const logGroupAction = async (groupId, actorId, action, targetType, targetId, meta) => {
+const logGroupAction = async (
+  groupId,
+  actorId,
+  action,
+  targetType,
+  targetId,
+  meta,
+) => {
   try {
     await GroupAction.create({
       groupId,
@@ -106,7 +114,7 @@ exports.createChat = async (req, res) => {
       }
       const chat = await Chat.create({
         type,
-        participants: [...new Set(participants)],
+        participants: uniqueParticipants,
       });
       return res.status(201).json({
         message: "successfully created chat",
@@ -159,7 +167,9 @@ exports.sendMessage = async (req, res) => {
       });
     }
 
-    const chat = await Chat.findById(chatId).select("participants type groupId");
+    const chat = await Chat.findById(chatId).select(
+      "participants type groupId",
+    );
     if (!chat) return res.status(404).json({ err: "Chat not found." });
     const isParticipant = chat.participants
       .map((id) => id.toString())
@@ -174,13 +184,21 @@ exports.sendMessage = async (req, res) => {
       if (!group) return res.status(404).json({ err: "Group not found." });
       const perms = effectivePermissions(group, senderId);
       if (group?.settings?.broadcastOnlyAdmins && !isAdmin(group, senderId)) {
-        return res.status(403).json({ err: "Only admins can send messages in this broadcast group." });
+        return res
+          .status(403)
+          .json({
+            err: "Only admins can send messages in this broadcast group.",
+          });
       }
       if (!perms.canSendMessages && !isAdmin(group, senderId)) {
-        return res.status(403).json({ err: "You are not allowed to send messages in this group." });
+        return res
+          .status(403)
+          .json({ err: "You are not allowed to send messages in this group." });
       }
       if (!perms.canEmbedLinks && /https?:\/\/\S+/i.test(String(text || ""))) {
-        return res.status(403).json({ err: "Links are not allowed in this group." });
+        return res
+          .status(403)
+          .json({ err: "Links are not allowed in this group." });
       }
       const slowModeSeconds = Number(group?.settings?.slowModeSeconds || 0);
       if (slowModeSeconds > 0 && !isAdmin(group, senderId)) {
@@ -235,9 +253,16 @@ exports.sendMessage = async (req, res) => {
     });
     io.to(chatId).emit("new-message", hydratedMessage);
     if (group?._id) {
-      await logGroupAction(group._id, senderId, "message_sent", "message", message._id, {
-        topicId: topicId || null,
-      });
+      await logGroupAction(
+        group._id,
+        senderId,
+        "message_sent",
+        "message",
+        message._id,
+        {
+          topicId: topicId || null,
+        },
+      );
     }
 
     res.status(201).json(hydratedMessage);
@@ -253,7 +278,9 @@ exports.getMessages = async (req, res) => {
       return res.status(400).json({ err: "chatId is required." });
     }
 
-    const chat = await Chat.findById(chatId).select("participants type groupId");
+    const chat = await Chat.findById(chatId).select(
+      "participants type groupId",
+    );
     if (!chat) return res.status(404).json({ err: "Chat not found." });
     const isParticipant = chat.participants
       .map((id) => id.toString())
@@ -270,16 +297,16 @@ exports.getMessages = async (req, res) => {
       query["Relations.topicId"] = topicId;
     }
 
-    const messages = await Message.find(query)
-      .sort({ createdAt: 1 })
-      .populate({
-        path: "identity.senderId",
-        select:
-          "identity.firstName identity.lastName identity.username identity.profileUrl identity.phoneNumber identity.personalChannelUsername identity.Bio identity.emojiStatus privacySettings.privacyPhoneNumber privacySettings.privacyLastSeen AccountStatus.onlineStatus AccountStatus.lastSeenAt AccountStatus.isPremium",
-      });
+    const messages = await Message.find(query).sort({ createdAt: 1 }).populate({
+      path: "identity.senderId",
+      select:
+        "identity.firstName identity.lastName identity.username identity.profileUrl identity.phoneNumber identity.personalChannelUsername identity.Bio identity.emojiStatus privacySettings.privacyPhoneNumber privacySettings.privacyLastSeen AccountStatus.onlineStatus AccountStatus.lastSeenAt AccountStatus.isPremium",
+    });
 
     if (chat?.type === "group" && chat?.groupId) {
-      const group = await Group.findById(chat.groupId).select("members.members");
+      const group = await Group.findById(chat.groupId).select(
+        "members.members",
+      );
       return res.json(sanitizeGroupReadBy(messages, group));
     }
     return res.json(messages);
@@ -545,8 +572,13 @@ exports.getMessagesPaged = async (req, res) => {
       messages.length === limit ? messages[messages.length - 1]._id : null;
 
     if (chat?.type === "group" && chat?.groupId) {
-      const group = await Group.findById(chat.groupId).select("members.members");
-      return res.json({ items: sanitizeGroupReadBy(messages, group), nextCursor });
+      const group = await Group.findById(chat.groupId).select(
+        "members.members",
+      );
+      return res.json({
+        items: sanitizeGroupReadBy(messages, group),
+        nextCursor,
+      });
     }
     return res.json({ items: messages, nextCursor });
   } catch (err) {
@@ -574,7 +606,13 @@ exports.editMessage = async (req, res) => {
     await message.save();
     const chat = await Chat.findById(chatId).select("groupId type");
     if (chat?.type === "group" && chat?.groupId) {
-      await logGroupAction(chat.groupId, req.userId, "message_edited", "message", messageId);
+      await logGroupAction(
+        chat.groupId,
+        req.userId,
+        "message_edited",
+        "message",
+        messageId,
+      );
     }
 
     res.json({ message: "Message edited.", data: message });
@@ -601,7 +639,13 @@ exports.deleteMessage = async (req, res) => {
     await message.save();
     const chat = await Chat.findById(chatId).select("groupId type");
     if (chat?.type === "group" && chat?.groupId) {
-      await logGroupAction(chat.groupId, req.userId, "message_deleted", "message", messageId);
+      await logGroupAction(
+        chat.groupId,
+        req.userId,
+        "message_deleted",
+        "message",
+        messageId,
+      );
     }
 
     res.json({ message: "Message deleted." });
@@ -633,16 +677,26 @@ exports.sendMediaMessage = async (req, res) => {
       if (!group) return res.status(404).json({ err: "Group not found." });
       const perms = effectivePermissions(group, req.userId);
       if (group?.settings?.broadcastOnlyAdmins && !isAdmin(group, req.userId)) {
-        return res.status(403).json({ err: "Only admins can send messages in this broadcast group." });
+        return res
+          .status(403)
+          .json({
+            err: "Only admins can send messages in this broadcast group.",
+          });
       }
       if (!perms.canSendMedia && !isAdmin(group, req.userId)) {
-        return res.status(403).json({ err: "You are not allowed to send media in this group." });
+        return res
+          .status(403)
+          .json({ err: "You are not allowed to send media in this group." });
       }
       if (req.file?.mimetype?.startsWith("image/") && !perms.canSendPhotos) {
-        return res.status(403).json({ err: "Sending photos is disabled in this group." });
+        return res
+          .status(403)
+          .json({ err: "Sending photos is disabled in this group." });
       }
       if (req.file?.mimetype?.startsWith("video/") && !perms.canSendVideos) {
-        return res.status(403).json({ err: "Sending videos is disabled in this group." });
+        return res
+          .status(403)
+          .json({ err: "Sending videos is disabled in this group." });
       }
     }
 
@@ -684,9 +738,16 @@ exports.sendMediaMessage = async (req, res) => {
     });
     io.to(chatId).emit("new-message", hydratedMessage);
     if (group?._id) {
-      await logGroupAction(group._id, req.userId, "media_message_sent", "message", message._id, {
-        topicId: topicId || null,
-      });
+      await logGroupAction(
+        group._id,
+        req.userId,
+        "media_message_sent",
+        "message",
+        message._id,
+        {
+          topicId: topicId || null,
+        },
+      );
     }
 
     res.status(201).json(hydratedMessage);

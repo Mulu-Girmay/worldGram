@@ -8,7 +8,6 @@ const app = require("./app");
 const chatRouter = require("./Routes/chatRouter");
 const Chat = require("./Models/Chat");
 const Channel = require("./Models/Channel");
-const Message = require("./Models/Message");
 const User = require("./Models/User");
 const server = http.createServer(app);
 const io = new Server(server, {
@@ -28,6 +27,7 @@ const URI = process.env.MONGO_URI;
 const JWT_ACCESS_SECRET = process.env.JWT_ACCESS_SECRET;
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET;
 const userRouter = require("./Routes/userRoute");
+const authRouter = require("./Routes/authRoute");
 const channelRouter = require("./Routes/channelRoute");
 const groupRouter = require("./Routes/groupRouter");
 const postRouter = require("./Routes/postRouter");
@@ -36,6 +36,7 @@ const contactRouter = require("./Routes/contactRouter");
 const notificationRouter = require("./Routes/notificationRouter");
 const activityRouter = require("./Routes/activityRouter");
 app.use(cookieParser());
+app.use("/api", authRouter);
 app.use("/api", userRouter);
 app.use("/api", channelRouter);
 app.use("/api", groupRouter);
@@ -101,9 +102,7 @@ io.on("connection", (socket) => {
   console.info("User connected:", socket.id);
   User.findByIdAndUpdate(socket.userId, {
     "AccountStatus.onlineStatus": "online",
-  }).catch((err) =>
-    console.error("socket online status error:", err.message),
-  );
+  }).catch((err) => console.error("socket online status error:", err.message));
   io.emit("user-status", {
     userId: socket.userId,
     onlineStatus: "online",
@@ -140,8 +139,7 @@ io.on("connection", (socket) => {
       const admins = (channel?.ownership?.admins || []).map((id) =>
         id.toString(),
       );
-      const isOwner =
-        channel?.ownership?.ownerId?.toString?.() === uid;
+      const isOwner = channel?.ownership?.ownerId?.toString?.() === uid;
       const isAllowed =
         Boolean(channel?.settings?.isPublic) ||
         subscribers.includes(uid) ||
@@ -176,38 +174,11 @@ io.on("connection", (socket) => {
       console.error("socket typing error:", err.message);
     }
   });
-  // Listen for new messages
-  socket.on("send-message", async (data) => {
-    try {
-      const { chatId, text } = data || {};
-      if (!chatId || !text) return;
-
-      const chat = await Chat.findById(chatId).select("participants");
-      const isParticipant = chat?.participants?.some(
-        (id) => id.toString() === socket.userId,
-      );
-      if (!isParticipant) return;
-
-      const message = await Message.create({
-        identity: { chatId, senderId: socket.userId },
-        state: { readBy: [socket.userId] },
-        content: { ContentType: "text", text },
-      });
-
-      await Chat.findByIdAndUpdate(chatId, {
-        lastMessageId: message._id,
-      });
-
-      const hydratedMessage = await Message.findById(message._id).populate({
-        path: "identity.senderId",
-        select:
-          "identity.firstName identity.lastName identity.username identity.profileUrl identity.phoneNumber identity.personalChannelUsername identity.Bio identity.emojiStatus privacySettings.privacyPhoneNumber privacySettings.privacyLastSeen AccountStatus.onlineStatus AccountStatus.lastSeenAt AccountStatus.isPremium",
-      });
-
-      io.to(chatId).emit("new-message", hydratedMessage);
-    } catch (err) {
-      console.error("socket send-message error:", err.message);
-    }
+  // Message creation is handled by REST controllers to keep one validation path.
+  socket.on("send-message", () => {
+    socket.emit("message-error", {
+      err: "Direct socket send-message is deprecated. Use REST /api/chats/:chatId/message.",
+    });
   });
 
   socket.on("disconnect", async () => {
