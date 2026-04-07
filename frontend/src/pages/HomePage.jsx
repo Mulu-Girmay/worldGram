@@ -207,6 +207,20 @@ const HomePage = () => {
                 unreadCount={unreadCountByChat?.[chat._id] || 0}
               />
             ))}
+            {chatsStatus !== "loading" && visibleChats.length === 0 && (
+              <div className="rounded-lg border border-[var(--border-color)] bg-[var(--surface-muted)] p-2 text-xs">
+                <p className="text-[var(--text-muted)]">
+                  No private chats yet.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => navigate("/contacts")}
+                  className="mt-1 rounded-md border border-[#6fa63a]/25 bg-white px-2 py-1 text-[11px] font-semibold text-[#2f5b2f]"
+                >
+                  Find contacts
+                </button>
+              </div>
+            )}
 
             <div className="my-2 border-t border-[var(--border-color)]" />
             <div className="mb-2 px-2 text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">
@@ -237,6 +251,18 @@ const HomePage = () => {
                 }
               />
             ))}
+            {groupsStatus !== "loading" && visibleGroups.length === 0 && (
+              <div className="rounded-lg border border-[var(--border-color)] bg-[var(--surface-muted)] p-2 text-xs">
+                <p className="text-[var(--text-muted)]">No groups available.</p>
+                <button
+                  type="button"
+                  onClick={() => navigate("/newgroup")}
+                  className="mt-1 rounded-md border border-[#6fa63a]/25 bg-white px-2 py-1 text-[11px] font-semibold text-[#2f5b2f]"
+                >
+                  Create group
+                </button>
+              </div>
+            )}
 
             <div className="my-2 border-t border-[var(--border-color)]" />
             <div className="mb-2 px-2 text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">
@@ -259,6 +285,20 @@ const HomePage = () => {
                 unreadCount={unreadCountByChannel?.[channel._id] || 0}
               />
             ))}
+            {channelStatus !== "loading" && visibleChannels.length === 0 && (
+              <div className="rounded-lg border border-[var(--border-color)] bg-[var(--surface-muted)] p-2 text-xs">
+                <p className="text-[var(--text-muted)]">
+                  No channels available.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => navigate("/newchannel")}
+                  className="mt-1 rounded-md border border-[#6fa63a]/25 bg-white px-2 py-1 text-[11px] font-semibold text-[#2f5b2f]"
+                >
+                  Create channel
+                </button>
+              </div>
+            )}
           </div>
         </aside>
 

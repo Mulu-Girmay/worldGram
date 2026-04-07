@@ -108,12 +108,13 @@ const effectivePermissions = (group, userId) => {
 exports.createGroup = async (req, res) => {
   const { name, userName, description, groupPhoto } = req.body;
   try {
+    const groupPhotoValue = req.file?.filename || groupPhoto || "";
     const group = await Group.create({
       basicInfo: {
         groupName: name,
         groupUsername: userName,
         description,
-        groupPhoto,
+        groupPhoto: groupPhotoValue,
       },
       members: {
         members: [req.userId],
@@ -220,11 +221,9 @@ exports.addMember = async (req, res) => {
       !group?.settings?.broadcastOnlyAdmins &&
       (group.members.members || []).length >= maxMembers
     ) {
-      return res
-        .status(403)
-        .json({
-          err: "Group member limit reached. Convert to broadcast group.",
-        });
+      return res.status(403).json({
+        err: "Group member limit reached. Convert to broadcast group.",
+      });
     }
     group.members.members.push(newMemberId);
     await group.save();
@@ -289,11 +288,9 @@ exports.removeAdmin = async (req, res) => {
       return res.status(400).json({ err: "adminUsername is required" });
     if (!group) return res.status(404).json({ err: "group not found" });
     if (!isOwnerOrAdmin(group, req.userId)) {
-      return res
-        .status(403)
-        .json({
-          err: "You are not authorized to remove admins from this group",
-        });
+      return res.status(403).json({
+        err: "You are not authorized to remove admins from this group",
+      });
     }
     const user = await User.findOne({ "identity.username": adminUsername });
     if (!user) return res.status(404).json({ err: "Admin username not found" });
@@ -441,11 +438,9 @@ exports.joinGroup = async (req, res) => {
       !group?.settings?.broadcastOnlyAdmins &&
       (group.members.members || []).length >= maxMembers
     ) {
-      return res
-        .status(403)
-        .json({
-          err: "Group member limit reached. Convert to broadcast group.",
-        });
+      return res.status(403).json({
+        err: "Group member limit reached. Convert to broadcast group.",
+      });
     }
     group.members.members.push(req.userId);
     await group.save();
@@ -498,11 +493,9 @@ exports.joinGroupByInviteToken = async (req, res) => {
       !group?.settings?.broadcastOnlyAdmins &&
       (group.members.members || []).length >= maxMembers
     ) {
-      return res
-        .status(403)
-        .json({
-          err: "Group member limit reached. Convert to broadcast group.",
-        });
+      return res.status(403).json({
+        err: "Group member limit reached. Convert to broadcast group.",
+      });
     }
 
     group.members.members.push(req.userId);
@@ -683,12 +676,10 @@ exports.createTopic = async (req, res) => {
       createdBy: req.userId,
     });
     await group.save();
-    return res
-      .status(201)
-      .json({
-        message: "Topic created",
-        topic: group.topics[group.topics.length - 1],
-      });
+    return res.status(201).json({
+      message: "Topic created",
+      topic: group.topics[group.topics.length - 1],
+    });
   } catch {
     return res.status(500).json({ err: "Failed to create topic" });
   }

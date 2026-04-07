@@ -237,6 +237,51 @@ const Contacts = () => {
     setSelectedContactIds([]);
   };
 
+  const handleToggleFavorite = async (entry) => {
+    const result = await dispatch(
+      updateContact({
+        contactId: entry._id,
+        payload: { isFavorite: !entry.isFavorite },
+      }),
+    );
+    if (updateContact.rejected.match(result)) {
+      toast.error(
+        result.payload?.err ||
+          result.payload?.message ||
+          "Failed to update favorite status",
+      );
+    }
+  };
+
+  const handleToggleBlocked = async (entry) => {
+    const result = await dispatch(
+      updateContact({
+        contactId: entry._id,
+        payload: { isBlocked: !entry.isBlocked },
+      }),
+    );
+    if (updateContact.rejected.match(result)) {
+      toast.error(
+        result.payload?.err ||
+          result.payload?.message ||
+          "Failed to update blocked status",
+      );
+    }
+  };
+
+  const handleRemoveSingle = async (contactId) => {
+    const result = await dispatch(removeContact(contactId));
+    if (removeContact.fulfilled.match(result)) {
+      toast.success("Contact removed");
+      return;
+    }
+    toast.error(
+      result.payload?.err ||
+        result.payload?.message ||
+        "Failed to remove contact",
+    );
+  };
+
   return (
     <div className="min-h-screen p-4">
       <div className="mx-auto max-w-[980px] space-y-4">
@@ -422,35 +467,21 @@ const Contacts = () => {
                     )}
                     <button
                       type="button"
-                      onClick={() =>
-                        dispatch(
-                          updateContact({
-                            contactId: entry._id,
-                            payload: { isFavorite: !entry.isFavorite },
-                          }),
-                        )
-                      }
+                      onClick={() => handleToggleFavorite(entry)}
                       className="rounded-md border border-[#6fa63a]/25 px-2 py-1 text-[10px]"
                     >
                       {entry.isFavorite ? "Unstar" : "Star"}
                     </button>
                     <button
                       type="button"
-                      onClick={() =>
-                        dispatch(
-                          updateContact({
-                            contactId: entry._id,
-                            payload: { isBlocked: !entry.isBlocked },
-                          }),
-                        )
-                      }
+                      onClick={() => handleToggleBlocked(entry)}
                       className="rounded-md border border-[#6fa63a]/25 px-2 py-1 text-[10px]"
                     >
                       {entry.isBlocked ? "Unblock" : "Block"}
                     </button>
                     <button
                       type="button"
-                      onClick={() => dispatch(removeContact(entry._id))}
+                      onClick={() => handleRemoveSingle(entry._id)}
                       className="rounded-md border border-red-300 px-2 py-1 text-[10px] text-red-700"
                     >
                       <UserMinus size={12} />
@@ -469,6 +500,12 @@ const Contacts = () => {
             {usersStatus === "loading" && (
               <p className="text-xs text-[rgba(23,3,3,0.62)]">
                 Loading users...
+              </p>
+            )}
+
+            {usersStatus === "failed" && (
+              <p className="text-xs text-red-600">
+                {contactError || "Failed to load users"}
               </p>
             )}
 

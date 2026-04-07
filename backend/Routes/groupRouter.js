@@ -36,6 +36,7 @@ const {
 } = require("../Controllers/groupController");
 const groupRouter = express.Router();
 const auth = require("../Middleware/authMiddleware");
+const upload = require("../Middleware/multer");
 const { createRateLimiter } = require("../Middleware/rateLimit");
 
 const groupWriteLimiter = createRateLimiter({
@@ -81,7 +82,7 @@ groupRouter.post("/groups/:id/livestream/raise-hand", auth, raiseHand);
 groupRouter.post("/groups/:id/mini-app", auth, addMiniApp);
 groupRouter.delete("/groups/:id/mini-app/:appId", auth, removeMiniApp);
 
-groupRouter.post("/addGroup", auth, createGroup);
+groupRouter.post("/addGroup", auth, upload.single("media"), createGroup);
 groupRouter.patch("/updateGroup/:id", auth, updateGroup);
 groupRouter.delete("/deleteGroup/:id", auth, deleteGroup);
 groupRouter.post("/addMember/:id", auth, groupWriteLimiter, addMember);

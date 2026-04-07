@@ -1,8 +1,12 @@
 import React, { useState } from "react";
 import { ArrowLeft, Check } from "lucide-react";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { createChannel } from "../../Redux/channelRedux/channelThunk";
+import {
+  selectChannelError,
+  selectCreateStatus,
+} from "../../Redux/channelRedux/channelSelector";
 
 const NewChannelForm = () => {
   const initials = {
@@ -16,6 +20,8 @@ const NewChannelForm = () => {
   const [mediaFile, setMediaFile] = React.useState(null);
   const navigate = useNavigate();
   const dispatch = useDispatch();
+  const createStatus = useSelector(selectCreateStatus);
+  const createError = useSelector(selectChannelError);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -45,7 +51,13 @@ const NewChannelForm = () => {
     const result = await dispatch(createChannel(formData));
     if (createChannel.fulfilled.match(result)) {
       navigate("/channel");
+      return;
     }
+    setFormError(
+      result.payload?.err ||
+        result.payload?.message ||
+        "Failed to create channel",
+    );
   };
   const handleBack = (e) => {
     e.preventDefault();
@@ -56,6 +68,8 @@ const NewChannelForm = () => {
     setFileName(file ? file.name : "No cover selected");
     setMediaFile(file || null);
   };
+
+  const isLoading = createStatus === "loading";
 
   return (
     <div className="space-y-4">
@@ -76,16 +90,22 @@ const NewChannelForm = () => {
             </p>
           </div>
           <div className="flex justify-end">
-            <Check
-              size={20}
-              className="text-[#4a7f4a]"
+            <button
               type="submit"
-              onClick={handleSubmit}
-            />
+              form="new-channel-form"
+              disabled={isLoading}
+              className="disabled:opacity-60"
+            >
+              <Check size={20} className="text-[#4a7f4a]" />
+            </button>
           </div>
         </div>
 
-        <form className="grid gap-3" onSubmit={handleSubmit}>
+        <form
+          id="new-channel-form"
+          className="grid gap-3"
+          onSubmit={handleSubmit}
+        >
           <div className="grid gap-3 md:grid-cols-2">
             <input
               onChange={handleChange}
@@ -124,8 +144,8 @@ const NewChannelForm = () => {
           <input
             id="channelMedia"
             type="file"
-            // value={fileName}
             name="media"
+            accept="image/*"
             className="hidden"
             onChange={handleFileChange}
           />
@@ -138,6 +158,18 @@ const NewChannelForm = () => {
             placeholder="Describe what this channel is about..."
             className="resize-none rounded-2xl border border-[#6fa63a]/35 bg-white/85 px-4 py-3 text-sm outline-none transition focus:border-[#4a7f4a] focus:ring-2 focus:ring-[#6fa63a]/20"
           />
+
+          {(formError || createError) && (
+            <p className="text-sm text-red-600">{formError || createError}</p>
+          )}
+
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="rounded-[10px] bg-[#4a7f4a] px-4 py-3 font-semibold text-white disabled:opacity-60"
+          >
+            {isLoading ? "Creating channel..." : "Create channel"}
+          </button>
         </form>
       </div>
     </div>

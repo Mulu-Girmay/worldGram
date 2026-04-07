@@ -45,29 +45,41 @@ const NewGroupForm = () => {
     setFormError("");
 
     if (!formValues.name.trim()) return setFormError("Group name is required");
-    if (!formValues.userName.trim()) return setFormError("Username is required");
+    if (!formValues.userName.trim())
+      return setFormError("Username is required");
 
-    const payload = {
-      name: formValues.name.trim(),
-      userName: formValues.userName.trim(),
-      description: formValues.description?.trim() || "",
-      groupPhoto: mediaFile?.name || "",
-    };
+    const formData = new FormData();
+    formData.append("name", formValues.name.trim());
+    formData.append("userName", formValues.userName.trim());
+    formData.append("description", formValues.description?.trim() || "");
+    if (mediaFile) {
+      formData.append("media", mediaFile);
+    }
 
-    const groupResult = await dispatch(createGroup(payload));
-    if (!createGroup.fulfilled.match(groupResult)) return;
+    const groupResult = await dispatch(createGroup(formData));
+    if (!createGroup.fulfilled.match(groupResult)) {
+      setFormError(
+        groupResult.payload?.err ||
+          groupResult.payload?.message ||
+          "Failed to create group",
+      );
+      return;
+    }
 
     const groupId = groupResult.payload?.groupId;
     if (!groupId) return navigate("/home");
 
-    const chatResult = await dispatch(createGroupChat({ groupId, payload: {} }));
+    const chatResult = await dispatch(
+      createGroupChat({ groupId, payload: {} }),
+    );
     if (createGroupChat.fulfilled.match(chatResult)) {
       const chatId = chatResult.payload?.chatId || null;
       const listResult = await dispatch(listChats({ limit: 50 }));
       if (listChats.fulfilled.match(listResult)) {
         const matched = (listResult.payload?.items || []).find(
           (chat) =>
-            String(chat?.groupId?._id || chat?.groupId || "") === String(groupId),
+            String(chat?.groupId?._id || chat?.groupId || "") ===
+            String(groupId),
         );
         if (matched) {
           dispatch(setCurrentChat(matched));
@@ -106,7 +118,11 @@ const NewGroupForm = () => {
           </div>
         </div>
 
-        <form id="new-group-form" className="grid gap-3" onSubmit={handleSubmit}>
+        <form
+          id="new-group-form"
+          className="grid gap-3"
+          onSubmit={handleSubmit}
+        >
           <div className="flex gap-7">
             <label
               htmlFor="groupMedia"
