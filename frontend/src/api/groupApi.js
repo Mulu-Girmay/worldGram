@@ -41,6 +41,24 @@ export const joinGroupApi = async (id, token) => {
   return data;
 };
 
+export const joinGroupByInviteTokenApi = async (inviteToken, token) => {
+  const { data } = await api.post(
+    "/groups/join-by-invite",
+    { token: inviteToken },
+    {
+      headers: authHeaders(token),
+    },
+  );
+  return data;
+};
+
+export const getGroupInviteLinkApi = async (id, token) => {
+  const { data } = await api.get(`/groups/${id}/invite-link`, {
+    headers: authHeaders(token),
+  });
+  return data;
+};
+
 export const leaveGroupApi = async (id, token) => {
   const { data } = await api.post(`/groups/${id}/leave`, null, {
     headers: authHeaders(token),
@@ -116,9 +134,13 @@ export const updateGroupAdminProfileApi = async (id, payload, token) => {
   return data;
 };
 export const updateAutoOwnershipTransferApi = async (id, payload, token) => {
-  const { data } = await api.patch(`/groups/${id}/auto-ownership-transfer`, payload, {
-    headers: authHeaders(token),
-  });
+  const { data } = await api.patch(
+    `/groups/${id}/auto-ownership-transfer`,
+    payload,
+    {
+      headers: authHeaders(token),
+    },
+  );
   return data;
 };
 export const getGroupRecentActionsApi = async (id, params = {}, token) => {

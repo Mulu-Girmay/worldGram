@@ -11,7 +11,9 @@ import {
   deleteGroupApi,
   endGroupLiveStreamApi,
   getGroupRecentActionsApi,
+  getGroupInviteLinkApi,
   joinGroupApi,
+  joinGroupByInviteTokenApi,
   listTopicsApi,
   leaveGroupApi,
   listGroupMembersApi,
@@ -145,6 +147,40 @@ export const joinGroup = createAsyncThunk(
     } catch (err) {
       return rejectWithValue(
         err.response?.data || { message: "joining group failed" },
+      );
+    }
+  },
+);
+
+export const joinGroupByInviteToken = createAsyncThunk(
+  "group/joinGroupByInviteToken",
+  async ({ inviteToken }, { getState, rejectWithValue }) => {
+    try {
+      if (!inviteToken) {
+        return rejectWithValue({ message: "inviteToken is required" });
+      }
+      const token = getState().auth?.accessToken;
+      return await joinGroupByInviteTokenApi(inviteToken, token);
+    } catch (err) {
+      return rejectWithValue(
+        err.response?.data || { message: "joining group by invite failed" },
+      );
+    }
+  },
+);
+
+export const getGroupInviteLink = createAsyncThunk(
+  "group/getInviteLink",
+  async (id, { getState, rejectWithValue }) => {
+    try {
+      if (!id) {
+        return rejectWithValue({ message: "group id is required" });
+      }
+      const token = getState().auth?.accessToken;
+      return await getGroupInviteLinkApi(id, token);
+    } catch (err) {
+      return rejectWithValue(
+        err.response?.data || { message: "fetching group invite link failed" },
       );
     }
   },
@@ -403,8 +439,9 @@ export const updateGroupAutoOwnershipTransfer = createAsyncThunk(
       return await updateAutoOwnershipTransferApi(id, payload, token);
     } catch (err) {
       return rejectWithValue(
-        err.response?.data ||
-          { message: "updating auto ownership transfer failed" },
+        err.response?.data || {
+          message: "updating auto ownership transfer failed",
+        },
       );
     }
   },

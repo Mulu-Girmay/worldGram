@@ -42,12 +42,30 @@ const GroupList = ({ group, onOpenChat = null, unreadCount = 0 }) => {
     }
 
     // Try joining first (public groups), so chat membership and visibility are granted.
-    await dispatch(joinGroup(groupId));
+    const joinResult = await dispatch(joinGroup(groupId));
+    if (joinGroup.rejected.match(joinResult)) {
+      const joinError =
+        joinResult.payload?.err ||
+        joinResult.payload?.message ||
+        joinResult.error?.message ||
+        "";
+      const normalized = String(joinError).toLowerCase();
+      const canContinue =
+        normalized.includes("already a member") ||
+        normalized.includes("already");
+      if (!canContinue) {
+        toast.error(joinError || "Unable to open this group chat.");
+        return;
+      }
+    }
 
     // Refresh chats first in case a group chat already exists but is not in local store.
     const beforeCreateList = await dispatch(listChats({ limit: 100 }));
     if (listChats.fulfilled.match(beforeCreateList)) {
-      const matched = findGroupChat(beforeCreateList.payload?.items || [], groupId);
+      const matched = findGroupChat(
+        beforeCreateList.payload?.items || [],
+        groupId,
+      );
       if (matched?._id) {
         dispatch(setCurrentChat(matched));
         if (typeof onOpenChat === "function") {
@@ -59,7 +77,9 @@ const GroupList = ({ group, onOpenChat = null, unreadCount = 0 }) => {
       }
     }
 
-    const createResult = await dispatch(createGroupChat({ groupId, payload: {} }));
+    const createResult = await dispatch(
+      createGroupChat({ groupId, payload: {} }),
+    );
     const chatIdFromCreate = createResult.payload?.chatId || null;
     if (chatIdFromCreate) {
       if (typeof onOpenChat === "function") {
@@ -73,7 +93,10 @@ const GroupList = ({ group, onOpenChat = null, unreadCount = 0 }) => {
     // Whether create succeeded without chatId or failed, try one last refresh to resolve chat.
     const refreshResult = await dispatch(listChats({ limit: 100 }));
     if (listChats.fulfilled.match(refreshResult)) {
-      const matched = findGroupChat(refreshResult.payload?.items || [], groupId);
+      const matched = findGroupChat(
+        refreshResult.payload?.items || [],
+        groupId,
+      );
       if (matched?._id) {
         dispatch(setCurrentChat(matched));
         if (typeof onOpenChat === "function") {

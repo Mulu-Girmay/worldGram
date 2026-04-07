@@ -13,6 +13,7 @@ import NewChannelForm from "./components/Channel/NewChannelForm";
 import NewGroupForm from "./components/group/NewGroupForm";
 import MyProfile from "./components/MyProfile";
 import JoinChannel from "./pages/JoinChannel";
+import JoinGroup from "./pages/JoinGroup";
 
 const ProtectedRoute = ({ children }) => {
   const isAuthenticated = useSelector(selectIsAuthenticated);
@@ -59,6 +60,7 @@ const App = () => {
           }
         />
         <Route path="/join-channel" element={<JoinChannel />} />
+        <Route path="/join-group" element={<JoinGroup />} />
         <Route
           path="/home"
           element={

@@ -10,6 +10,7 @@ import {
   deleteGroupTopic,
   endGroupLiveStream,
   findGroup,
+  getGroupInviteLink,
   getGroupRecentActions,
   joinGroup,
   leaveGroup,
@@ -117,7 +118,9 @@ const GroupManagePanel = ({ groupId }) => {
       toast.success(result.payload?.message || "Joined group");
       refreshGroupData();
     } else {
-      toast.error(result.payload?.err || result.payload?.message || "Join failed");
+      toast.error(
+        result.payload?.err || result.payload?.message || "Join failed",
+      );
     }
   };
 
@@ -127,7 +130,9 @@ const GroupManagePanel = ({ groupId }) => {
       toast.success(result.payload?.message || "Left group");
       refreshGroupData();
     } else {
-      toast.error(result.payload?.err || result.payload?.message || "Leave failed");
+      toast.error(
+        result.payload?.err || result.payload?.message || "Leave failed",
+      );
     }
   };
 
@@ -135,14 +140,19 @@ const GroupManagePanel = ({ groupId }) => {
     e.preventDefault();
     if (!memberUsername.trim()) return;
     const result = await dispatch(
-      addMember({ id: groupId, payload: { newMemberUsername: memberUsername } }),
+      addMember({
+        id: groupId,
+        payload: { newMemberUsername: memberUsername },
+      }),
     );
     if (addMember.fulfilled.match(result)) {
       toast.success(result.payload?.message || "Member added");
       setMemberUsername("");
       refreshGroupData();
     } else {
-      toast.error(result.payload?.err || result.payload?.message || "Add member failed");
+      toast.error(
+        result.payload?.err || result.payload?.message || "Add member failed",
+      );
     }
   };
 
@@ -157,7 +167,9 @@ const GroupManagePanel = ({ groupId }) => {
       setAdminUsername("");
       refreshGroupData();
     } else {
-      toast.error(result.payload?.err || result.payload?.message || "Add admin failed");
+      toast.error(
+        result.payload?.err || result.payload?.message || "Add admin failed",
+      );
     }
   };
 
@@ -165,7 +177,10 @@ const GroupManagePanel = ({ groupId }) => {
     e.preventDefault();
     if (!removeAdminUsername.trim()) return;
     const result = await dispatch(
-      removeAdmin({ id: groupId, payload: { adminUsername: removeAdminUsername } }),
+      removeAdmin({
+        id: groupId,
+        payload: { adminUsername: removeAdminUsername },
+      }),
     );
     if (removeAdmin.fulfilled.match(result)) {
       toast.success(result.payload?.message || "Admin removed");
@@ -187,7 +202,9 @@ const GroupManagePanel = ({ groupId }) => {
       refreshGroupData();
     } else {
       toast.error(
-        result.payload?.err || result.payload?.message || "Remove member failed",
+        result.payload?.err ||
+          result.payload?.message ||
+          "Remove member failed",
       );
     }
   };
@@ -202,7 +219,9 @@ const GroupManagePanel = ({ groupId }) => {
       refreshGroupData();
     } else {
       toast.error(
-        result.payload?.err || result.payload?.message || "Permissions update failed",
+        result.payload?.err ||
+          result.payload?.message ||
+          "Permissions update failed",
       );
     }
   };
@@ -213,7 +232,10 @@ const GroupManagePanel = ({ groupId }) => {
     const result = await dispatch(
       createGroupTopic({
         id: groupId,
-        payload: { name: topicName.trim(), description: topicDescription.trim() },
+        payload: {
+          name: topicName.trim(),
+          description: topicDescription.trim(),
+        },
       }),
     );
     if (createGroupTopic.fulfilled.match(result)) {
@@ -222,7 +244,9 @@ const GroupManagePanel = ({ groupId }) => {
       setTopicDescription("");
       refreshGroupData();
     } else {
-      toast.error(result.payload?.err || result.payload?.message || "Create topic failed");
+      toast.error(
+        result.payload?.err || result.payload?.message || "Create topic failed",
+      );
     }
   };
 
@@ -232,7 +256,9 @@ const GroupManagePanel = ({ groupId }) => {
       toast.success(result.payload?.message || "Topic deleted");
       refreshGroupData();
     } else {
-      toast.error(result.payload?.err || result.payload?.message || "Delete topic failed");
+      toast.error(
+        result.payload?.err || result.payload?.message || "Delete topic failed",
+      );
     }
   };
 
@@ -248,29 +274,44 @@ const GroupManagePanel = ({ groupId }) => {
       toast.success(result.payload?.message || "Topic updated");
       refreshGroupData();
     } else {
-      toast.error(result.payload?.err || result.payload?.message || "Update topic failed");
+      toast.error(
+        result.payload?.err || result.payload?.message || "Update topic failed",
+      );
     }
   };
 
   const handleSetViewMode = async (mode) => {
-    const result = await dispatch(setGroupViewMode({ id: groupId, viewMode: mode }));
+    const result = await dispatch(
+      setGroupViewMode({ id: groupId, viewMode: mode }),
+    );
     if (setGroupViewMode.fulfilled.match(result)) {
       toast.success(result.payload?.message || "View mode updated");
       refreshGroupData();
     } else {
-      toast.error(result.payload?.err || result.payload?.message || "View mode update failed");
+      toast.error(
+        result.payload?.err ||
+          result.payload?.message ||
+          "View mode update failed",
+      );
     }
   };
 
   const handleSaveSlowMode = async () => {
     const result = await dispatch(
-      updateGroupSlowMode({ id: groupId, slowModeSeconds: Number(slowModeSeconds) }),
+      updateGroupSlowMode({
+        id: groupId,
+        slowModeSeconds: Number(slowModeSeconds),
+      }),
     );
     if (updateGroupSlowMode.fulfilled.match(result)) {
       toast.success(result.payload?.message || "Slow mode updated");
       refreshGroupData();
     } else {
-      toast.error(result.payload?.err || result.payload?.message || "Slow mode update failed");
+      toast.error(
+        result.payload?.err ||
+          result.payload?.message ||
+          "Slow mode update failed",
+      );
     }
   };
 
@@ -280,7 +321,9 @@ const GroupManagePanel = ({ groupId }) => {
       toast.success(result.payload?.message || "Group converted");
       refreshGroupData();
     } else {
-      toast.error(result.payload?.err || result.payload?.message || "Conversion failed");
+      toast.error(
+        result.payload?.err || result.payload?.message || "Conversion failed",
+      );
     }
   };
 
@@ -304,7 +347,11 @@ const GroupManagePanel = ({ groupId }) => {
       setAdminAnonymous(false);
       refreshGroupData();
     } else {
-      toast.error(result.payload?.err || result.payload?.message || "Admin profile update failed");
+      toast.error(
+        result.payload?.err ||
+          result.payload?.message ||
+          "Admin profile update failed",
+      );
     }
   };
 
@@ -322,7 +369,11 @@ const GroupManagePanel = ({ groupId }) => {
       toast.success(result.payload?.message || "Member exception updated");
       refreshGroupData();
     } else {
-      toast.error(result.payload?.err || result.payload?.message || "Member exception failed");
+      toast.error(
+        result.payload?.err ||
+          result.payload?.message ||
+          "Member exception failed",
+      );
     }
   };
 
@@ -332,7 +383,9 @@ const GroupManagePanel = ({ groupId }) => {
       toast.success(result.payload?.message || "Group boosted");
       refreshGroupData();
     } else {
-      toast.error(result.payload?.err || result.payload?.message || "Boost failed");
+      toast.error(
+        result.payload?.err || result.payload?.message || "Boost failed",
+      );
     }
   };
 
@@ -342,7 +395,11 @@ const GroupManagePanel = ({ groupId }) => {
       toast.success(result.payload?.message || "Live stream started");
       refreshGroupData();
     } else {
-      toast.error(result.payload?.err || result.payload?.message || "Failed to start live stream");
+      toast.error(
+        result.payload?.err ||
+          result.payload?.message ||
+          "Failed to start live stream",
+      );
     }
   };
 
@@ -352,7 +409,34 @@ const GroupManagePanel = ({ groupId }) => {
       toast.success(result.payload?.message || "Live stream ended");
       refreshGroupData();
     } else {
-      toast.error(result.payload?.err || result.payload?.message || "Failed to end live stream");
+      toast.error(
+        result.payload?.err ||
+          result.payload?.message ||
+          "Failed to end live stream",
+      );
+    }
+  };
+
+  const handleCopyInviteLink = async () => {
+    const result = await dispatch(getGroupInviteLink(groupId));
+    if (!getGroupInviteLink.fulfilled.match(result)) {
+      toast.error(
+        result.payload?.err ||
+          result.payload?.message ||
+          "Failed to get invite link",
+      );
+      return;
+    }
+    const inviteLink = result.payload?.inviteLink || "";
+    if (!inviteLink) {
+      toast.error("Invite link is unavailable");
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(inviteLink);
+      toast.success("Group invite link copied");
+    } catch {
+      toast.error("Copy failed. You can copy the link manually.");
     }
   };
 
@@ -444,7 +528,10 @@ const GroupManagePanel = ({ groupId }) => {
               username;
             const avatar = resolveProfileUrl(member?.identity?.profileUrl);
             return (
-              <div key={memberId} className="flex items-center justify-between gap-2">
+              <div
+                key={memberId}
+                className="flex items-center justify-between gap-2"
+              >
                 <div className="flex min-w-0 items-center gap-2">
                   {avatar ? (
                     <img
@@ -596,10 +683,15 @@ const GroupManagePanel = ({ groupId }) => {
           placeholder="topic description"
           className="w-full rounded-lg border border-[#6fa63a]/35 bg-white px-2 py-1.5 text-xs outline-none"
         />
-        {topicsStatus === "loading" && <p className="text-xs">Loading topics...</p>}
+        {topicsStatus === "loading" && (
+          <p className="text-xs">Loading topics...</p>
+        )}
         <div className="space-y-1 max-h-24 overflow-y-auto">
           {topics.map((topic) => (
-            <div key={topic._id} className="flex items-center justify-between text-xs">
+            <div
+              key={topic._id}
+              className="flex items-center justify-between text-xs"
+            >
               <span>
                 #{topic.name} {topic.isClosed ? "(closed)" : ""}
               </span>
@@ -658,7 +750,11 @@ const GroupManagePanel = ({ groupId }) => {
               </option>
             ))}
           </select>
-          <button type="button" onClick={handleSaveSlowMode} className="rounded border px-2 py-1 text-xs">
+          <button
+            type="button"
+            onClick={handleSaveSlowMode}
+            className="rounded border px-2 py-1 text-xs"
+          >
             Save
           </button>
         </div>
@@ -715,27 +811,55 @@ const GroupManagePanel = ({ groupId }) => {
       <div className="space-y-2">
         <p className="text-xs font-semibold">Boost and Live Stream</p>
         <div className="flex gap-2">
-          <button type="button" onClick={handleBoost} className="rounded border px-2 py-1 text-xs">
+          <button
+            type="button"
+            onClick={handleBoost}
+            className="rounded border px-2 py-1 text-xs"
+          >
             {boostStatus === "loading" ? "Boosting..." : "Boost"}
           </button>
-          <button type="button" onClick={handleLiveStart} className="rounded border px-2 py-1 text-xs">
+          <button
+            type="button"
+            onClick={handleLiveStart}
+            className="rounded border px-2 py-1 text-xs"
+          >
             {liveStreamStatus === "loading" ? "..." : "Start Live"}
           </button>
-          <button type="button" onClick={handleLiveEnd} className="rounded border px-2 py-1 text-xs">
+          <button
+            type="button"
+            onClick={handleLiveEnd}
+            className="rounded border px-2 py-1 text-xs"
+          >
             End Live
           </button>
-          <button type="button" onClick={handleConvertBroadcast} className="rounded border px-2 py-1 text-xs">
+          <button
+            type="button"
+            onClick={handleConvertBroadcast}
+            className="rounded border px-2 py-1 text-xs"
+          >
             Broadcast
+          </button>
+          <button
+            type="button"
+            onClick={handleCopyInviteLink}
+            className="rounded border px-2 py-1 text-xs"
+          >
+            Copy invite link
           </button>
         </div>
       </div>
 
       <div className="space-y-1">
         <p className="text-xs font-semibold">Recent actions (48h)</p>
-        {recentActionsStatus === "loading" && <p className="text-xs">Loading...</p>}
+        {recentActionsStatus === "loading" && (
+          <p className="text-xs">Loading...</p>
+        )}
         <div className="max-h-24 overflow-y-auto space-y-1">
           {recentActions.slice(0, 20).map((action) => (
-            <p key={action._id} className="text-[11px] text-[rgba(23,3,3,0.72)]">
+            <p
+              key={action._id}
+              className="text-[11px] text-[rgba(23,3,3,0.72)]"
+            >
               {action.action}
             </p>
           ))}

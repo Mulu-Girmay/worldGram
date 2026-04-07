@@ -127,6 +127,16 @@ exports.createChat = async (req, res) => {
       if (!group) {
         return res.status(404).json({ err: "Group not found" });
       }
+      const existingGroupChat = await Chat.findOne({
+        type: "group",
+        groupId: req.params.groupId,
+      }).select("_id");
+      if (existingGroupChat?._id) {
+        return res.status(409).json({
+          err: "Group chat already exists.",
+          chatId: existingGroupChat._id,
+        });
+      }
       participants = group.members.members;
       if (!participants) {
         return res.status(400).json({
@@ -184,11 +194,9 @@ exports.sendMessage = async (req, res) => {
       if (!group) return res.status(404).json({ err: "Group not found." });
       const perms = effectivePermissions(group, senderId);
       if (group?.settings?.broadcastOnlyAdmins && !isAdmin(group, senderId)) {
-        return res
-          .status(403)
-          .json({
-            err: "Only admins can send messages in this broadcast group.",
-          });
+        return res.status(403).json({
+          err: "Only admins can send messages in this broadcast group.",
+        });
       }
       if (!perms.canSendMessages && !isAdmin(group, senderId)) {
         return res
@@ -539,7 +547,9 @@ exports.getMessagesPaged = async (req, res) => {
     const { cursor, topicId } = req.query;
     const limit = parseLimit(req.query.limit);
 
-    const chat = await Chat.findById(chatId).select("participants");
+    const chat = await Chat.findById(chatId).select(
+      "participants type groupId",
+    );
     if (!chat) return res.status(404).json({ err: "Chat not found." });
     const isParticipant = chat.participants
       .map((id) => id.toString())
@@ -662,7 +672,9 @@ exports.sendMediaMessage = async (req, res) => {
       return res.status(400).json({ err: "Text or media is required." });
     }
 
-    const chat = await Chat.findById(chatId).select("participants");
+    const chat = await Chat.findById(chatId).select(
+      "participants type groupId",
+    );
     if (!chat) return res.status(404).json({ err: "Chat not found." });
     const isParticipant = chat.participants
       .map((id) => id.toString())
@@ -677,11 +689,9 @@ exports.sendMediaMessage = async (req, res) => {
       if (!group) return res.status(404).json({ err: "Group not found." });
       const perms = effectivePermissions(group, req.userId);
       if (group?.settings?.broadcastOnlyAdmins && !isAdmin(group, req.userId)) {
-        return res
-          .status(403)
-          .json({
-            err: "Only admins can send messages in this broadcast group.",
-          });
+        return res.status(403).json({
+          err: "Only admins can send messages in this broadcast group.",
+        });
       }
       if (!perms.canSendMedia && !isAdmin(group, req.userId)) {
         return res

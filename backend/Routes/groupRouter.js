@@ -31,16 +31,32 @@ const {
   raiseHand,
   addMiniApp,
   removeMiniApp,
+  getGroupInviteLink,
+  joinGroupByInviteToken,
 } = require("../Controllers/groupController");
 const groupRouter = express.Router();
 const auth = require("../Middleware/authMiddleware");
+const { createRateLimiter } = require("../Middleware/rateLimit");
+
+const groupWriteLimiter = createRateLimiter({
+  windowMs: 60 * 1000,
+  max: 80,
+  keyBuilder: (req) => `group-write:${req.userId || req.ip}`,
+});
 
 groupRouter.get("/groups", auth, listGroups);
 groupRouter.get("/groups/me", auth, listMyGroups);
 groupRouter.get("/groups/:id", auth, getGroupById);
 groupRouter.get("/groups/:id/members", auth, listGroupMembers);
 groupRouter.post("/groups/:id/join", auth, joinGroup);
+groupRouter.post(
+  "/groups/join-by-invite",
+  auth,
+  groupWriteLimiter,
+  joinGroupByInviteToken,
+);
 groupRouter.post("/groups/:id/leave", auth, leaveGroup);
+groupRouter.get("/groups/:id/invite-link", auth, getGroupInviteLink);
 groupRouter.post("/groups/:id/removeMember", auth, removeMember);
 groupRouter.patch("/groups/:id/permissions", auth, updateGroupPermissions);
 groupRouter.patch("/groups/:id/member-exception", auth, updateMemberException);
@@ -52,7 +68,11 @@ groupRouter.patch("/groups/:id/view-mode", auth, setGroupViewMode);
 groupRouter.post("/groups/:id/convert-broadcast", auth, convertToBroadcast);
 groupRouter.patch("/groups/:id/slow-mode", auth, updateSlowMode);
 groupRouter.patch("/groups/:id/admin-profile", auth, updateAdminProfile);
-groupRouter.patch("/groups/:id/auto-ownership-transfer", auth, updateAutoOwnershipTransfer);
+groupRouter.patch(
+  "/groups/:id/auto-ownership-transfer",
+  auth,
+  updateAutoOwnershipTransfer,
+);
 groupRouter.get("/groups/:id/recent-actions", auth, getGroupRecentActions);
 groupRouter.post("/groups/:id/boost", auth, boostGroup);
 groupRouter.post("/groups/:id/livestream/start", auth, startLiveStream);
@@ -61,34 +81,10 @@ groupRouter.post("/groups/:id/livestream/raise-hand", auth, raiseHand);
 groupRouter.post("/groups/:id/mini-app", auth, addMiniApp);
 groupRouter.delete("/groups/:id/mini-app/:appId", auth, removeMiniApp);
 
-groupRouter.post(
-  "/addGroup",
-  auth,
-  createGroup,
-);
-groupRouter.patch(
-  "/updateGroup/:id",
-  auth,
-  updateGroup,
-);
-groupRouter.delete(
-  "/deleteGroup/:id",
-  auth,
-  deleteGroup,
-);
-groupRouter.post(
-  "/addMember/:id",
-  auth,
-  addMember,
-);
-groupRouter.post(
-  "/addGroupAdmin/:id",
-  auth,
-  addAdmin,
-);
-groupRouter.post(
-  "/removeAdmin/:id",
-  auth,
-  removeAdmin,
-);
+groupRouter.post("/addGroup", auth, createGroup);
+groupRouter.patch("/updateGroup/:id", auth, updateGroup);
+groupRouter.delete("/deleteGroup/:id", auth, deleteGroup);
+groupRouter.post("/addMember/:id", auth, groupWriteLimiter, addMember);
+groupRouter.post("/addGroupAdmin/:id", auth, addAdmin);
+groupRouter.post("/removeAdmin/:id", auth, removeAdmin);
 module.exports = groupRouter;
