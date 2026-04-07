@@ -1,4 +1,5 @@
 import React from "react";
+import { VolumeX } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { setCurrentChat } from "../Redux/chatRedux/chatSlice";
@@ -24,7 +25,9 @@ const ContentList = ({ chat, onSelect = null, unreadCount = 0 }) => {
   const dispatch = useDispatch();
   const currentUser = useSelector(selectUser);
 
-  const participants = Array.isArray(chat?.participants) ? chat.participants : [];
+  const participants = Array.isArray(chat?.participants)
+    ? chat.participants
+    : [];
   const otherParticipant = participants.find(
     (p) => normalizeId(p?._id || p) !== normalizeId(currentUser?._id),
   );
@@ -41,6 +44,9 @@ const ContentList = ({ chat, onSelect = null, unreadCount = 0 }) => {
   const initials = toInitials(displayName || "U");
 
   const lastMessage = chat?.lastMessageId || null;
+  const isOtherOnline =
+    String(otherParticipant?.AccountStatus?.onlineStatus || "") === "online";
+  const isMutedForViewer = Boolean(chat?.viewerState?.isMuted ?? chat?.isMuted);
   const lastMessageText =
     lastMessage?.content?.text ||
     (lastMessage?.content?.mediaURL ? "Media message" : "No messages yet");
@@ -61,14 +67,24 @@ const ContentList = ({ chat, onSelect = null, unreadCount = 0 }) => {
       className="w-full flex items-center gap-3 rounded-xl border border-transparent bg-transparent px-2 py-2 text-left transition hover:border-[var(--border-color)] hover:bg-white"
     >
       {avatarUrl ? (
-        <img
-          src={avatarUrl}
-          alt={displayName}
-          className="h-11 w-11 rounded-full border border-[var(--border-color)] object-cover"
-        />
+        <div className="relative">
+          <img
+            src={avatarUrl}
+            alt={displayName}
+            className="h-11 w-11 rounded-full border border-[var(--border-color)] object-cover"
+          />
+          {isOtherOnline && (
+            <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border border-white bg-[#4a7f4a]" />
+          )}
+        </div>
       ) : (
-        <div className="grid h-11 w-11 place-items-center rounded-full border border-[var(--border-color)] bg-[var(--surface-muted)] text-xs font-semibold text-[#2f5b2f]">
-          {initials || "U"}
+        <div className="relative">
+          <div className="grid h-11 w-11 place-items-center rounded-full border border-[var(--border-color)] bg-[var(--surface-muted)] text-xs font-semibold text-[#2f5b2f]">
+            {initials || "U"}
+          </div>
+          {isOtherOnline && (
+            <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border border-white bg-[#4a7f4a]" />
+          )}
         </div>
       )}
 
@@ -76,6 +92,9 @@ const ContentList = ({ chat, onSelect = null, unreadCount = 0 }) => {
         <div className="flex items-center justify-between gap-2">
           <p className="truncate text-sm font-semibold">{displayName}</p>
           <div className="flex items-center gap-2">
+            {isMutedForViewer && (
+              <VolumeX size={12} className="text-[var(--text-muted)]" />
+            )}
             <p className="text-[10px] text-[var(--text-muted)]">
               {formatTime(lastMessage?.createdAt)}
             </p>
@@ -86,7 +105,9 @@ const ContentList = ({ chat, onSelect = null, unreadCount = 0 }) => {
             )}
           </div>
         </div>
-        <p className="truncate text-xs text-[var(--text-muted)]">{lastMessageText}</p>
+        <p className="truncate text-xs text-[var(--text-muted)]">
+          {lastMessageText}
+        </p>
       </div>
     </button>
   );

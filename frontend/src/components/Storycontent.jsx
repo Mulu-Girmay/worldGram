@@ -1,10 +1,18 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, MoreVertical, Trash2, X } from "lucide-react";
+import {
+  ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
+  MoreVertical,
+  Trash2,
+  X,
+} from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import {
   deleteStory,
   getStoryById,
+  listStories,
   reactStory,
   updateStory,
   viewStory,
@@ -14,6 +22,7 @@ import {
   selectCurrentStoryStatus,
   selectDeleteStoryStatus,
   selectStoryError,
+  selectStories,
   selectUpdateStoryStatus,
 } from "../Redux/storyRedux/storySelector";
 import { selectUser } from "../Redux/userRedux/authSelector";
@@ -37,6 +46,7 @@ const Storycontent = () => {
 
   const storyId = location.state?.storyId || null;
   const currentStory = useSelector(selectCurrentStory);
+  const stories = useSelector(selectStories);
   const currentStoryStatus = useSelector(selectCurrentStoryStatus);
   const deleteStatus = useSelector(selectDeleteStoryStatus);
   const updateStatus = useSelector(selectUpdateStoryStatus);
@@ -46,6 +56,7 @@ const Storycontent = () => {
 
   const [showSettings, setShowSettings] = useState(false);
   const [localReaction, setLocalReaction] = useState(null);
+  const [progressPercent, setProgressPercent] = useState(0);
   const [editForm, setEditForm] = useState({
     caption: "",
     privacy: "contacts",
@@ -86,6 +97,54 @@ const Storycontent = () => {
     Boolean(storyAuthorId) &&
     currentUserId === storyAuthorId;
 
+  const storySequence = useMemo(() => {
+    const authorScoped = (stories || []).filter(
+      (story) =>
+        String(story?.authorId?._id || story?.authorId || "") ===
+        String(storyAuthorId || ""),
+    );
+    if (authorScoped.length > 0) {
+      return authorScoped;
+    }
+    return currentStory ? [currentStory] : [];
+  }, [stories, storyAuthorId, currentStory]);
+
+  const activeStoryIndex = useMemo(
+    () =>
+      Math.max(
+        0,
+        storySequence.findIndex(
+          (story) => String(story?._id || "") === String(storyId || ""),
+        ),
+      ),
+    [storySequence, storyId],
+  );
+
+  const canGoPrev = activeStoryIndex > 0;
+  const canGoNext = activeStoryIndex < storySequence.length - 1;
+
+  const openStoryInSequence = (index) => {
+    const target = storySequence[index];
+    if (!target?._id) return;
+    navigate("/story", {
+      replace: true,
+      state: {
+        storyId: target._id,
+        authorId: target?.authorId?._id || target?.authorId || null,
+      },
+    });
+  };
+
+  const goPrevStory = () => {
+    if (!canGoPrev) return;
+    openStoryInSequence(activeStoryIndex - 1);
+  };
+
+  const goNextStory = () => {
+    if (!canGoNext) return;
+    openStoryInSequence(activeStoryIndex + 1);
+  };
+
   useEffect(() => {
     if (!storyId) return;
     let mounted = true;
@@ -104,6 +163,54 @@ const Storycontent = () => {
       mounted = false;
     };
   }, [dispatch, storyId]);
+
+  useEffect(() => {
+    if (!storyId) return;
+    dispatch(listStories({ limit: 50 }));
+  }, [dispatch, storyId]);
+
+  useEffect(() => {
+    setProgressPercent(0);
+  }, [storyId]);
+
+  useEffect(() => {
+    if (!currentStory || showSettings || currentStoryStatus === "loading")
+      return;
+    const durationMs = currentStory?.mediaType === "video" ? 12000 : 7000;
+    const tickMs = 100;
+    const step = (tickMs / durationMs) * 100;
+
+    const timer = window.setInterval(() => {
+      setProgressPercent((prev) => {
+        const next = Math.min(100, prev + step);
+        if (next >= 100) {
+          window.clearInterval(timer);
+          if (canGoNext) {
+            window.setTimeout(() => goNextStory(), 120);
+          }
+        }
+        return next;
+      });
+    }, tickMs);
+
+    return () => window.clearInterval(timer);
+  }, [
+    currentStory?._id,
+    currentStory?.mediaType,
+    currentStoryStatus,
+    showSettings,
+    canGoNext,
+  ]);
+
+  useEffect(() => {
+    const onKey = (event) => {
+      if (showSettings) return;
+      if (event.key === "ArrowLeft") goPrevStory();
+      if (event.key === "ArrowRight") goNextStory();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [showSettings, canGoPrev, canGoNext, activeStoryIndex, storySequence]);
 
   useEffect(() => {
     if (!currentStory) return;
@@ -295,7 +402,40 @@ const Storycontent = () => {
           </button>
         </div>
 
-        <div className="overflow-hidden rounded-2xl border border-[#6fa63a]/25 bg-black/85">
+        {storySequence.length > 0 && (
+          <div className="grid grid-cols-1 gap-1">
+            <div className="mb-0.5 flex gap-1">
+              {storySequence.map((story, index) => {
+                const isCompleted = index < activeStoryIndex;
+                const isActive = index === activeStoryIndex;
+                const width = isCompleted
+                  ? 100
+                  : isActive
+                    ? progressPercent
+                    : 0;
+                return (
+                  <button
+                    key={story?._id || index}
+                    type="button"
+                    onClick={() => openStoryInSequence(index)}
+                    className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/35"
+                    aria-label={`Open story ${index + 1}`}
+                  >
+                    <span
+                      className="block h-full rounded-full bg-[#6fa63a] transition-[width] duration-100"
+                      style={{ width: `${width}%` }}
+                    />
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-[11px] text-[rgba(23,3,3,0.62)]">
+              Use left/right arrow keys or tap sides to navigate stories.
+            </p>
+          </div>
+        )}
+
+        <div className="relative overflow-hidden rounded-2xl border border-[#6fa63a]/25 bg-black/85">
           {currentStoryStatus === "loading" && (
             <div className="grid h-[65vh] place-items-center text-sm text-white/80">
               Loading story...
@@ -310,6 +450,30 @@ const Storycontent = () => {
 
           {currentStory && mediaSrc && (
             <>
+              {canGoPrev && (
+                <button
+                  type="button"
+                  onClick={goPrevStory}
+                  aria-label="Previous story"
+                  className="absolute left-0 top-0 z-10 h-full w-1/4 bg-transparent"
+                >
+                  <span className="absolute left-3 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-full bg-black/25 text-white/90">
+                    <ChevronLeft size={16} />
+                  </span>
+                </button>
+              )}
+              {canGoNext && (
+                <button
+                  type="button"
+                  onClick={goNextStory}
+                  aria-label="Next story"
+                  className="absolute right-0 top-0 z-10 h-full w-1/4 bg-transparent"
+                >
+                  <span className="absolute right-3 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-full bg-black/25 text-white/90">
+                    <ChevronRight size={16} />
+                  </span>
+                </button>
+              )}
               {currentStory?.mediaType === "video" ? (
                 <video
                   src={mediaSrc}

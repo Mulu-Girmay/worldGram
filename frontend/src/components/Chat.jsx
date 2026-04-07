@@ -137,6 +137,7 @@ const Chat = ({
   const groupTopics = useSelector(selectGroupTopics);
   const [selectedTopicId, setSelectedTopicId] = useState("");
   const [groupViewMode, setGroupViewModeState] = useState("message");
+  const messageListRef = useRef(null);
 
   const activeChat =
     currentChatProp || selectedChatFromStore || currentChatFromStore || null;
@@ -422,6 +423,30 @@ const Chat = ({
   const isMutedForViewer = Boolean(
     activeChat?.viewerState?.isMuted ?? activeChat?.isMuted,
   );
+
+  const isNearBottom = () => {
+    const container = messageListRef.current;
+    if (!container) return true;
+    const distanceFromBottom =
+      container.scrollHeight - container.scrollTop - container.clientHeight;
+    return distanceFromBottom < 120;
+  };
+
+  const scrollToBottom = () => {
+    const container = messageListRef.current;
+    if (!container) return;
+    container.scrollTop = container.scrollHeight;
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [resolvedChatId]);
+
+  useEffect(() => {
+    if (isNearBottom()) {
+      scrollToBottom();
+    }
+  }, [filteredMessages.length]);
 
   const formatLastSeen = () => {
     const lastSeenPrivacy = otherParticipant?.privacySettings?.privacyLastSeen;
@@ -725,7 +750,19 @@ const Chat = ({
           </div>
         </div>
 
-        <div className="h-[60vh] space-y-2 overflow-y-auto rounded-2xl border border-[#6fa63a]/25 bg-[#f3f9ee] p-3">
+        {typingUsers.length > 0 && !isGroupChat && (
+          <div className="inline-flex items-center gap-1 rounded-full border border-[#6fa63a]/25 bg-white/85 px-3 py-1 text-[11px] text-[#2f5b2f]">
+            <span>{otherName} is typing</span>
+            <span className="typing-dot" />
+            <span className="typing-dot" />
+            <span className="typing-dot" />
+          </div>
+        )}
+
+        <div
+          ref={messageListRef}
+          className="h-[60vh] space-y-2 overflow-y-auto rounded-2xl border border-[#6fa63a]/25 bg-[#f3f9ee] p-3"
+        >
           {messagesStatus === "loading" && (
             <p className="text-xs text-[rgba(23,3,3,0.6)]">
               Loading messages...
@@ -967,6 +1004,12 @@ const Chat = ({
               name="message"
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && !event.shiftKey) {
+                  event.preventDefault();
+                  handleSend();
+                }
+              }}
               placeholder={composerPlaceholder}
               className="min-h-[42px] flex-1 resize-none rounded-xl border border-[#6fa63a]/30 bg-white px-3 py-2 text-sm outline-none transition focus:border-[#4a7f4a] focus:ring-2 focus:ring-[#6fa63a]/20"
             />
