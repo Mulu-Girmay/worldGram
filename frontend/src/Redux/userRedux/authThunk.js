@@ -1,11 +1,14 @@
 import { createAsyncThunk } from "@reduxjs/toolkit";
 import {
+  blockUserApi,
   loginApi,
   logoutApi,
   meApi,
   refreshApi,
   registerApi,
+  unblockUserApi,
   updateMeApi,
+  updatePrivacyApi,
 } from "../../api/authApi";
 
 export const registerUser = createAsyncThunk(
@@ -95,6 +98,47 @@ export const updateProfile = createAsyncThunk(
     } catch (err) {
       return rejectWithValue(
         err.response?.data || { message: "profile update failed" },
+      );
+    }
+  },
+);
+
+export const updatePrivacySettings = createAsyncThunk(
+  "updatePrivacySettings",
+  async (payload, { rejectWithValue }) => {
+    try {
+      return await updatePrivacyApi(payload);
+    } catch (err) {
+      return rejectWithValue(
+        err.response?.data || { message: "privacy settings update failed" },
+      );
+    }
+  },
+);
+
+export const blockUserSetting = createAsyncThunk(
+  "blockUserSetting",
+  async (userId, { rejectWithValue }) => {
+    try {
+      await blockUserApi(userId);
+      return { userId };
+    } catch (err) {
+      return rejectWithValue(
+        err.response?.data || { message: "failed to block user" },
+      );
+    }
+  },
+);
+
+export const unblockUserSetting = createAsyncThunk(
+  "unblockUserSetting",
+  async (userId, { rejectWithValue }) => {
+    try {
+      await unblockUserApi(userId);
+      return { userId };
+    } catch (err) {
+      return rejectWithValue(
+        err.response?.data || { message: "failed to unblock user" },
       );
     }
   },

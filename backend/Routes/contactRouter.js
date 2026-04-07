@@ -6,12 +6,19 @@ const {
   updateContact,
   removeContact,
 } = require("../Controllers/contactController");
+const { createRateLimiter } = require("../Middleware/rateLimit");
 
 const contactRouter = express.Router();
 
-contactRouter.post("/contacts", auth, addContact);
-contactRouter.get("/contacts", auth, listContacts);
-contactRouter.patch("/contacts/:id", auth, updateContact);
-contactRouter.delete("/contacts/:id", auth, removeContact);
+const moderateLimiter = createRateLimiter({
+  windowMs: 60 * 1000,
+  max: 40,
+  keyBuilder: (req) => `contact:${req.userId || req.ip}`,
+});
+
+contactRouter.post("/contacts", auth, moderateLimiter, addContact);
+contactRouter.get("/contacts", auth, moderateLimiter, listContacts);
+contactRouter.patch("/contacts/:id", auth, moderateLimiter, updateContact);
+contactRouter.delete("/contacts/:id", auth, moderateLimiter, removeContact);
 
 module.exports = contactRouter;

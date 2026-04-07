@@ -12,9 +12,15 @@ exports.addContact = async (req, res) => {
   try {
     const { userId, username, nameOverride, isFavorite, isBlocked } = req.body;
     let contactUserId = userId;
+    const ownerId = String(req.userId || "");
 
     if (!contactUserId && username) {
-      const user = await User.findOne({ "identity.username": username });
+      const normalizedUsername = String(username || "")
+        .trim()
+        .replace(/^@/, "");
+      const user = await User.findOne({
+        "identity.username": normalizedUsername,
+      });
       if (!user) return res.status(404).json({ err: "User not found" });
       contactUserId = user._id;
     }
@@ -22,9 +28,17 @@ exports.addContact = async (req, res) => {
       return res.status(400).json({ err: "userId or username is required" });
     }
 
+    const targetUser = await User.findById(contactUserId).select("_id");
+    if (!targetUser) {
+      return res.status(404).json({ err: "User not found" });
+    }
+    if (String(targetUser._id) === ownerId) {
+      return res.status(400).json({ err: "You cannot add yourself" });
+    }
+
     const existing = await Contact.findOne({
       ownerUserId: req.userId,
-      contactUserId,
+      contactUserId: targetUser._id,
     });
     if (existing) {
       return res.status(409).json({ err: "Contact already exists" });
@@ -32,7 +46,7 @@ exports.addContact = async (req, res) => {
 
     const contact = await Contact.create({
       ownerUserId: req.userId,
-      contactUserId,
+      contactUserId: targetUser._id,
       nameOverride: nameOverride || null,
       isFavorite: Boolean(isFavorite),
       isBlocked: Boolean(isBlocked),
@@ -56,7 +70,11 @@ exports.listContacts = async (req, res) => {
     const contacts = await Contact.find(query)
       .sort({ _id: -1 })
       .limit(limit)
-      .populate("contactUserId");
+      .populate({
+        path: "contactUserId",
+        select:
+          "identity.username identity.firstName identity.lastName identity.profileUrl AccountStatus.onlineStatus AccountStatus.lastSeenAt privacySettings",
+      });
 
     const nextCursor =
       contacts.length === limit ? contacts[contacts.length - 1]._id : null;

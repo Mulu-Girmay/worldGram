@@ -26,3 +26,18 @@ export const updateMeApi = async (payload) => {
   const { data } = await api.patch("/me", payload);
   return data;
 };
+
+export const updatePrivacyApi = async (payload) => {
+  const { data } = await api.patch("/me/privacy", payload);
+  return data;
+};
+
+export const blockUserApi = async (userId) => {
+  const { data } = await api.post("/users/block", { userId });
+  return data;
+};
+
+export const unblockUserApi = async (userId) => {
+  const { data } = await api.post("/users/unblock", { userId });
+  return data;
+};

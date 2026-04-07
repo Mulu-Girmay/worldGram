@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import Profile from "./Profile";
 import {
+  Loader2,
   UserCircle,
   Users,
   Megaphone,
@@ -21,19 +22,37 @@ import { useDispatch, useSelector } from "react-redux";
 import { logoutUser } from "../Redux/userRedux/authThunk";
 import {
   selectContactError,
+  selectContacts,
+  selectContactsStatus,
+  selectContactMutateStatus,
   selectRegisteredUsers,
   selectRegisteredUsersStatus,
 } from "../Redux/contactRedux/contactSelector";
-import { listRegisteredUsers } from "../Redux/contactRedux/contactThunk";
+import {
+  addContact,
+  listContacts,
+  listRegisteredUsers,
+  removeContact,
+} from "../Redux/contactRedux/contactThunk";
 import { createChat, listChats } from "../Redux/chatRedux/chatThunk";
 import { setCurrentChat } from "../Redux/chatRedux/chatSlice";
 import { resolveProfileUrl, toInitials } from "../utils/media";
 import { useToast } from "./ToastProvider";
 
+const normalizeId = (value) => {
+  if (!value) return "";
+  if (typeof value === "string") return value;
+  if (typeof value === "object" && value._id) return String(value._id);
+  return String(value);
+};
+
 const SideBar = () => {
   const navigate = useNavigate();
   const isAuthenticated = useSelector(selectIsAuthenticated);
   const currentUser = useSelector(selectUser);
+  const contacts = useSelector(selectContacts);
+  const contactsStatus = useSelector(selectContactsStatus);
+  const contactMutateStatus = useSelector(selectContactMutateStatus);
   const users = useSelector(selectRegisteredUsers);
   const usersStatus = useSelector(selectRegisteredUsersStatus);
   const usersError = useSelector(selectContactError);
@@ -44,22 +63,59 @@ const SideBar = () => {
   useEffect(() => {
     if (isAuthenticated) {
       dispatch(listRegisteredUsers({ limit: 30 }));
+      dispatch(listContacts({ limit: 100 }));
     }
   }, [dispatch, isAuthenticated]);
 
-  const visibleUsers = useMemo(() => {
+  const contactUserIds = useMemo(() => {
+    return (contacts || [])
+      .map((entry) =>
+        normalizeId(entry?.contactUserId?._id || entry?.contactUserId),
+      )
+      .filter(Boolean);
+  }, [contacts]);
+
+  const visibleContacts = useMemo(() => {
     const q = searchValue.trim().toLowerCase();
-    if (!q) return users;
-    return users.filter((user) => {
+    const list = (contacts || []).map((contact) => {
+      const user = contact?.contactUserId || {};
       const first = user?.identity?.firstName || "";
       const last = user?.identity?.lastName || "";
       const username = user?.identity?.username || "";
       const full = `${first} ${last}`.trim();
+      return {
+        ...contact,
+        user,
+        displayName: contact?.nameOverride?.trim() || full || username,
+        username,
+      };
+    });
+    if (!q) return list;
+    return list.filter((entry) => {
+      return (
+        entry.displayName.toLowerCase().includes(q) ||
+        entry.username.toLowerCase().includes(q)
+      );
+    });
+  }, [contacts, searchValue]);
+
+  const discoverUsers = useMemo(() => {
+    const q = searchValue.trim().toLowerCase();
+    const currentUserId = normalizeId(currentUser?._id || currentUser?.id);
+    return (users || []).filter((user) => {
+      const id = normalizeId(user?._id || user?.id);
+      if (!id || id === currentUserId) return false;
+      if (contactUserIds.includes(id)) return false;
+      const first = user?.identity?.firstName || "";
+      const last = user?.identity?.lastName || "";
+      const username = user?.identity?.username || "";
+      const full = `${first} ${last}`.trim();
+      if (!q) return true;
       return (
         full.toLowerCase().includes(q) || username.toLowerCase().includes(q)
       );
     });
-  }, [users, searchValue]);
+  }, [users, currentUser?._id, currentUser?.id, contactUserIds, searchValue]);
   const handleLogout = async (e) => {
     e.preventDefault();
     const result = await dispatch(logoutUser());
@@ -111,6 +167,31 @@ const SideBar = () => {
 
     navigate("/chat", { state: { chatId: resolvedChatId } });
   };
+
+  const handleAddContact = async (targetUserId) => {
+    const result = await dispatch(addContact({ userId: targetUserId }));
+    if (addContact.fulfilled.match(result)) {
+      toast.success("Contact added");
+      dispatch(listContacts({ limit: 100 }));
+      return;
+    }
+    toast.error(
+      result.payload?.err || result.payload?.message || "Failed to add contact",
+    );
+  };
+
+  const handleRemoveContact = async (contactId) => {
+    const result = await dispatch(removeContact(contactId));
+    if (removeContact.fulfilled.match(result)) {
+      toast.success("Contact removed");
+      return;
+    }
+    toast.error(
+      result.payload?.err ||
+        result.payload?.message ||
+        "Failed to remove contact",
+    );
+  };
   const handleNewChannel = (e) => {
     e.preventDefault();
     navigate("/newchannel");
@@ -122,6 +203,10 @@ const SideBar = () => {
   const handleProfile = (e) => {
     e.preventDefault();
     navigate("/myprofile");
+  };
+  const handleSettings = (e) => {
+    e.preventDefault();
+    navigate("/settings");
   };
   return (
     <>
@@ -160,6 +245,9 @@ const SideBar = () => {
             <div className="mb-2 flex items-center gap-2 text-sm font-semibold">
               <Contact size={16} />
               <span>Contacts</span>
+              <span className="ml-auto rounded-full bg-[#6fa63a]/15 px-2 py-0.5 text-[10px] font-semibold text-[#2f5b2f]">
+                {contacts.length}
+              </span>
             </div>
 
             <input
@@ -171,6 +259,83 @@ const SideBar = () => {
             />
 
             <div className="max-h-56 space-y-1 overflow-y-auto pr-1">
+              {contactsStatus === "loading" && (
+                <p className="px-1 py-1 text-xs text-[rgba(23,3,3,0.65)]">
+                  Loading contacts...
+                </p>
+              )}
+
+              {contactsStatus === "failed" && (
+                <p className="px-1 py-1 text-xs text-red-600">
+                  {usersError || "Failed to load contacts"}
+                </p>
+              )}
+
+              {contactsStatus === "succeeded" &&
+                visibleContacts.length === 0 && (
+                  <p className="px-1 py-1 text-xs text-[rgba(23,3,3,0.65)]">
+                    No contacts yet.
+                  </p>
+                )}
+
+              {visibleContacts.map((entry) => {
+                const user = entry?.user || {};
+                const username = entry?.username || "unknown";
+                const displayName = entry?.displayName || username;
+                const profileUrl = resolveProfileUrl(
+                  user?.identity?.profileUrl,
+                );
+                const onlineStatus =
+                  user?.AccountStatus?.onlineStatus || "offline";
+                const initials = toInitials(displayName);
+                const targetUserId = normalizeId(user?._id || user?.id);
+
+                return (
+                  <div
+                    key={entry?._id}
+                    className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-[#6fa63a]/10"
+                  >
+                    <button
+                      type="button"
+                      className="flex min-w-0 flex-1 items-center gap-2 text-left"
+                      onClick={() => handleContactClick(targetUserId)}
+                    >
+                      {profileUrl ? (
+                        <img
+                          src={profileUrl}
+                          alt={displayName}
+                          className="h-8 w-8 rounded-full border border-[#6fa63a]/25 object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-8 w-8 items-center justify-center rounded-full border border-[#6fa63a]/25 bg-[#eaf4e2] text-[10px] font-semibold text-[#4a7f4a]">
+                          {initials || "U"}
+                        </div>
+                      )}
+                      <div className="min-w-0">
+                        <p className="truncate text-xs font-medium">
+                          {displayName}
+                        </p>
+                        <p className="truncate text-[10px] text-[rgba(23,3,3,0.62)]">
+                          @{username} - {onlineStatus}
+                        </p>
+                      </div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveContact(entry?._id)}
+                      className="rounded-md border border-[#6fa63a]/25 px-2 py-1 text-[10px] text-[#2f5b2f] hover:bg-white"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                );
+              })}
+
+              <div className="my-2 border-t border-[#6fa63a]/15" />
+              <p className="px-1 text-[10px] font-semibold uppercase tracking-wide text-[rgba(23,3,3,0.55)]">
+                Discover
+              </p>
+
               {usersStatus === "loading" && (
                 <p className="px-1 py-1 text-xs text-[rgba(23,3,3,0.65)]">
                   Loading users...
@@ -183,13 +348,13 @@ const SideBar = () => {
                 </p>
               )}
 
-              {usersStatus === "succeeded" && visibleUsers.length === 0 && (
+              {usersStatus === "succeeded" && discoverUsers.length === 0 && (
                 <p className="px-1 py-1 text-xs text-[rgba(23,3,3,0.65)]">
-                  No users found.
+                  No more users to add.
                 </p>
               )}
 
-              {visibleUsers.map((user) => {
+              {discoverUsers.slice(0, 20).map((user) => {
                 const first = user?.identity?.firstName || "";
                 const last = user?.identity?.lastName || "";
                 const username = user?.identity?.username || "unknown";
@@ -197,16 +362,11 @@ const SideBar = () => {
                 const profileUrl = resolveProfileUrl(
                   user?.identity?.profileUrl,
                 );
-                const onlineStatus =
-                  user?.AccountStatus?.onlineStatus || "offline";
                 const initials = toInitials(displayName);
-
                 return (
-                  <button
-                    type="button"
-                    key={user._id}
+                  <div
+                    key={user?._id}
                     className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-[#6fa63a]/10"
-                    onClick={() => handleContactClick(user._id)}
                   >
                     {profileUrl ? (
                       <img
@@ -219,15 +379,27 @@ const SideBar = () => {
                         {initials || "U"}
                       </div>
                     )}
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <p className="truncate text-xs font-medium">
                         {displayName}
                       </p>
                       <p className="truncate text-[10px] text-[rgba(23,3,3,0.62)]">
-                        @{username} - {onlineStatus}
+                        @{username}
                       </p>
                     </div>
-                  </button>
+                    <button
+                      type="button"
+                      onClick={() => handleAddContact(user?._id)}
+                      disabled={contactMutateStatus === "loading"}
+                      className="rounded-md border border-[#6fa63a]/25 px-2 py-1 text-[10px] text-[#2f5b2f] hover:bg-white disabled:opacity-60"
+                    >
+                      {contactMutateStatus === "loading" ? (
+                        <Loader2 size={10} className="animate-spin" />
+                      ) : (
+                        "Add"
+                      )}
+                    </button>
+                  </div>
                 );
               })}
             </div>
@@ -253,15 +425,23 @@ const SideBar = () => {
             <span>Call</span>
           </div>
 
-          <div className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium hover:bg-[#6fa63a]/10">
+          <button
+            type="button"
+            onClick={handleSettings}
+            className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-medium hover:bg-[#6fa63a]/10"
+          >
             <Settings size={18} />
-            <span>Settings</span>
-          </div>
+            <span>Privacy & Settings</span>
+          </button>
 
-          <div className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium hover:bg-[#6fa63a]/10">
+          <button
+            type="button"
+            onClick={handleSettings}
+            className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-medium hover:bg-[#6fa63a]/10"
+          >
             <Settings2 size={18} />
-            <span>Plus Settings</span>
-          </div>
+            <span>Advanced Privacy</span>
+          </button>
           <button
             type="button"
             onClick={handleLogout}

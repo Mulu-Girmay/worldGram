@@ -18,6 +18,7 @@ let hashPassword = async (plainPassword) => {
 
 const escapeRegex = (value = "") =>
   String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const ALLOWED_PRIVACY_VALUES = new Set(["everyone", "contacts", "nobody"]);
 exports.RegisterUser = async (req, res) => {
   const { phoneNumber, password, username, firstName, lastName, Bio } =
     req.body;
@@ -173,14 +174,37 @@ exports.updatePrivacy = async (req, res) => {
     const user = await User.findById(req.userId);
     if (!user) return res.status(404).json({ err: "User not found" });
 
-    if (privacyLastSeen) user.privacySettings.privacyLastSeen = privacyLastSeen;
-    if (privacyProfilePhoto)
-      user.privacySettings.privacyProfilePhoto = privacyProfilePhoto;
-    if (privacyPhoneNumber)
-      user.privacySettings.privacyPhoneNumber = privacyPhoneNumber;
+    const updates = [
+      ["privacyLastSeen", privacyLastSeen],
+      ["privacyProfilePhoto", privacyProfilePhoto],
+      ["privacyPhoneNumber", privacyPhoneNumber],
+    ];
+
+    let changed = false;
+    for (const [field, value] of updates) {
+      if (typeof value !== "string") continue;
+      const normalized = value.trim();
+      if (!ALLOWED_PRIVACY_VALUES.has(normalized)) {
+        return res.status(400).json({
+          err: `Invalid value for ${field}. Use everyone, contacts, or nobody.`,
+        });
+      }
+      user.privacySettings[field] = normalized;
+      changed = true;
+    }
+
+    if (!changed) {
+      return res.status(400).json({
+        err: "No privacy settings were provided to update.",
+      });
+    }
 
     await user.save();
-    res.json({ message: "Privacy updated", privacy: user.privacySettings });
+    res.json({
+      message: "Privacy updated",
+      privacy: user.privacySettings,
+      user: sanitizeUser(user),
+    });
   } catch (err) {
     res.status(500).json({ err: "Failed to update privacy" });
   }

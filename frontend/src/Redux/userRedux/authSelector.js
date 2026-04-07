@@ -7,3 +7,5 @@ export const selectLoginStatus = (state) => state.auth.loginStatus;
 export const selectRegisterStatus = (state) => state.auth.registerStatus;
 export const selectUpdateProfileStatus = (state) =>
   state.auth.updateProfileStatus;
+export const selectUpdatePrivacyStatus = (state) =>
+  state.auth.updatePrivacyStatus;

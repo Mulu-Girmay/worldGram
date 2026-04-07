@@ -32,7 +32,7 @@ userRouter.post("/login", authLimiter, login);
 userRouter.get("/me", auth, getMe);
 userRouter.get("/users/:id", auth, getUserById);
 userRouter.patch("/me", auth, upload.single("media"), updateProfile);
-userRouter.patch("/me/privacy", auth, updatePrivacy);
+userRouter.patch("/me/privacy", auth, moderateLimiter, updatePrivacy);
 userRouter.get("/users", auth, searchUsers);
 userRouter.post("/users/block", auth, moderateLimiter, blockUser);
 userRouter.post("/users/unblock", auth, moderateLimiter, unblockUser);

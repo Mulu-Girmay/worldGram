@@ -1,13 +1,16 @@
 // features/auth/authSlice.js
 import { createSlice } from "@reduxjs/toolkit";
 import {
+  blockUserSetting,
   fetchMe,
   loginUser,
   logoutUser,
   refreshSession,
   registerUser,
   checkAuth,
+  unblockUserSetting,
   updateProfile,
+  updatePrivacySettings,
 } from "./authThunk";
 
 const initialState = {
@@ -20,6 +23,7 @@ const initialState = {
   loginStatus: "idle",
   refreshStatus: "idle",
   updateProfileStatus: "idle",
+  updatePrivacyStatus: "idle",
   initialized: false,
 };
 
@@ -129,6 +133,44 @@ const authSlice = createSlice({
           action.payload?.err ||
           action.payload?.message ||
           "Profile update failed";
+      })
+
+      .addCase(updatePrivacySettings.pending, (state) => {
+        state.updatePrivacyStatus = "loading";
+        state.error = null;
+      })
+      .addCase(updatePrivacySettings.fulfilled, (state, action) => {
+        state.updatePrivacyStatus = "succeeded";
+        state.user = action.payload?.user || state.user;
+      })
+      .addCase(updatePrivacySettings.rejected, (state, action) => {
+        state.updatePrivacyStatus = "failed";
+        state.error =
+          action.payload?.err ||
+          action.payload?.message ||
+          "Privacy update failed";
+      })
+
+      .addCase(blockUserSetting.fulfilled, (state, action) => {
+        if (!state.user?.security) return;
+        const uid = String(action.payload?.userId || "");
+        const blocked = Array.isArray(state.user.security.blockedUsers)
+          ? state.user.security.blockedUsers
+          : [];
+        if (!blocked.some((id) => String(id) === uid)) {
+          blocked.push(uid);
+        }
+        state.user.security.blockedUsers = blocked;
+      })
+      .addCase(unblockUserSetting.fulfilled, (state, action) => {
+        if (!state.user?.security) return;
+        const uid = String(action.payload?.userId || "");
+        const blocked = Array.isArray(state.user.security.blockedUsers)
+          ? state.user.security.blockedUsers
+          : [];
+        state.user.security.blockedUsers = blocked.filter(
+          (id) => String(id) !== uid,
+        );
       });
   },
 });

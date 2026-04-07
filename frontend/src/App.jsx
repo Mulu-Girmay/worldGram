@@ -14,6 +14,7 @@ import NewGroupForm from "./components/group/NewGroupForm";
 import MyProfile from "./components/MyProfile";
 import JoinChannel from "./pages/JoinChannel";
 import JoinGroup from "./pages/JoinGroup";
+import Settings from "./pages/Settings";
 
 const ProtectedRoute = ({ children }) => {
   const isAuthenticated = useSelector(selectIsAuthenticated);
@@ -122,6 +123,14 @@ const App = () => {
           element={
             <ProtectedRoute>
               <MyProfile />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/settings"
+          element={
+            <ProtectedRoute>
+              <Settings />
             </ProtectedRoute>
           }
         />

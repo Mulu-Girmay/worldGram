@@ -13,6 +13,7 @@ import {
   Music2Icon,
   Pen,
   Plus,
+  Settings,
   VoicemailIcon,
   X,
 } from "lucide-react";
@@ -111,7 +112,6 @@ const MyProfile = () => {
     bioLink: "",
     personalChannelUsername: "",
     emojiStatus: "",
-    isPremium: false,
     profileUrl: "",
   });
   const [avatarFile, setAvatarFile] = useState(null);
@@ -166,7 +166,6 @@ const MyProfile = () => {
       bioLink: user?.identity?.bioLink || "",
       personalChannelUsername: user?.identity?.personalChannelUsername || "",
       emojiStatus: user?.identity?.emojiStatus || "",
-      isPremium: Boolean(user?.AccountStatus?.isPremium),
       profileUrl: user?.identity?.profileUrl || "",
     });
     setPhoneDraft(user?.identity?.phoneNumber || "");
@@ -413,7 +412,6 @@ const MyProfile = () => {
       bioLink: editForm.bioLink.trim(),
       personalChannelUsername: editForm.personalChannelUsername.trim(),
       emojiStatus: editForm.emojiStatus.trim(),
-      isPremium: Boolean(editForm.isPremium),
       profileUrl: editForm.profileUrl.trim(),
     };
     let body = payload;
@@ -430,7 +428,6 @@ const MyProfile = () => {
         payload.personalChannelUsername,
       );
       formData.append("emojiStatus", payload.emojiStatus);
-      formData.append("isPremium", String(payload.isPremium));
       if (payload.profileUrl) formData.append("profileUrl", payload.profileUrl);
       formData.append("media", avatarFile);
       body = formData;
@@ -503,6 +500,11 @@ const MyProfile = () => {
     }
   };
 
+  const handleGoToSettings = () => {
+    setIsMenuOpen(false);
+    navigate("/settings");
+  };
+
   return (
     <div className="space-y-4 p-4">
       <div className="flex items-center justify-between rounded-2xl border border-[#6fa63a]/25 bg-[#f3f9ee] px-3 py-2 shadow-[0_10px_30px_rgba(74,127,74,0.12)]">
@@ -550,6 +552,13 @@ const MyProfile = () => {
                 className="w-full px-3 py-2 text-left text-xs hover:bg-[#f3f9ee]"
               >
                 Copy username
+              </button>
+              <button
+                type="button"
+                onClick={handleGoToSettings}
+                className="w-full px-3 py-2 text-left text-xs hover:bg-[#f3f9ee]"
+              >
+                Privacy settings
               </button>
               <button
                 type="button"
@@ -688,6 +697,21 @@ const MyProfile = () => {
             </p>
             <p className="text-xs text-[rgba(23,3,3,0.65)]">Username</p>
           </div>
+          <button
+            type="button"
+            onClick={handleGoToSettings}
+            className="flex w-full items-center justify-between rounded-xl border border-[#6fa63a]/20 bg-white/80 px-3 py-2 text-left transition-all hover:-translate-y-0.5 hover:bg-white"
+          >
+            <div>
+              <p className="text-sm font-semibold text-[rgba(23,3,3,0.88)]">
+                Privacy & Settings
+              </p>
+              <p className="text-xs text-[rgba(23,3,3,0.65)]">
+                Manage who can see your profile details
+              </p>
+            </div>
+            <Settings size={14} className="text-[#2f5b2f]" />
+          </button>
         </div>
       </section>
 
@@ -1051,19 +1075,6 @@ const MyProfile = () => {
                 placeholder="Emoji status (e.g. ✨)"
                 className="w-full rounded-lg border border-[#6fa63a]/30 bg-white px-3 py-2 text-sm outline-none focus:border-[#4a7f4a]"
               />
-              <label className="flex items-center gap-2 rounded-lg border border-[#6fa63a]/20 bg-[#f8fdf3] px-3 py-2 text-sm text-[rgba(23,3,3,0.82)]">
-                <input
-                  type="checkbox"
-                  checked={Boolean(editForm.isPremium)}
-                  onChange={(e) =>
-                    setEditForm((prev) => ({
-                      ...prev,
-                      isPremium: e.target.checked,
-                    }))
-                  }
-                />
-                Premium enabled
-              </label>
               <input
                 value={editForm.profileUrl}
                 onChange={handleEditChange("profileUrl")}

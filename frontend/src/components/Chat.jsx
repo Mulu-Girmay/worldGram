@@ -446,7 +446,7 @@ const Chat = ({
     if (isNearBottom()) {
       scrollToBottom();
     }
-  }, [filteredMessages.length]);
+  }, [renderedMessages, searchTerm]);
 
   const formatLastSeen = () => {
     const lastSeenPrivacy = otherParticipant?.privacySettings?.privacyLastSeen;

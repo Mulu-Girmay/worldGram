@@ -9,5 +9,13 @@ export const selectRegisteredUsers = createSelector(
   (s) => s?.users || EMPTY_ARRAY,
 );
 
-export const selectRegisteredUsersStatus = (state) => state.contact?.usersStatus;
+export const selectContacts = createSelector(
+  selectContactState,
+  (s) => s?.contacts || EMPTY_ARRAY,
+);
+
+export const selectRegisteredUsersStatus = (state) =>
+  state.contact?.usersStatus;
+export const selectContactsStatus = (state) => state.contact?.contactsStatus;
+export const selectContactMutateStatus = (state) => state.contact?.mutateStatus;
 export const selectContactError = (state) => state.contact?.error;

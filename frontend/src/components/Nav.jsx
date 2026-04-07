@@ -3,6 +3,7 @@ import {
   Menu,
   Search,
   Plus,
+  Contact,
   Users,
   Megaphone,
   ChevronDown,
@@ -244,8 +245,8 @@ const Nav = () => {
           onClick={() => goTo("/sidebar")}
           className="flex items-center justify-center gap-1 rounded-xl border border-[var(--border-color)] bg-white p-2 text-xs font-semibold text-[#2f5b2f] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm active:scale-95"
         >
-          <Plus size={14} />
-          More
+          <Contact size={14} />
+          Contacts
         </button>
       </div>
 
