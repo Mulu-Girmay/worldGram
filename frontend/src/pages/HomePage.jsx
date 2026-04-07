@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import Nav from "../components/Nav";
 import ContentList from "../components/ContentList";
 import ChannelList from "../components/ChannelList";
@@ -37,6 +37,12 @@ import { setCurrentChat } from "../Redux/chatRedux/chatSlice";
 import { getUnreadCount } from "../Redux/chatRedux/chatThunk";
 import { setCurrentChannel } from "../Redux/channelRedux/channelSlice";
 
+const LIST_REFRESH_MS = 2 * 60 * 1000;
+const UNREAD_REFRESH_MS = 30 * 1000;
+
+const shouldRefresh = (lastTs, ttlMs) =>
+  Date.now() - Number(lastTs || 0) >= ttlMs;
+
 const HomePage = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -47,6 +53,16 @@ const HomePage = () => {
       : false,
   );
   const [selectedPane, setSelectedPane] = useState({ type: null, id: null });
+  const lastListFetchRef = useRef({
+    channels: 0,
+    chats: 0,
+    groups: 0,
+    stories: 0,
+  });
+  const unreadFetchRef = useRef({
+    chats: new Map(),
+    channels: new Map(),
+  });
 
   const channels = useSelector(selectChannels);
   const channelStatus = useSelector(selectChannelStatus);
@@ -63,7 +79,12 @@ const HomePage = () => {
   const storiesStatus = useSelector(selectStoriesStatus);
 
   useEffect(() => {
-    if (isAuthenticated && channelStatus === "idle") {
+    if (!isAuthenticated) return;
+    if (
+      channelStatus === "idle" ||
+      shouldRefresh(lastListFetchRef.current.channels, LIST_REFRESH_MS)
+    ) {
+      lastListFetchRef.current.channels = Date.now();
       dispatch(listChannel({ limit: 20 }));
     }
   }, [dispatch, channelStatus, isAuthenticated]);
@@ -71,36 +92,74 @@ const HomePage = () => {
   useEffect(() => {
     if (!isAuthenticated || !Array.isArray(channels) || channels.length === 0)
       return;
+    const now = Date.now();
+    const validIds = new Set(
+      channels.map((channel) => String(channel?._id || "")),
+    );
+    unreadFetchRef.current.channels.forEach((_, key) => {
+      if (!validIds.has(String(key)))
+        unreadFetchRef.current.channels.delete(key);
+    });
+
     channels.forEach((channel) => {
-      if (channel?._id) {
+      const id = String(channel?._id || "");
+      if (id) {
+        const last = unreadFetchRef.current.channels.get(id) || 0;
+        if (!shouldRefresh(last, UNREAD_REFRESH_MS)) return;
+        unreadFetchRef.current.channels.set(id, now);
         dispatch(getChannelUnreadCount(channel._id));
       }
     });
   }, [dispatch, channels, isAuthenticated]);
 
   useEffect(() => {
-    if (isAuthenticated && chatsStatus === "idle") {
+    if (!isAuthenticated) return;
+    if (
+      chatsStatus === "idle" ||
+      shouldRefresh(lastListFetchRef.current.chats, LIST_REFRESH_MS)
+    ) {
+      lastListFetchRef.current.chats = Date.now();
       dispatch(listChats({ limit: 20 }));
     }
   }, [dispatch, chatsStatus, isAuthenticated]);
 
   useEffect(() => {
     if (!isAuthenticated || !Array.isArray(chats) || chats.length === 0) return;
+    const now = Date.now();
+    const validIds = new Set(chats.map((chat) => String(chat?._id || "")));
+    unreadFetchRef.current.chats.forEach((_, key) => {
+      if (!validIds.has(String(key))) unreadFetchRef.current.chats.delete(key);
+    });
+
     chats.forEach((chat) => {
-      if (chat?._id) {
+      const id = String(chat?._id || "");
+      if (id) {
+        const last = unreadFetchRef.current.chats.get(id) || 0;
+        if (!shouldRefresh(last, UNREAD_REFRESH_MS)) return;
+        unreadFetchRef.current.chats.set(id, now);
         dispatch(getUnreadCount(chat._id));
       }
     });
   }, [dispatch, chats, isAuthenticated]);
 
   useEffect(() => {
-    if (isAuthenticated && groupsStatus === "idle") {
+    if (!isAuthenticated) return;
+    if (
+      groupsStatus === "idle" ||
+      shouldRefresh(lastListFetchRef.current.groups, LIST_REFRESH_MS)
+    ) {
+      lastListFetchRef.current.groups = Date.now();
       dispatch(listGroups({ limit: 20 }));
     }
   }, [dispatch, groupsStatus, isAuthenticated]);
 
   useEffect(() => {
-    if (isAuthenticated && storiesStatus === "idle") {
+    if (!isAuthenticated) return;
+    if (
+      storiesStatus === "idle" ||
+      shouldRefresh(lastListFetchRef.current.stories, LIST_REFRESH_MS)
+    ) {
+      lastListFetchRef.current.stories = Date.now();
       dispatch(listStories({ limit: 20 }));
     }
   }, [dispatch, storiesStatus, isAuthenticated]);

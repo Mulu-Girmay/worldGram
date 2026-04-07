@@ -12,9 +12,11 @@ import { useNavigate } from "react-router-dom";
 import {
   selectContactError,
   selectContacts,
+  selectContactsFetchedAt,
   selectContactsStatus,
   selectContactMutateStatus,
   selectRegisteredUsers,
+  selectRegisteredUsersFetchedAt,
   selectRegisteredUsersStatus,
 } from "../Redux/contactRedux/contactSelector";
 import {
@@ -37,6 +39,11 @@ const normalizeId = (value) => {
   return String(value);
 };
 
+const CONTACT_REFRESH_MS = 2 * 60 * 1000;
+
+const shouldRefresh = (lastTs, ttlMs) =>
+  Date.now() - Number(lastTs || 0) >= ttlMs;
+
 const Contacts = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -47,6 +54,8 @@ const Contacts = () => {
   const users = useSelector(selectRegisteredUsers);
   const contactsStatus = useSelector(selectContactsStatus);
   const usersStatus = useSelector(selectRegisteredUsersStatus);
+  const contactsFetchedAt = useSelector(selectContactsFetchedAt);
+  const usersFetchedAt = useSelector(selectRegisteredUsersFetchedAt);
   const mutateStatus = useSelector(selectContactMutateStatus);
   const contactError = useSelector(selectContactError);
 
@@ -55,9 +64,28 @@ const Contacts = () => {
   const [selectedContactIds, setSelectedContactIds] = useState([]);
 
   useEffect(() => {
-    dispatch(listContacts({ limit: 200 }));
-    dispatch(listRegisteredUsers({ limit: 60 }));
-  }, [dispatch]);
+    if (
+      contactsStatus === "idle" ||
+      (contactsStatus !== "loading" &&
+        shouldRefresh(contactsFetchedAt, CONTACT_REFRESH_MS))
+    ) {
+      dispatch(listContacts({ limit: 200 }));
+    }
+
+    if (
+      usersStatus === "idle" ||
+      (usersStatus !== "loading" &&
+        shouldRefresh(usersFetchedAt, CONTACT_REFRESH_MS))
+    ) {
+      dispatch(listRegisteredUsers({ limit: 60 }));
+    }
+  }, [
+    contactsFetchedAt,
+    contactsStatus,
+    dispatch,
+    usersFetchedAt,
+    usersStatus,
+  ]);
 
   const formattedContacts = useMemo(() => {
     return (contacts || []).map((entry) => {

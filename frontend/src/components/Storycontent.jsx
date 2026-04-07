@@ -23,6 +23,7 @@ import {
   selectDeleteStoryStatus,
   selectStoryError,
   selectStories,
+  selectStoriesStatus,
   selectUpdateStoryStatus,
 } from "../Redux/storyRedux/storySelector";
 import { selectUser } from "../Redux/userRedux/authSelector";
@@ -47,6 +48,7 @@ const Storycontent = () => {
   const storyId = location.state?.storyId || null;
   const currentStory = useSelector(selectCurrentStory);
   const stories = useSelector(selectStories);
+  const storiesStatus = useSelector(selectStoriesStatus);
   const currentStoryStatus = useSelector(selectCurrentStoryStatus);
   const deleteStatus = useSelector(selectDeleteStoryStatus);
   const updateStatus = useSelector(selectUpdateStoryStatus);
@@ -147,27 +149,31 @@ const Storycontent = () => {
 
   useEffect(() => {
     if (!storyId) return;
-    let mounted = true;
-
     const syncStory = async () => {
-      await dispatch(getStoryById(storyId));
-      await dispatch(viewStory(storyId));
-      if (mounted) {
+      const fetchResult = await dispatch(getStoryById(storyId));
+      if (getStoryById.rejected.match(fetchResult)) return;
+
+      const fetchedStory = fetchResult.payload;
+      const fetchedAuthorId = String(
+        fetchedStory?.authorId?._id || fetchedStory?.authorId || "",
+      );
+      if (fetchedAuthorId && fetchedAuthorId === currentUserId) return;
+
+      const viewResult = await dispatch(viewStory(storyId));
+      if (viewStory.fulfilled.match(viewResult)) {
         dispatch(getStoryById(storyId));
       }
     };
 
     syncStory();
 
-    return () => {
-      mounted = false;
-    };
-  }, [dispatch, storyId]);
+    return undefined;
+  }, [dispatch, storyId, currentUserId]);
 
   useEffect(() => {
-    if (!storyId) return;
+    if (storiesStatus !== "idle") return;
     dispatch(listStories({ limit: 50 }));
-  }, [dispatch, storyId]);
+  }, [dispatch, storiesStatus]);
 
   useEffect(() => {
     setProgressPercent(0);

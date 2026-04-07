@@ -50,11 +50,31 @@ app.get("/api/health", (req, res) => {
   res.json({ ok: true, uptime: process.uptime() });
 });
 app.use((req, res) => {
-  res.status(404).json({ err: "Route not found" });
+  res
+    .status(404)
+    .json({ err: `Route not found: ${req.method} ${req.originalUrl}` });
 });
 app.use((err, req, res, next) => {
-  console.error(err);
-  res.status(500).json({ err: "Internal server error" });
+  const status = Number(err?.statusCode || err?.status || 500);
+  const safeStatus = Number.isInteger(status) && status >= 400 ? status : 500;
+  const isServerError = safeStatus >= 500;
+  const message =
+    err?.err ||
+    err?.message ||
+    (isServerError ? "Internal server error" : "Request failed");
+
+  console.error("request error:", {
+    method: req.method,
+    url: req.originalUrl,
+    status: safeStatus,
+    message,
+  });
+
+  const payload = { err: message };
+  if (process.env.NODE_ENV !== "production" && err?.stack) {
+    payload.details = err.stack;
+  }
+  res.status(safeStatus).json(payload);
 });
 
 const connectdb = async (uri) => {

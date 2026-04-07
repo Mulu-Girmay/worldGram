@@ -23,9 +23,11 @@ import { logoutUser } from "../Redux/userRedux/authThunk";
 import {
   selectContactError,
   selectContacts,
+  selectContactsFetchedAt,
   selectContactsStatus,
   selectContactMutateStatus,
   selectRegisteredUsers,
+  selectRegisteredUsersFetchedAt,
   selectRegisteredUsersStatus,
 } from "../Redux/contactRedux/contactSelector";
 import {
@@ -46,6 +48,11 @@ const normalizeId = (value) => {
   return String(value);
 };
 
+const CONTACT_REFRESH_MS = 2 * 60 * 1000;
+
+const shouldRefresh = (lastTs, ttlMs) =>
+  Date.now() - Number(lastTs || 0) >= ttlMs;
+
 const SideBar = () => {
   const navigate = useNavigate();
   const isAuthenticated = useSelector(selectIsAuthenticated);
@@ -55,17 +62,39 @@ const SideBar = () => {
   const contactMutateStatus = useSelector(selectContactMutateStatus);
   const users = useSelector(selectRegisteredUsers);
   const usersStatus = useSelector(selectRegisteredUsersStatus);
+  const contactsFetchedAt = useSelector(selectContactsFetchedAt);
+  const usersFetchedAt = useSelector(selectRegisteredUsersFetchedAt);
   const usersError = useSelector(selectContactError);
   const [searchValue, setSearchValue] = useState("");
   const dispatch = useDispatch();
   const toast = useToast();
 
   useEffect(() => {
-    if (isAuthenticated) {
-      dispatch(listRegisteredUsers({ limit: 30 }));
+    if (!isAuthenticated) return;
+
+    if (
+      contactsStatus === "idle" ||
+      (contactsStatus !== "loading" &&
+        shouldRefresh(contactsFetchedAt, CONTACT_REFRESH_MS))
+    ) {
       dispatch(listContacts({ limit: 100 }));
     }
-  }, [dispatch, isAuthenticated]);
+
+    if (
+      usersStatus === "idle" ||
+      (usersStatus !== "loading" &&
+        shouldRefresh(usersFetchedAt, CONTACT_REFRESH_MS))
+    ) {
+      dispatch(listRegisteredUsers({ limit: 30 }));
+    }
+  }, [
+    contactsFetchedAt,
+    contactsStatus,
+    dispatch,
+    isAuthenticated,
+    usersFetchedAt,
+    usersStatus,
+  ]);
 
   const contactUserIds = useMemo(() => {
     return (contacts || [])

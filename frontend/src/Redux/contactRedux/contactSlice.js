@@ -12,6 +12,8 @@ const initialState = {
   contacts: [],
   usersStatus: "idle",
   contactsStatus: "idle",
+  usersFetchedAt: 0,
+  contactsFetchedAt: 0,
   mutateStatus: "idle",
   error: null,
 };
@@ -33,6 +35,7 @@ const contactSlice = createSlice({
       .addCase(listRegisteredUsers.fulfilled, (state, action) => {
         state.usersStatus = "succeeded";
         state.users = Array.isArray(action.payload) ? action.payload : [];
+        state.usersFetchedAt = Date.now();
       })
       .addCase(listRegisteredUsers.rejected, (state, action) => {
         state.usersStatus = "failed";
@@ -53,6 +56,7 @@ const contactSlice = createSlice({
         state.contacts = Array.isArray(action.payload?.items)
           ? action.payload.items
           : [];
+        state.contactsFetchedAt = Date.now();
       })
       .addCase(listContacts.rejected, (state, action) => {
         state.contactsStatus = "failed";

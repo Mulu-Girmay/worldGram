@@ -95,6 +95,7 @@ const MyProfile = () => {
   const avatarInputRef = useRef(null);
   const storiesSectionRef = useRef(null);
   const menuRef = useRef(null);
+  const sharedMediaInFlightRef = useRef(false);
   const [storyCaption, setStoryCaption] = useState("");
   const [storyPrivacy, setStoryPrivacy] = useState("contacts");
   const [storyDurationHours, setStoryDurationHours] = useState("24");
@@ -250,10 +251,15 @@ const MyProfile = () => {
     };
 
     const fetchSharedMedia = async () => {
-      if (!currentUserId) {
+      if (!currentUserId || !accessToken) {
         setSharedMediaCounts(EMPTY_MEDIA_COUNTS);
         return;
       }
+
+      if (document.visibilityState === "hidden") return;
+      if (sharedMediaInFlightRef.current) return;
+
+      sharedMediaInFlightRef.current = true;
 
       setSharedMediaStatus("loading");
       try {
@@ -300,15 +306,26 @@ const MyProfile = () => {
         if (!cancelled) {
           setSharedMediaStatus("failed");
         }
+      } finally {
+        sharedMediaInFlightRef.current = false;
       }
     };
 
     fetchSharedMedia();
-    const timer = setInterval(fetchSharedMedia, 15000);
+    const timer = setInterval(fetchSharedMedia, 60000);
+
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        fetchSharedMedia();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
 
     return () => {
       cancelled = true;
       clearInterval(timer);
+      document.removeEventListener("visibilitychange", handleVisibility);
+      sharedMediaInFlightRef.current = false;
     };
   }, [accessToken, currentUserId]);
 

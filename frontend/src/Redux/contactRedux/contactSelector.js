@@ -19,3 +19,7 @@ export const selectRegisteredUsersStatus = (state) =>
 export const selectContactsStatus = (state) => state.contact?.contactsStatus;
 export const selectContactMutateStatus = (state) => state.contact?.mutateStatus;
 export const selectContactError = (state) => state.contact?.error;
+export const selectRegisteredUsersFetchedAt = (state) =>
+  state.contact?.usersFetchedAt || 0;
+export const selectContactsFetchedAt = (state) =>
+  state.contact?.contactsFetchedAt || 0;
