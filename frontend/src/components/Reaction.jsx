@@ -49,16 +49,21 @@ const Reaction = ({
   );
 
   const [open, setOpen] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
   const [selectedReaction, setSelectedReaction] = useState(initial);
   const [activeIndex, setActiveIndex] = useState(0);
   const containerRef = useRef(null);
   const triggerRef = useRef(null);
   const reactionRefs = useRef([]);
+  const closeTimerRef = useRef(null);
   const popupId = useId();
 
   useEffect(() => {
     function handleOutside(event) {
-      if (containerRef.current && !containerRef.current.contains(event.target)) {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(event.target)
+      ) {
         setOpen(false);
       }
     }
@@ -79,23 +84,43 @@ const Reaction = ({
     setSelectedReaction(initial || null);
   }, [initial]);
 
+  useEffect(
+    () => () => {
+      if (closeTimerRef.current) {
+        window.clearTimeout(closeTimerRef.current);
+      }
+    },
+    [],
+  );
+
   useEffect(() => {
     if (!open) return;
-    const selectedIndex = reactions.findIndex((reaction) => reaction === selectedReaction);
+    const selectedIndex = reactions.findIndex(
+      (reaction) => reaction === selectedReaction,
+    );
     const nextIndex = selectedIndex >= 0 ? selectedIndex : 0;
     setActiveIndex(nextIndex);
     reactionRefs.current[nextIndex]?.focus();
   }, [open, reactions, selectedReaction]);
 
   function closePopupAndReturnFocus() {
-    setOpen(false);
-    triggerRef.current?.focus();
+    if (!open) return;
+    setIsClosing(true);
+    if (closeTimerRef.current) {
+      window.clearTimeout(closeTimerRef.current);
+    }
+    closeTimerRef.current = window.setTimeout(() => {
+      setOpen(false);
+      setIsClosing(false);
+      closeTimerRef.current = null;
+      triggerRef.current?.focus();
+    }, 140);
   }
 
   function handleSelect(reaction) {
     setSelectedReaction(reaction);
-    setOpen(false);
     if (typeof onSelect === "function") onSelect(reaction);
+    closePopupAndReturnFocus();
   }
 
   function focusByIndex(index) {
@@ -138,10 +163,32 @@ const Reaction = ({
   }
 
   function handleTriggerKeyDown(event) {
-    if (event.key === "ArrowDown" || event.key === "Enter" || event.key === " ") {
+    if (
+      event.key === "ArrowDown" ||
+      event.key === "Enter" ||
+      event.key === " "
+    ) {
       event.preventDefault();
+      setIsClosing(false);
+      if (closeTimerRef.current) {
+        window.clearTimeout(closeTimerRef.current);
+        closeTimerRef.current = null;
+      }
       setOpen(true);
     }
+  }
+
+  function handleTriggerClick() {
+    if (open && !isClosing) {
+      closePopupAndReturnFocus();
+      return;
+    }
+    setIsClosing(false);
+    if (closeTimerRef.current) {
+      window.clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
+    setOpen(true);
   }
 
   return (
@@ -149,21 +196,27 @@ const Reaction = ({
       <button
         ref={triggerRef}
         type="button"
-        className={`rounded-md px-2 py-1 transition hover:shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4a7f4a] ${triggerClassName}`}
+        className={`rounded-md px-2 py-1 transition-all duration-150 hover:-translate-y-0.5 hover:scale-105 active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4a7f4a] ${triggerClassName}`}
         aria-haspopup="listbox"
-        aria-expanded={open}
+        aria-expanded={open && !isClosing}
         aria-controls={open ? popupId : undefined}
-        onClick={() => setOpen((value) => !value)}
+        onClick={handleTriggerClick}
         onKeyDown={handleTriggerKeyDown}
-        title={selectedReaction ? `Your reaction: ${selectedReaction}` : "React"}
+        title={
+          selectedReaction ? `Your reaction: ${selectedReaction}` : "React"
+        }
       >
         {selectedReaction || "\u2795"}
       </button>
 
-      {open && (
+      {(open || isClosing) && (
         <div
           id={popupId}
-          className={`absolute left-0 z-50 mt-2 w-max rounded-lg border bg-white p-2 shadow-md ${popupClassName}`}
+          className={`absolute left-0 z-50 mt-2 w-max origin-top-left rounded-lg border bg-white p-2 shadow-md transition-all duration-150 ease-out ${
+            isClosing
+              ? "pointer-events-none translate-y-1 scale-95 opacity-0"
+              : "translate-y-0 scale-100 opacity-100 micro-pop-in"
+          } ${popupClassName}`}
           role="listbox"
           aria-label="Select reaction"
           onKeyDown={handleMenuKeyDown}
@@ -182,7 +235,7 @@ const Reaction = ({
                 onMouseEnter={() => setActiveIndex(index)}
                 onFocus={() => setActiveIndex(index)}
                 onClick={() => handleSelect(reaction)}
-                className={`flex h-8 w-8 items-center justify-center rounded-md text-lg leading-none transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4a7f4a] ${
+                className={`flex h-8 w-8 items-center justify-center rounded-md text-lg leading-none transition-all duration-150 hover:-translate-y-0.5 hover:scale-110 hover:bg-slate-100 active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4a7f4a] ${
                   selectedReaction === reaction ? "ring-2 ring-[#6fa63a]" : ""
                 }`}
                 aria-label={`React with ${reaction}`}

@@ -57,11 +57,17 @@ const ChannelPostCard = ({
   const [submittingReplyId, setSubmittingReplyId] = useState(null);
   const [actionBusy, setActionBusy] = useState("");
   const [actionError, setActionError] = useState("");
-  const [displayReactions, setDisplayReactions] = useState(post?.reactions || []);
+  const [displayReactions, setDisplayReactions] = useState(
+    post?.reactions || [],
+  );
   const [displayComments, setDisplayComments] = useState(post?.comments || []);
   const postRef = useRef(null);
   const commentInputRef = useRef(null);
-  const { success: toastSuccess, error: toastError, info: toastInfo } = useToast();
+  const {
+    success: toastSuccess,
+    error: toastError,
+    info: toastInfo,
+  } = useToast();
   const currentUser = useSelector((state) => state.auth.user);
   const currentUserId = currentUser?._id?.toString?.() || "";
   const visibleReactions = (displayReactions || []).filter(
@@ -162,7 +168,9 @@ const ChannelPostCard = ({
       async () => {
         if (onForward) return onForward(post);
       },
-      contentProtection ? "Forwarding is disabled by channel content protection." : "",
+      contentProtection
+        ? "Forwarding is disabled by channel content protection."
+        : "",
     );
 
   const handlePin = async () =>
@@ -273,7 +281,9 @@ const ChannelPostCard = ({
   };
 
   const handleReactSelect = async (reaction) => {
-    const available = allowedReactions?.length ? allowedReactions : QUICK_REACTIONS;
+    const available = allowedReactions?.length
+      ? allowedReactions
+      : QUICK_REACTIONS;
     if (!available.includes(reaction)) {
       toastInfo("This reaction is not allowed in this channel.");
       return;
@@ -373,11 +383,13 @@ const ChannelPostCard = ({
 
   if (!post) return null;
   const ch = channel || {};
-  const reactionOptions = allowedReactions?.length ? allowedReactions : QUICK_REACTIONS;
+  const reactionOptions = allowedReactions?.length
+    ? allowedReactions
+    : QUICK_REACTIONS;
   return (
     <div
       ref={postRef}
-      className="w-full max-w-md rounded-2xl border border-[var(--secondary-color)]/25 bg-[var(--primary-color)] p-4 text-[rgba(23,3,3,0.87)] shadow-sm"
+      className="w-full max-w-md rounded-2xl border border-[var(--secondary-color)]/25 bg-[var(--primary-color)] p-4 text-[rgba(23,3,3,0.87)] shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
     >
       <div className="flex items-center justify-between">
         <p className="rounded-full bg-[var(--secondary-color)]/10 px-2 py-0.5 text-[11px] font-medium text-[var(--btn-color)]">
@@ -447,7 +459,9 @@ const ChannelPostCard = ({
               (hasViewed && !post.viewedBy?.includes(currentUserId) ? 1 : 0)}
           </span>
         </p>
-        <p>{post?.createdAt ? new Date(post.createdAt).toLocaleTimeString() : ""}</p>
+        <p>
+          {post?.createdAt ? new Date(post.createdAt).toLocaleTimeString() : ""}
+        </p>
       </div>
 
       <div className="mt-2 flex flex-row justify-around">
@@ -468,7 +482,7 @@ const ChannelPostCard = ({
             key={`${post?._id}-${reaction}`}
             type="button"
             onClick={() => handleReactSelect(reaction)}
-            className="rounded-full border border-[#6fa63a]/35 bg-[#f8fdf3] px-2 py-0.5 text-xs text-[rgba(23,3,3,0.85)] transition hover:bg-[#eef8e8]"
+            className="rounded-full border border-[#6fa63a]/35 bg-[#f8fdf3] px-2 py-0.5 text-xs text-[rgba(23,3,3,0.85)] transition-all duration-150 hover:-translate-y-0.5 hover:scale-105 hover:bg-[#eef8e8] active:scale-95"
           >
             {reaction}
           </button>
@@ -478,7 +492,7 @@ const ChannelPostCard = ({
       <div className="mt-4 flex items-center justify-between rounded-xl bg-white/70 px-3 py-2">
         <button
           type="button"
-          className="flex items-center gap-2 text-sm text-[rgba(23,3,3,0.7)] disabled:opacity-60"
+          className="flex items-center gap-2 text-sm text-[rgba(23,3,3,0.7)] transition-all duration-150 hover:-translate-y-0.5 hover:text-[var(--btn-color)] disabled:opacity-60"
           onClick={() => setShowComments((v) => !v)}
           disabled={!commentsEnabled}
         >
@@ -496,7 +510,7 @@ const ChannelPostCard = ({
           type="button"
           aria-label="Post actions"
           onClick={() => setShowMenu(true)}
-          className="rounded-full p-1 transition hover:bg-slate-100"
+          className="rounded-full p-1 transition-all duration-150 hover:-translate-y-0.5 hover:scale-105 hover:bg-slate-100 active:scale-95"
         >
           <MoreVertical size={20} />
         </button>
@@ -527,19 +541,27 @@ const ChannelPostCard = ({
             {actionBusy === "forward" && "Forwarding..."}
           </p>
         )}
-        {actionError && <p className="mb-2 text-xs text-red-600">{actionError}</p>}
+        {actionError && (
+          <p className="mb-2 text-xs text-red-600">{actionError}</p>
+        )}
 
         {showComments && commentsEnabled && (
           <div className="space-y-2 mt-2">
             {(displayComments || []).map((c) => (
-              <div key={c._id || c.createdAt} className="rounded-md border p-2 bg-white/80">
+              <div
+                key={c._id || c.createdAt}
+                className="rounded-md border p-2 bg-white/80"
+              >
                 <div className="text-sm font-medium">{c.text}</div>
                 <div className="text-xs text-gray-500">
                   by {resolveAuthorLabel(c.authorId)}
                 </div>
                 <div className="mt-2">
                   {(c.replies || []).map((r) => (
-                    <div key={r._id || r.createdAt} className="ml-3 text-sm text-gray-700">
+                    <div
+                      key={r._id || r.createdAt}
+                      className="ml-3 text-sm text-gray-700"
+                    >
                       {r.text}
                       <div className="text-[11px] text-gray-500">
                         by {resolveAuthorLabel(r.authorId)}
@@ -550,9 +572,12 @@ const ChannelPostCard = ({
                 <div className="mt-2 flex gap-2">
                   <button
                     onClick={() =>
-                      setReplyOpen((s) => ({ ...s, [c._id || c.createdAt]: true }))
+                      setReplyOpen((s) => ({
+                        ...s,
+                        [c._id || c.createdAt]: true,
+                      }))
                     }
-                    className="text-xs text-blue-600"
+                    className="text-xs text-blue-600 transition-all duration-150 hover:-translate-y-0.5 hover:text-blue-700 active:scale-95"
                   >
                     Reply
                   </button>
@@ -588,8 +613,12 @@ const ChannelPostCard = ({
           </div>
         )}
 
-        {commentError && <p className="mt-2 text-xs text-red-600">{commentError}</p>}
-        {replyError && <p className="mt-2 text-xs text-red-600">{replyError}</p>}
+        {commentError && (
+          <p className="mt-2 text-xs text-red-600">{commentError}</p>
+        )}
+        {replyError && (
+          <p className="mt-2 text-xs text-red-600">{replyError}</p>
+        )}
         {showComments && commentsEnabled && commentsCount === 0 && (
           <p className="mt-2 text-xs text-gray-500">No comments yet</p>
         )}

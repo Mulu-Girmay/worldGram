@@ -30,7 +30,58 @@ body,
 
 body {
   background:
-    radial-gradient(circle at 12% 0%, rgba(111, 166, 58, 0.18), transparent 30%),
-    radial-gradient(circle at 88% 100%, rgba(74, 127, 74, 0.18), transparent 35%),
+    radial-gradient(
+      circle at 12% 0%,
+      rgba(111, 166, 58, 0.18),
+      transparent 30%
+    ),
+    radial-gradient(
+      circle at 88% 100%,
+      rgba(74, 127, 74, 0.18),
+      transparent 35%
+    ),
     var(--primary-color);
+}
+
+@keyframes micro-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.96);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes micro-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.96);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+.micro-pop-in {
+  animation: micro-pop-in 160ms ease-out;
+}
+
+.micro-toast-in {
+  animation: micro-toast-in 180ms ease-out;
 }

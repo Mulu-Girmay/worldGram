@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Edit,
   Trash2,
@@ -25,7 +25,40 @@ const MessageContextMenu = ({
   canDelete = false,
   canPin = false,
 }) => {
-  if (!isOpen) return null;
+  const [isMounted, setIsMounted] = useState(isOpen);
+  const [isClosing, setIsClosing] = useState(false);
+  const closeTimerRef = useRef(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      setIsMounted(true);
+      setIsClosing(false);
+      if (closeTimerRef.current) {
+        window.clearTimeout(closeTimerRef.current);
+        closeTimerRef.current = null;
+      }
+      return;
+    }
+
+    if (isMounted) {
+      setIsClosing(true);
+      if (closeTimerRef.current) window.clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = window.setTimeout(() => {
+        setIsMounted(false);
+        setIsClosing(false);
+        closeTimerRef.current = null;
+      }, 160);
+    }
+  }, [isOpen, isMounted]);
+
+  useEffect(
+    () => () => {
+      if (closeTimerRef.current) window.clearTimeout(closeTimerRef.current);
+    },
+    [],
+  );
+
+  if (!isMounted) return null;
 
   const handleAction = (action) => {
     action();
@@ -34,12 +67,24 @@ const MessageContextMenu = ({
 
   return (
     <>
-      <div className="fixed inset-0 z-40 bg-black/20" onClick={onClose} />
+      <div
+        className={`fixed inset-0 z-40 bg-black/20 transition-opacity duration-150 ${
+          isClosing ? "opacity-0" : "opacity-100"
+        }`}
+        onClick={onClose}
+      />
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div className="relative w-full max-w-sm rounded-2xl bg-white shadow-2xl">
+        <div
+          className={`relative w-full max-w-sm rounded-2xl bg-white shadow-2xl transition-all duration-150 ease-out ${
+            isClosing
+              ? "pointer-events-none translate-y-2 scale-95 opacity-0"
+              : "micro-pop-in"
+          }`}
+        >
           <button
+            type="button"
             onClick={onClose}
-            className="absolute right-4 top-4 text-gray-400 hover:text-gray-600"
+            className="absolute right-4 top-4 rounded-full p-1 text-gray-400 transition-all duration-150 hover:-translate-y-0.5 hover:scale-105 hover:text-gray-600 active:scale-95"
           >
             <X size={20} />
           </button>
@@ -51,24 +96,27 @@ const MessageContextMenu = ({
 
             <div className="space-y-2">
               <button
+                type="button"
                 onClick={() => handleAction(onReply)}
-                className="flex w-full items-center gap-3 rounded-lg p-3 text-left transition hover:bg-gray-100"
+                className="flex w-full items-center gap-3 rounded-lg p-3 text-left transition-all duration-150 hover:-translate-y-0.5 hover:bg-gray-100 active:scale-[0.99]"
               >
                 <Reply size={20} className="text-blue-600" />
                 <span className="text-gray-700">Reply</span>
               </button>
 
               <button
+                type="button"
                 onClick={() => handleAction(onCopy)}
-                className="flex w-full items-center gap-3 rounded-lg p-3 text-left transition hover:bg-gray-100"
+                className="flex w-full items-center gap-3 rounded-lg p-3 text-left transition-all duration-150 hover:-translate-y-0.5 hover:bg-gray-100 active:scale-[0.99]"
               >
                 <Copy size={20} className="text-green-600" />
                 <span className="text-gray-700">Copy Text</span>
               </button>
 
               <button
+                type="button"
                 onClick={() => handleAction(onForward)}
-                className="flex w-full items-center gap-3 rounded-lg p-3 text-left transition hover:bg-gray-100"
+                className="flex w-full items-center gap-3 rounded-lg p-3 text-left transition-all duration-150 hover:-translate-y-0.5 hover:bg-gray-100 active:scale-[0.99]"
               >
                 <Forward size={20} className="text-purple-600" />
                 <span className="text-gray-700">Forward</span>
@@ -76,8 +124,9 @@ const MessageContextMenu = ({
 
               {canPin && (
                 <button
+                  type="button"
                   onClick={() => handleAction(onPin)}
-                  className="flex w-full items-center gap-3 rounded-lg p-3 text-left transition hover:bg-gray-100"
+                  className="flex w-full items-center gap-3 rounded-lg p-3 text-left transition-all duration-150 hover:-translate-y-0.5 hover:bg-gray-100 active:scale-[0.99]"
                 >
                   <Pin size={20} className="text-orange-600" />
                   <span className="text-gray-700">Pin Message</span>
@@ -85,9 +134,9 @@ const MessageContextMenu = ({
               )}
 
               <button
-               
+                type="button"
                 onClick={() => handleAction(onShare)}
-                className="flex w-full items-center gap-3 rounded-lg p-3 text-left transition hover:bg-gray-100"
+                className="flex w-full items-center gap-3 rounded-lg p-3 text-left transition-all duration-150 hover:-translate-y-0.5 hover:bg-gray-100 active:scale-[0.99]"
               >
                 <Share2 size={20} className="text-indigo-600" />
                 <span className="text-gray-700">Share</span>
@@ -95,8 +144,9 @@ const MessageContextMenu = ({
 
               {canEdit && (
                 <button
+                  type="button"
                   onClick={() => handleAction(onEdit)}
-                  className="flex w-full items-center gap-3 rounded-lg p-3 text-left transition hover:bg-gray-100"
+                  className="flex w-full items-center gap-3 rounded-lg p-3 text-left transition-all duration-150 hover:-translate-y-0.5 hover:bg-gray-100 active:scale-[0.99]"
                 >
                   <Edit size={20} className="text-blue-600" />
                   <span className="text-gray-700">Edit</span>
@@ -105,8 +155,9 @@ const MessageContextMenu = ({
 
               {canDelete && (
                 <button
+                  type="button"
                   onClick={() => handleAction(onDelete)}
-                  className="flex w-full items-center gap-3 rounded-lg p-3 text-left transition hover:bg-red-50"
+                  className="flex w-full items-center gap-3 rounded-lg p-3 text-left transition-all duration-150 hover:-translate-y-0.5 hover:bg-red-50 active:scale-[0.99]"
                 >
                   <Trash2 size={20} className="text-red-600" />
                   <span className="text-red-600">Delete</span>

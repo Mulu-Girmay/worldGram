@@ -20,7 +20,7 @@ const Profile = () => {
   const username = user?.identity?.username || "guest";
 
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-[#6fa63a]/20 bg-white/70 px-3 py-2">
+    <div className="flex items-center gap-3 rounded-xl border border-[#6fa63a]/20 bg-white/70 px-3 py-2 transition-shadow duration-200 hover:shadow-sm">
       {profileUrl ? (
         <img
           src={profileUrl}
@@ -61,9 +61,9 @@ const ProfileNav = ({
     <div className="flex items-center justify-between rounded-2xl border border-[#6fa63a]/25 bg-[#f3f9ee] px-2 py-1 text-[rgba(23,3,3,0.87)] shadow-[0_10px_30px_rgba(74,127,74,0.12)]">
       <button
         type="button"
-        className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#6fa63a]/10 text-[#4a7f4a]"
         aria-label="Go back"
         onClick={handleSidebar}
+        className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#6fa63a]/10 text-[#4a7f4a] transition-all duration-200 hover:-translate-y-0.5 hover:scale-105 hover:bg-[#6fa63a]/15 active:scale-95"
       >
         <ArrowLeft size={12} />
       </button>
@@ -71,7 +71,7 @@ const ProfileNav = ({
         type="button"
         onClick={onProfileClick || undefined}
         disabled={!onProfileClick}
-        className={`flex flex-row items-center gap-3 text-left ${onProfileClick ? "cursor-pointer" : "cursor-default"}`}
+        className={`flex flex-row items-center gap-3 text-left transition-all duration-200 ${onProfileClick ? "cursor-pointer hover:-translate-y-0.5 hover:scale-[1.01] active:scale-[0.99]" : "cursor-default"}`}
       >
         {avatarUrl ? (
           <img
@@ -95,7 +95,7 @@ const ProfileNav = ({
         <button
           type="button"
           onClick={onSearchClick || undefined}
-          className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#6fa63a]/10 text-[#4a7f4a]"
+          className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#6fa63a]/10 text-[#4a7f4a] transition-all duration-200 hover:-translate-y-0.5 hover:scale-105 hover:bg-[#6fa63a]/15 active:scale-95"
           aria-label="Search"
         >
           <Search size={16} />
@@ -103,7 +103,7 @@ const ProfileNav = ({
         <button
           type="button"
           onClick={onMoreClick || undefined}
-          className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#6fa63a]/10 text-[#4a7f4a]"
+          className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#6fa63a]/10 text-[#4a7f4a] transition-all duration-200 hover:-translate-y-0.5 hover:scale-105 hover:bg-[#6fa63a]/15 active:scale-95"
           aria-label="More options"
         >
           <MoreVertical size={14} />
