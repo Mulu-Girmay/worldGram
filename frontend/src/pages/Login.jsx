@@ -41,9 +41,9 @@ const Login = () => {
     <div className="min-h-screen bg-[#eaf4e2] text-[rgba(23,3,3,0.87)] flex items-center justify-center px-4 py-8">
       <div className="w-full max-w-[480px] rounded-2xl border border-[#6fa63a]/25 bg-[#f3f9ee] p-6 shadow-[0_10px_30px_rgba(74,127,74,0.15)]">
         <div className="mb-5">
-          <h1 className="text-[28px] font-bold mb-1">Welcome newbie</h1>
+          <h1 className="text-[28px] font-bold mb-1">Welcome back</h1>
           <p className="text-sm text-[rgba(23,3,3,0.7)]">
-            Let&apos;s get you create your account
+            Sign in to continue to your conversations
           </p>
         </div>
         <form

@@ -74,7 +74,9 @@ const SideBar = () => {
     let resolvedChatId = null;
     let resolvedChat = null;
 
-    const createResult = await dispatch(createChat({ type: "private", participants }));
+    const createResult = await dispatch(
+      createChat({ type: "private", participants }),
+    );
     if (createChat.rejected.match(createResult)) {
       resolvedChatId = createResult.payload?.chatId || null;
     }
@@ -120,29 +122,32 @@ const SideBar = () => {
         <Profile />
 
         <div className="mt-4 space-y-1">
-          <div
+          <button
+            type="button"
             onClick={handleProfile}
             className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium hover:bg-[#6fa63a]/10"
           >
             <UserCircle size={18} />
             <span>My Profile</span>
-          </div>
+          </button>
 
-          <div
+          <button
+            type="button"
             onClick={handleNewGroup}
             className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium hover:bg-[#6fa63a]/10"
           >
             <Users size={18} />
             <span>New Group</span>
-          </div>
+          </button>
 
-          <div
+          <button
+            type="button"
             onClick={handleNewChannel}
             className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium hover:bg-[#6fa63a]/10"
           >
             <Megaphone size={18} />
             <span>New Channel</span>
-          </div>
+          </button>
 
           <div className="rounded-xl border border-[#6fa63a]/20 bg-white/60 px-3 py-3">
             <div className="mb-2 flex items-center gap-2 text-sm font-semibold">
@@ -182,12 +187,16 @@ const SideBar = () => {
                 const last = user?.identity?.lastName || "";
                 const username = user?.identity?.username || "unknown";
                 const displayName = `${first} ${last}`.trim() || username;
-                const profileUrl = resolveProfileUrl(user?.identity?.profileUrl);
-                const onlineStatus = user?.AccountStatus?.onlineStatus || "offline";
+                const profileUrl = resolveProfileUrl(
+                  user?.identity?.profileUrl,
+                );
+                const onlineStatus =
+                  user?.AccountStatus?.onlineStatus || "offline";
                 const initials = toInitials(displayName);
 
                 return (
-                  <div
+                  <button
+                    type="button"
                     key={user._id}
                     className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-[#6fa63a]/10"
                     onClick={() => handleContactClick(user._id)}
@@ -211,7 +220,7 @@ const SideBar = () => {
                         @{username} - {onlineStatus}
                       </p>
                     </div>
-                  </div>
+                  </button>
                 );
               })}
             </div>
@@ -246,13 +255,14 @@ const SideBar = () => {
             <Settings2 size={18} />
             <span>Plus Settings</span>
           </div>
-          <div
+          <button
+            type="button"
             onClick={handleLogout}
             className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium hover:bg-[#6fa63a]/10"
           >
             <LogOutIcon size={18} />
             <span>Log Out</span>
-          </div>
+          </button>
         </div>
 
         <p className="mt-10 mb-0 text-center text-xs text-[#4a7f4a]">

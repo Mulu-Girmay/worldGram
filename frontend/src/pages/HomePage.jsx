@@ -5,6 +5,7 @@ import ChannelList from "../components/ChannelList";
 import GroupList from "../components/GroupList";
 import Chat from "../components/Chat";
 import Channel from "../components/Channel";
+import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import {
   getChannelUnreadCount,
@@ -16,9 +17,7 @@ import {
   selectChannelError,
   selectUnreadCountByChannel,
 } from "../Redux/channelRedux/channelSelector";
-import {
-  selectIsAuthenticated,
-} from "../Redux/userRedux/authSelector";
+import { selectIsAuthenticated } from "../Redux/userRedux/authSelector";
 import { listChats } from "../Redux/chatRedux/chatThunk";
 import {
   selectChats,
@@ -40,6 +39,7 @@ import { setCurrentChannel } from "../Redux/channelRedux/channelSlice";
 
 const HomePage = () => {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const [activeFilter, setActiveFilter] = useState("all");
   const [isDesktop, setIsDesktop] = useState(
     typeof window !== "undefined"
@@ -131,18 +131,30 @@ const HomePage = () => {
   const handlePrivateChatSelect = (chat) => {
     if (!chat?._id) return;
     dispatch(setCurrentChat(chat));
+    if (!isDesktop) {
+      navigate("/chat", { state: { chatId: chat._id } });
+      return;
+    }
     setSelectedPane({ type: "chat", id: chat._id });
   };
 
   const handleGroupChatSelect = (chatId, chatObj = null) => {
     if (!chatId) return;
     if (chatObj) dispatch(setCurrentChat(chatObj));
+    if (!isDesktop) {
+      navigate("/chat", { state: { chatId } });
+      return;
+    }
     setSelectedPane({ type: "chat", id: chatId });
   };
 
   const handleChannelSelect = (channel) => {
     if (!channel?._id) return;
     dispatch(setCurrentChannel(channel));
+    if (!isDesktop) {
+      navigate("/channel");
+      return;
+    }
     setSelectedPane({ type: "channel", id: channel._id });
   };
 
@@ -191,7 +203,7 @@ const HomePage = () => {
               <ContentList
                 key={chat._id}
                 chat={chat}
-                onSelect={isDesktop ? handlePrivateChatSelect : null}
+                onSelect={handlePrivateChatSelect}
                 unreadCount={unreadCountByChat?.[chat._id] || 0}
               />
             ))}
@@ -213,7 +225,7 @@ const HomePage = () => {
               <GroupList
                 key={group._id}
                 group={group}
-                onOpenChat={isDesktop ? handleGroupChatSelect : null}
+                onOpenChat={handleGroupChatSelect}
                 unreadCount={
                   unreadCountByChat?.[
                     (chats || []).find(
@@ -243,7 +255,7 @@ const HomePage = () => {
               <ChannelList
                 key={channel._id}
                 channel={channel}
-                onSelect={isDesktop ? handleChannelSelect : null}
+                onSelect={handleChannelSelect}
                 unreadCount={unreadCountByChannel?.[channel._id] || 0}
               />
             ))}
@@ -277,16 +289,24 @@ const HomePage = () => {
                     <div className="rounded-xl border border-[var(--border-color)] bg-[var(--surface-muted)] p-3">
                       <p className="text-[var(--text-muted)]">Chats</p>
                       <p className="mt-1 text-base font-semibold">
-                        {(chats || []).filter((chat) => chat?.type === "private").length}
+                        {
+                          (chats || []).filter(
+                            (chat) => chat?.type === "private",
+                          ).length
+                        }
                       </p>
                     </div>
                     <div className="rounded-xl border border-[var(--border-color)] bg-[var(--surface-muted)] p-3">
                       <p className="text-[var(--text-muted)]">Groups</p>
-                      <p className="mt-1 text-base font-semibold">{groups.length}</p>
+                      <p className="mt-1 text-base font-semibold">
+                        {groups.length}
+                      </p>
                     </div>
                     <div className="rounded-xl border border-[var(--border-color)] bg-[var(--surface-muted)] p-3">
                       <p className="text-[var(--text-muted)]">Channels</p>
-                      <p className="mt-1 text-base font-semibold">{channels.length}</p>
+                      <p className="mt-1 text-base font-semibold">
+                        {channels.length}
+                      </p>
                     </div>
                   </div>
                 </div>

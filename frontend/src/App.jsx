@@ -1,5 +1,3 @@
-import { useState } from "react";
-import reactLogo from "./assets/react.svg";
 import React from "react";
 import Signup from "./pages/Signup";
 import Login from "./pages/Login";
@@ -7,27 +5,122 @@ import HomePage from "./pages/HomePage";
 import SideBar from "./components/SideBar";
 import Channel from "./components/Channel";
 import Chat from "./components/Chat";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { useSelector } from "react-redux";
+import { selectIsAuthenticated } from "./Redux/userRedux/authSelector";
 import Storycontent from "./components/Storycontent";
 import NewChannelForm from "./components/Channel/NewChannelForm";
 import NewGroupForm from "./components/group/NewGroupForm";
 import MyProfile from "./components/MyProfile";
 
+const ProtectedRoute = ({ children }) => {
+  const isAuthenticated = useSelector(selectIsAuthenticated);
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+  return children;
+};
+
+const PublicOnlyRoute = ({ children }) => {
+  const isAuthenticated = useSelector(selectIsAuthenticated);
+  if (isAuthenticated) {
+    return <Navigate to="/home" replace />;
+  }
+  return children;
+};
+
 const App = () => {
   return (
     <BrowserRouter>
       <Routes>
-        <Route index element={<Login />} />
-        <Route path="/signup" element={<Signup />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/home" element={<HomePage />} />
-        <Route path="/sidebar" element={<SideBar />} />
-        <Route path="/channel" element={<Channel />} />
-        <Route path="/chat" element={<Chat />} />
-        <Route path="/story" element={<Storycontent />} />
-        <Route path="/newchannel" element={<NewChannelForm />} />
-        <Route path="/newgroup" element={<NewGroupForm />} />
-        <Route path="/myprofile" element={<MyProfile />} />
+        <Route
+          index
+          element={
+            <PublicOnlyRoute>
+              <Login />
+            </PublicOnlyRoute>
+          }
+        />
+        <Route
+          path="/signup"
+          element={
+            <PublicOnlyRoute>
+              <Signup />
+            </PublicOnlyRoute>
+          }
+        />
+        <Route
+          path="/login"
+          element={
+            <PublicOnlyRoute>
+              <Login />
+            </PublicOnlyRoute>
+          }
+        />
+        <Route
+          path="/home"
+          element={
+            <ProtectedRoute>
+              <HomePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/sidebar"
+          element={
+            <ProtectedRoute>
+              <SideBar />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/channel"
+          element={
+            <ProtectedRoute>
+              <Channel />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/chat"
+          element={
+            <ProtectedRoute>
+              <Chat />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/story"
+          element={
+            <ProtectedRoute>
+              <Storycontent />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/newchannel"
+          element={
+            <ProtectedRoute>
+              <NewChannelForm />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/newgroup"
+          element={
+            <ProtectedRoute>
+              <NewGroupForm />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/myprofile"
+          element={
+            <ProtectedRoute>
+              <MyProfile />
+            </ProtectedRoute>
+          }
+        />
       </Routes>
     </BrowserRouter>
   );

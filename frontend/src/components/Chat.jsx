@@ -305,7 +305,10 @@ const Chat = ({
         payload: {
           text,
           replyToMessageId: replyTarget?._id || null,
-          topicId: groupViewMode === "topic" && selectedTopicId ? selectedTopicId : null,
+          topicId:
+            groupViewMode === "topic" && selectedTopicId
+              ? selectedTopicId
+              : null,
         },
       }),
     );
@@ -391,7 +394,9 @@ const Chat = ({
       otherParticipant?.identity?.username ||
       "Unknown user"
     : title;
-  const otherProfile = resolveProfileUrl(otherParticipant?.identity?.profileUrl);
+  const otherProfile = resolveProfileUrl(
+    otherParticipant?.identity?.profileUrl,
+  );
   const otherStatus =
     presenceMap[normalizeId(otherParticipant?._id)] ||
     otherParticipant?.AccountStatus?.onlineStatus ||
@@ -404,12 +409,14 @@ const Chat = ({
     ? "typing..."
     : isGroupChat
       ? "Group conversation"
-      : (otherStatus || "offline");
+      : otherStatus || "offline";
   const otherPhone = otherParticipant?.identity?.phoneNumber || "";
-  const phonePrivacy = otherParticipant?.privacySettings?.privacyPhoneNumber || "contacts";
+  const phonePrivacy =
+    otherParticipant?.privacySettings?.privacyPhoneNumber || "contacts";
   const otherEmojiStatus = otherParticipant?.identity?.emojiStatus || "";
   const otherIsPremium = Boolean(otherParticipant?.AccountStatus?.isPremium);
-  const otherChannelUsername = otherParticipant?.identity?.personalChannelUsername || "";
+  const otherChannelUsername =
+    otherParticipant?.identity?.personalChannelUsername || "";
   const otherBio = otherParticipant?.identity?.Bio || "";
   const isPhoneVisibleToViewer = phonePrivacy === "everyone";
 
@@ -435,10 +442,13 @@ const Chat = ({
     (renderedMessages || []).forEach((message) => {
       const text = String(message?.content?.text || "");
       const mediaURL = String(message?.content?.mediaURL || "");
-      const contentType = String(message?.content?.ContentType || "").toLowerCase();
+      const contentType = String(
+        message?.content?.ContentType || "",
+      ).toLowerCase();
       const fileName = String(message?.content?.fileName || "");
 
-      if (/https?:\/\/[^\s]+/i.test(text)) links.push({ id: message?._id, text });
+      if (/https?:\/\/[^\s]+/i.test(text))
+        links.push({ id: message?._id, text });
       if (contentType === "image" || contentType === "video") {
         media.push({ id: message?._id, mediaURL, text });
       } else if (contentType === "audio" || contentType === "voice") {
@@ -618,11 +628,18 @@ const Chat = ({
               <button
                 type="button"
                 onClick={async () => {
-                  await dispatch(setGroupViewMode({ id: resolvedGroupId, viewMode: "message" }));
+                  await dispatch(
+                    setGroupViewMode({
+                      id: resolvedGroupId,
+                      viewMode: "message",
+                    }),
+                  );
                   setGroupViewModeState("message");
                 }}
                 className={`rounded-full px-3 py-1 text-xs ${
-                  groupViewMode === "message" ? "bg-[#4a7f4a] text-white" : "border"
+                  groupViewMode === "message"
+                    ? "bg-[#4a7f4a] text-white"
+                    : "border"
                 }`}
               >
                 Message View
@@ -630,11 +647,18 @@ const Chat = ({
               <button
                 type="button"
                 onClick={async () => {
-                  await dispatch(setGroupViewMode({ id: resolvedGroupId, viewMode: "topic" }));
+                  await dispatch(
+                    setGroupViewMode({
+                      id: resolvedGroupId,
+                      viewMode: "topic",
+                    }),
+                  );
                   setGroupViewModeState("topic");
                 }}
                 className={`rounded-full px-3 py-1 text-xs ${
-                  groupViewMode === "topic" ? "bg-[#4a7f4a] text-white" : "border"
+                  groupViewMode === "topic"
+                    ? "bg-[#4a7f4a] text-white"
+                    : "border"
                 }`}
               >
                 Topic View
@@ -689,7 +713,9 @@ const Chat = ({
             </div>
           )}
           <div>
-            <p className="text-sm font-semibold text-[rgba(23,3,3,0.9)]">{otherName}</p>
+            <p className="text-sm font-semibold text-[rgba(23,3,3,0.9)]">
+              {otherName}
+            </p>
             <p className="text-xs text-[rgba(23,3,3,0.62)] capitalize">
               {isGroupChat ? "Tap to open group profile settings" : otherStatus}
             </p>
@@ -714,25 +740,34 @@ const Chat = ({
           {filteredMessages.map((message) => {
             const senderId = message?.identity?.senderId;
             const senderObject =
-              typeof senderId === "object" && senderId !== null ? senderId : null;
+              typeof senderId === "object" && senderId !== null
+                ? senderId
+                : null;
             const senderName = senderObject
               ? `${senderObject?.identity?.firstName || ""} ${senderObject?.identity?.lastName || ""}`.trim() ||
                 senderObject?.identity?.username ||
                 "Unknown"
               : "Unknown";
-            const senderProfile = resolveProfileUrl(senderObject?.identity?.profileUrl);
-            const senderNormalizedId = normalizeId(senderObject?._id || senderId);
-            const isOwn =
-              senderNormalizedId === normalizeId(currentUser?._id);
+            const senderProfile = resolveProfileUrl(
+              senderObject?.identity?.profileUrl,
+            );
+            const senderNormalizedId = normalizeId(
+              senderObject?._id || senderId,
+            );
+            const isOwn = senderNormalizedId === normalizeId(currentUser?._id);
             const text = message?.content?.text || "";
             const mediaURL = message?.content?.mediaURL || null;
-            const mediaSrc = mediaURL ? resolveAssetUrl(mediaURL, "images") : null;
+            const mediaSrc = mediaURL
+              ? resolveAssetUrl(mediaURL, "images")
+              : null;
             const mediaIsVideo =
               typeof mediaURL === "string" &&
               /\.(mp4|webm|ogg|mov)$/i.test(mediaURL);
             const repliedToId = message?.Relations?.replyToMessageId || null;
             const repliedToMessage = repliedToId
-              ? renderedMessages.find((m) => String(m?._id) === String(repliedToId))
+              ? renderedMessages.find(
+                  (m) => String(m?._id) === String(repliedToId),
+                )
               : null;
             const repliedToText =
               repliedToMessage?.content?.text ||
@@ -741,7 +776,8 @@ const Chat = ({
               ? message.state.readBy.map((id) => normalizeId(id))
               : [];
             const readStatus =
-              readBy.length > 1 || readBy.some((id) => id !== senderNormalizedId)
+              readBy.length > 1 ||
+              readBy.some((id) => id !== senderNormalizedId)
                 ? "Read"
                 : "Unread";
             const messageReactions = Array.isArray(message?.reactions)
@@ -809,9 +845,17 @@ const Chat = ({
                   {mediaSrc && (
                     <div className="mt-2 overflow-hidden rounded-xl border border-black/10">
                       {mediaIsVideo ? (
-                        <video src={mediaSrc} controls className="max-h-72 w-full object-cover" />
+                        <video
+                          src={mediaSrc}
+                          controls
+                          className="max-h-72 w-full object-cover"
+                        />
                       ) : (
-                        <img src={mediaSrc} alt="media" className="max-h-72 w-full object-cover" />
+                        <img
+                          src={mediaSrc}
+                          alt="media"
+                          className="max-h-72 w-full object-cover"
+                        />
                       )}
                     </div>
                   )}
@@ -821,7 +865,8 @@ const Chat = ({
                       onClick={() =>
                         setReplyTarget({
                           _id: message?._id,
-                          text: text || (mediaURL ? "Media message" : "(no text)"),
+                          text:
+                            text || (mediaURL ? "Media message" : "(no text)"),
                           sender: senderName,
                         })
                       }
@@ -832,7 +877,9 @@ const Chat = ({
                       Reply
                     </button>
                     {isOwn && (
-                      <span className="text-[10px] text-white/70">{readStatus}</span>
+                      <span className="text-[10px] text-white/70">
+                        {readStatus}
+                      </span>
                     )}
                     <p
                       className={`text-[10px] ${
@@ -891,9 +938,9 @@ const Chat = ({
           })}
         </div>
 
-        <div className="flex items-end gap-2">
+        <div className="space-y-2 rounded-xl border border-[#6fa63a]/25 bg-white/70 p-2">
           {replyTarget && (
-            <div className="w-full rounded-xl border border-[#6fa63a]/30 bg-white/80 px-3 py-2 text-xs">
+            <div className="rounded-lg border border-[#6fa63a]/30 bg-white/80 px-3 py-2 text-xs">
               <div className="mb-1 flex items-center justify-between">
                 <p className="font-semibold text-[#2f5b2f]">
                   Replying to {replyTarget.sender || "message"}
@@ -906,37 +953,39 @@ const Chat = ({
                   <X size={12} />
                 </button>
               </div>
-              <p className="truncate text-[rgba(23,3,3,0.75)]">{replyTarget.text}</p>
+              <p className="truncate text-[rgba(23,3,3,0.75)]">
+                {replyTarget.text}
+              </p>
             </div>
           )}
-        </div>
 
-        <div className="flex items-end gap-2">
-          <textarea
-            name="message"
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            placeholder={composerPlaceholder}
-            className="min-h-[42px] flex-1 resize-none rounded-xl border border-[#6fa63a]/30 bg-white px-3 py-2 text-sm outline-none transition focus:border-[#4a7f4a] focus:ring-2 focus:ring-[#6fa63a]/20"
-          />
-
-          <label className="cursor-pointer rounded-xl border border-[#6fa63a]/35 bg-[#6fa63a]/15 p-2 text-[#2f5b2f] transition hover:bg-[#6fa63a]/25">
-            <FileBoxIcon size={16} />
-            <input
-              type="file"
-              accept="image/*,video/*"
-              name="media"
-              className="hidden"
-              onChange={handleAttach}
+          <div className="flex items-end gap-2">
+            <textarea
+              name="message"
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              placeholder={composerPlaceholder}
+              className="min-h-[42px] flex-1 resize-none rounded-xl border border-[#6fa63a]/30 bg-white px-3 py-2 text-sm outline-none transition focus:border-[#4a7f4a] focus:ring-2 focus:ring-[#6fa63a]/20"
             />
-          </label>
-          <button
-            onClick={handleSend}
-            type="button"
-            className="rounded-xl bg-[#4a7f4a] p-2 text-white transition hover:bg-[#3f6e3f]"
-          >
-            <SendHorizontal size={16} />
-          </button>
+
+            <label className="cursor-pointer rounded-xl border border-[#6fa63a]/35 bg-[#6fa63a]/15 p-2 text-[#2f5b2f] transition hover:bg-[#6fa63a]/25">
+              <FileBoxIcon size={16} />
+              <input
+                type="file"
+                accept="image/*,video/*"
+                name="media"
+                className="hidden"
+                onChange={handleAttach}
+              />
+            </label>
+            <button
+              onClick={handleSend}
+              type="button"
+              className="rounded-xl bg-[#4a7f4a] p-2 text-white transition hover:bg-[#3f6e3f]"
+            >
+              <SendHorizontal size={16} />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -948,7 +997,9 @@ const Chat = ({
           />
           <aside className="absolute right-0 top-0 h-full w-full max-w-[380px] border-l border-[#6fa63a]/25 bg-[var(--primary-color)] p-3 shadow-[-10px_0_30px_rgba(0,0,0,0.15)]">
             <div className="mb-3 flex items-center justify-between rounded-xl border border-[#6fa63a]/20 bg-white/70 px-3 py-2">
-              <p className="text-sm font-semibold text-[#2f5b2f]">Group profile</p>
+              <p className="text-sm font-semibold text-[#2f5b2f]">
+                Group profile
+              </p>
               <button
                 type="button"
                 onClick={() => setShowGroupSettings(false)}
@@ -1022,7 +1073,8 @@ const Chat = ({
                   Copy username
                 </button>
                 <p className="text-[rgba(23,3,3,0.65)]">
-                  Phone: {isPhoneVisibleToViewer && otherPhone ? otherPhone : "Hidden"}
+                  Phone:{" "}
+                  {isPhoneVisibleToViewer && otherPhone ? otherPhone : "Hidden"}
                 </p>
                 {otherBio ? (
                   <p className="text-[rgba(23,3,3,0.7)]">{otherBio}</p>
@@ -1092,7 +1144,9 @@ const Chat = ({
                   ))}
                 {profileTab === "groups" &&
                   (groupsInCommon.length === 0 ? (
-                    <p className="text-[rgba(23,3,3,0.62)]">No groups in common.</p>
+                    <p className="text-[rgba(23,3,3,0.62)]">
+                      No groups in common.
+                    </p>
                   ) : (
                     groupsInCommon.slice(0, 20).map((group) => (
                       <p key={group?._id} className="truncate">
