@@ -1,0 +1,20 @@
+{
+  "services": [
+    {
+      "type": "web",
+      "name": "worldgram-backend",
+      "env": "node",
+      "branch": "main",
+      "plan": "free",
+      "buildCommand": "cd backend && npm install",
+      "startCommand": "cd backend && npm start",
+      "disk": 512,
+      "envVars": [
+        {
+          "key": "NODE_ENV",
+          "value": "production"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+# Render service configuration (backend)
+# Deploy the backend from this monorepo to Render as a single web service.
+# You should set the required environment variables (MONGO_URI, JWT_ACCESS_SECRET, JWT_REFRESH_SECRET, CORS_ORIGIN, PORT) in the Render dashboard.
+
+services:
+  - type: web
+    name: worldgram-backend
+    env: node
+    branch: main
+    plan: free
+    buildCommand: cd backend && npm install
+    startCommand: cd backend && npm start
+    disk: 512
+    envVars:
+      - key: NODE_ENV
+        value: production
