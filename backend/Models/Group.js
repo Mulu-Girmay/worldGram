@@ -118,4 +118,12 @@ const groupSchema = new mongoose.Schema(
   },
   { timestamps: true },
 );
+
+groupSchema.index({ "basicInfo.groupUsername": 1 }, { sparse: true });
+groupSchema.index({ "settings.inviteLink": 1 }, { sparse: true });
+groupSchema.index({ "members.members": 1, _id: -1 });
+groupSchema.index({ "members.ownerId": 1, _id: -1 });
+groupSchema.index({ "members.admins": 1, _id: -1 });
+groupSchema.index({ "settings.isPublic": 1, _id: -1 });
+
 module.exports = mongoose.model("Group", groupSchema);

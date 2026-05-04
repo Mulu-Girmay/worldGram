@@ -79,7 +79,16 @@ app.use((err, req, res, next) => {
 
 const connectdb = async (uri) => {
   try {
-    await mongoose.connect(uri);
+    mongoose.set("strictQuery", true);
+    mongoose.set("sanitizeFilter", true);
+    await mongoose.connect(uri, {
+      maxPoolSize: Number(process.env.MONGO_MAX_POOL_SIZE || 100),
+      minPoolSize: Number(process.env.MONGO_MIN_POOL_SIZE || 5),
+      serverSelectionTimeoutMS: Number(
+        process.env.MONGO_SERVER_SELECTION_TIMEOUT_MS || 10000,
+      ),
+      socketTimeoutMS: Number(process.env.MONGO_SOCKET_TIMEOUT_MS || 45000),
+    });
     console.info("Mongo Successfully Connected");
   } catch (err) {
     console.error("DB connection error:", err.message);
@@ -223,6 +232,9 @@ server.listen(PORT, async () => {
   await connectdb(URI);
   console.info(`server is running at port ${PORT}`);
 });
+
+server.keepAliveTimeout = Number(process.env.SERVER_KEEP_ALIVE_TIMEOUT_MS || 65000);
+server.headersTimeout = Number(process.env.SERVER_HEADERS_TIMEOUT_MS || 66000);
 
 process.on("unhandledRejection", (reason) => {
   console.error("Unhandled promise rejection:", reason);

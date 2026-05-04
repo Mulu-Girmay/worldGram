@@ -44,4 +44,12 @@ const channelSchema = new mongoose.Schema(
   },
   { timestamps: true },
 );
+
+channelSchema.index({ "basicInfo.userName": 1 }, { unique: true, sparse: true });
+channelSchema.index({ "settings.inviteLink": 1 }, { sparse: true });
+channelSchema.index({ "ownership.ownerId": 1, _id: -1 });
+channelSchema.index({ "ownership.admins": 1, _id: -1 });
+channelSchema.index({ "audience.subscribers": 1, _id: -1 });
+channelSchema.index({ "settings.isPublic": 1, _id: -1 });
+
 module.exports = mongoose.model("Channel", channelSchema);

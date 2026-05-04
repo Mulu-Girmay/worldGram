@@ -567,7 +567,8 @@ exports.listChats = async (req, res) => {
         model: "User",
         select:
           "identity.firstName identity.lastName identity.username identity.profileUrl identity.phoneNumber identity.personalChannelUsername identity.Bio identity.emojiStatus privacySettings.privacyPhoneNumber privacySettings.privacyLastSeen AccountStatus.onlineStatus AccountStatus.lastSeenAt AccountStatus.isPremium",
-      });
+      })
+      .lean();
 
     const nextCursor =
       chats.length === limit ? chats[chats.length - 1]._id : null;
@@ -647,7 +648,8 @@ exports.getMessagesPaged = async (req, res) => {
         path: "identity.senderId",
         select:
           "identity.firstName identity.lastName identity.username identity.profileUrl identity.phoneNumber identity.personalChannelUsername identity.Bio identity.emojiStatus privacySettings.privacyPhoneNumber privacySettings.privacyLastSeen AccountStatus.onlineStatus AccountStatus.lastSeenAt AccountStatus.isPremium",
-      });
+      })
+      .lean();
 
     const nextCursor =
       messages.length === limit ? messages[messages.length - 1]._id : null;

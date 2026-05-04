@@ -11,6 +11,31 @@ const parseLimit = (value, fallback = 20, max = 50) => {
   return Math.min(n, max);
 };
 
+const CHANNEL_UPDATE_ALLOWED_PATHS = new Set([
+  "basicInfo.name",
+  "basicInfo.description",
+  "basicInfo.channelPhoto",
+  "basicInfo.userName",
+  "settings.isPublic",
+  "settings.allowJoinRequests",
+  "settings.allowComments",
+  "settings.showAuthorSignatures",
+  "settings.contentProtection",
+  "settings.allowSuggestedPosts",
+  "settings.allowedReactions",
+  "settings.discussionGroupId",
+]);
+
+const pickAllowedChannelUpdatedData = (input = {}) => {
+  const out = {};
+  Object.entries(input || {}).forEach(([path, value]) => {
+    if (CHANNEL_UPDATE_ALLOWED_PATHS.has(path)) {
+      out[path] = value;
+    }
+  });
+  return out;
+};
+
 const escapeRegex = (value = "") =>
   String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
@@ -158,9 +183,14 @@ exports.updateChannel = async (req, res) => {
         .json({ err: "You are not authorized to update this channel" });
     }
 
+    const safeUpdatedData = pickAllowedChannelUpdatedData(updatedData || {});
+    if (Object.keys(safeUpdatedData).length === 0) {
+      return res.status(400).json({ err: "No valid channel fields provided" });
+    }
+
     const updatedChannel = await Channel.findByIdAndUpdate(
       channelId,
-      { $set: updatedData || {} },
+      { $set: safeUpdatedData },
       { new: true, runValidators: true },
     );
 
@@ -168,7 +198,7 @@ exports.updateChannel = async (req, res) => {
       channelId,
       actorId: userId,
       action: "channel_updated",
-      meta: { fields: Object.keys(updatedData || {}) },
+      meta: { fields: Object.keys(safeUpdatedData) },
     });
 
     res.status(200).json({
@@ -489,7 +519,10 @@ exports.listChannels = async (req, res) => {
       query._id = { $lt: cursor };
     }
 
-    const channels = await Channel.find(query).sort({ _id: -1 }).limit(limit);
+    const channels = await Channel.find(query)
+      .sort({ _id: -1 })
+      .limit(limit)
+      .lean();
     const nextCursor =
       channels.length === limit ? channels[channels.length - 1]._id : null;
 
@@ -513,7 +546,10 @@ exports.listMyChannels = async (req, res) => {
       query._id = { $lt: cursor };
     }
 
-    const channels = await Channel.find(query).sort({ _id: -1 }).limit(limit);
+    const channels = await Channel.find(query)
+      .sort({ _id: -1 })
+      .limit(limit)
+      .lean();
     const nextCursor =
       channels.length === limit ? channels[channels.length - 1]._id : null;
 

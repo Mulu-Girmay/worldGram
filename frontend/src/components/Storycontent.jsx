@@ -68,6 +68,18 @@ const Storycontent = () => {
     isHighlight: false,
   });
 
+  const currentUserId = String(currentUser?._id || currentUser?.id || "");
+
+  const toStoryErrorMessage = (raw) => {
+    const text = String(raw || "").toLowerCase();
+    if (!text) return "Something went wrong. Please try again.";
+    if (text.includes("not found")) return "Story was not found.";
+    if (text.includes("network")) {
+      return "Network issue. Please check your internet.";
+    }
+    return String(raw);
+  };
+
   const toUserLabel = (value) => {
     if (!value) return "Unknown user";
     const first = value?.identity?.firstName || value?.firstName || "";
@@ -79,22 +91,12 @@ const Storycontent = () => {
     const id = String(value?._id || value || "");
     if (id && id === currentUserId) return "You";
     return "Unknown user";
-              {currentStory?.mediaType === "video" ? (
-                <video
-                  src={mediaSrc}
-                  controls
-                  autoPlay
-                  className="h-[65vh] w-full object-contain"
-                />
-              ) : (
-                <img
-                  src={mediaSrc}
-                  alt={currentStory?.caption || "Story media"}
-                  decoding="async"
-                  className="h-[65vh] w-full object-contain"
-                />
+  };
+
+  const storyAuthorId = String(
     currentStory?.authorId?._id || currentStory?.authorId || "",
   );
+
   const isOwner =
     Boolean(currentUserId) &&
     Boolean(storyAuthorId) &&

@@ -90,4 +90,10 @@ const messageSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+messageSchema.index({ "identity.chatId": 1, _id: -1 });
+messageSchema.index({ "identity.chatId": 1, createdAt: -1 });
+messageSchema.index({ "identity.chatId": 1, "identity.senderId": 1, createdAt: -1 });
+messageSchema.index({ "identity.chatId": 1, "state.isDeleted": 1, _id: -1 });
+
 module.exports = mongoose.model("Message", messageSchema);

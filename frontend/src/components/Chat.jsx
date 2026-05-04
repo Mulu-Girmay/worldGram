@@ -38,7 +38,6 @@ import {
   setGroupViewMode,
 } from "../Redux/groupRedux/groupThunk";
 import LoadingStream from "./LoadingStream";
-import LoadingStream from "./LoadingStream";
 import {
   selectCurrentGroup,
   selectGroupTopics,

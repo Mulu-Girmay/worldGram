@@ -77,4 +77,9 @@ const channelPostSchema = new mongoose.Schema(
   },
   { timestamps: true },
 );
+
+channelPostSchema.index({ channelId: 1, _id: -1 });
+channelPostSchema.index({ channelId: 1, createdAt: -1 });
+channelPostSchema.index({ channelId: 1, authorId: 1, _id: -1 });
+
 module.exports = mongoose.model("ChannelPost", channelPostSchema);

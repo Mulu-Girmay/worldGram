@@ -385,7 +385,7 @@ exports.listGroups = async (req, res) => {
     }
     if (req.query.cursor && mongoose.Types.ObjectId.isValid(req.query.cursor))
       query._id = { $lt: req.query.cursor };
-    const items = await Group.find(query).sort({ _id: -1 }).limit(limit);
+    const items = await Group.find(query).sort({ _id: -1 }).limit(limit).lean();
     const nextCursor =
       items.length === limit ? items[items.length - 1]._id : null;
     return res.json({ items, nextCursor });
@@ -400,7 +400,7 @@ exports.listMyGroups = async (req, res) => {
     const query = { "members.members": req.userId };
     if (req.query.cursor && mongoose.Types.ObjectId.isValid(req.query.cursor))
       query._id = { $lt: req.query.cursor };
-    const items = await Group.find(query).sort({ _id: -1 }).limit(limit);
+    const items = await Group.find(query).sort({ _id: -1 }).limit(limit).lean();
     const nextCursor =
       items.length === limit ? items[items.length - 1]._id : null;
     return res.json({ items, nextCursor });

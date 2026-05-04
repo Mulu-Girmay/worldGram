@@ -102,7 +102,6 @@ const channelSlice = createSlice({
         state.initialized = true;
       })
 
-        state.myChannelsFetchedAt = Date.now();
       // myChannel (user-owned/admin channels)
       .addCase(myChannel.pending, (state) => {
         state.myChannelStatus = "loading";
@@ -119,6 +118,7 @@ const channelSlice = createSlice({
           state.myChannels = items;
         }
         state.myNextCursor = action.payload?.nextCursor || null;
+        state.myChannelsFetchedAt = Date.now();
       })
       .addCase(myChannel.rejected, (state, action) => {
         state.myChannelStatus = "failed";

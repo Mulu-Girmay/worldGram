@@ -27,4 +27,8 @@ const ContactSchema = new mongoose.Schema(
   },
   { timestamps: true },
 );
+
+ContactSchema.index({ ownerUserId: 1, contactUserId: 1 });
+ContactSchema.index({ ownerUserId: 1, updatedAt: -1 });
+
 module.exports = mongoose.model("Contact", ContactSchema);

@@ -1,4 +1,5 @@
 const buckets = new Map();
+let lastGlobalPruneAt = 0;
 
 const nowMs = () => Date.now();
 
@@ -23,6 +24,17 @@ const createRateLimiter = ({
     const key = keyBuilder(req);
     const current = nowMs();
     const windowStart = current - windowMs;
+    const globalPruneInterval = Math.max(windowMs, 30 * 1000);
+
+    if (current - lastGlobalPruneAt >= globalPruneInterval) {
+      for (const [bucketKey, timestamps] of buckets.entries()) {
+        const trimmed = prune(timestamps, current - windowMs);
+        if (trimmed.length === 0) buckets.delete(bucketKey);
+        else buckets.set(bucketKey, trimmed);
+      }
+      lastGlobalPruneAt = current;
+    }
+
     const existing = buckets.get(key) || [];
     const recent = prune(existing, windowStart);
 
@@ -38,6 +50,9 @@ const createRateLimiter = ({
     }
 
     recent.push(current);
+    if (recent.length > max + 1) {
+      recent.splice(0, recent.length - (max + 1));
+    }
     buckets.set(key, recent);
     return next();
   };

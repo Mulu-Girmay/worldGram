@@ -45,4 +45,8 @@ const storySchema = new mongoose.Schema({
   isHighlight: { type: Boolean, default: false },
   expiredAt: { type: Date, index: { expires: 0 } },
 });
+
+storySchema.index({ authorId: 1, _id: -1 });
+storySchema.index({ privacy: 1, expiredAt: 1 });
+
 module.exports = mongoose.model("Story", storySchema);
