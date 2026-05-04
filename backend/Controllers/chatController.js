@@ -699,6 +699,14 @@ exports.editMessage = async (req, res) => {
       );
     }
 
+    const io = req.app.get("io");
+    const hydrated = await Message.findById(message._id).populate({
+      path: "identity.senderId",
+      select:
+        "identity.firstName identity.lastName identity.username identity.profileUrl identity.phoneNumber identity.personalChannelUsername identity.Bio identity.emojiStatus privacySettings.privacyPhoneNumber privacySettings.privacyLastSeen AccountStatus.onlineStatus AccountStatus.lastSeenAt AccountStatus.isPremium",
+    });
+    if (io) io.to(chatId).emit("message-edited", hydrated);
+
     res.json({ message: "Message edited.", data: message });
   } catch (err) {
     res.status(500).json({ err: "Failed to edit message." });
@@ -731,6 +739,9 @@ exports.deleteMessage = async (req, res) => {
         messageId,
       );
     }
+
+    const io = req.app.get("io");
+    if (io) io.to(chatId).emit("message-deleted", { chatId, messageId });
 
     res.json({ message: "Message deleted." });
   } catch (err) {

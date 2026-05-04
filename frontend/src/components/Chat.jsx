@@ -28,6 +28,8 @@ import {
   markMessagesReadByUser,
   pushIncomingMessage,
   setMessageReactions,
+  setMessageEdited,
+  setMessageDeleted,
 } from "../Redux/chatRedux/chatSlice";
 import { resolveAssetUrl, resolveProfileUrl, toInitials } from "../utils/media";
 import { SOCKET_BASE_URL } from "../utils/socket";
@@ -223,6 +225,17 @@ const Chat = ({
       dispatch(markChatRead(resolvedChatId));
     };
 
+    const handleMessageEdited = (message) => {
+      const incomingChatId = message?.identity?.chatId;
+      if (String(incomingChatId || "") !== String(resolvedChatId)) return;
+      dispatch(setMessageEdited(message));
+    };
+
+    const handleMessageDeleted = (payload) => {
+      if (String(payload?.chatId || "") !== String(resolvedChatId)) return;
+      dispatch(setMessageDeleted({ messageId: payload?.messageId }));
+    };
+
     const handleChatRead = (payload) => {
       if (String(payload?.chatId || "") !== String(resolvedChatId)) return;
       dispatch(markMessagesReadByUser(payload));
@@ -262,12 +275,16 @@ const Chat = ({
     socket.on("new-message", handleIncomingMessage);
     socket.on("chat-read", handleChatRead);
     socket.on("message-reaction-updated", handleMessageReactionUpdated);
+    socket.on("message-edited", handleMessageEdited);
+    socket.on("message-deleted", handleMessageDeleted);
     socket.on("user-status", handleUserStatus);
     socket.on("chat-typing", handleChatTyping);
     return () => {
       socket.off("new-message", handleIncomingMessage);
       socket.off("chat-read", handleChatRead);
       socket.off("message-reaction-updated", handleMessageReactionUpdated);
+      socket.off("message-edited", handleMessageEdited);
+      socket.off("message-deleted", handleMessageDeleted);
       socket.off("user-status", handleUserStatus);
       socket.off("chat-typing", handleChatTyping);
     };

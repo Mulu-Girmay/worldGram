@@ -106,6 +106,20 @@ const chatSlice = createSlice({
           : message,
       );
     },
+    setMessageEdited(state, action) {
+      const incoming = action.payload;
+      if (!incoming?._id) return;
+      state.messages = upsertMessage(state.messages, incoming);
+    },
+    setMessageDeleted(state, action) {
+      const { messageId } = action.payload || {};
+      if (!messageId) return;
+      state.messages = (state.messages || []).map((m) =>
+        String(m?._id || "") === String(messageId)
+          ? { ...(m || {}), state: { ...(m.state || {}), isDeleted: true }, content: { ...(m.content || {}), text: null, mediaURL: null } }
+          : m,
+      );
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -462,5 +476,7 @@ export const {
   pushIncomingMessage,
   markMessagesReadByUser,
   setMessageReactions,
+  setMessageEdited,
+  setMessageDeleted,
 } = chatSlice.actions;
 export default chatSlice.reducer;

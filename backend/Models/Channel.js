@@ -3,7 +3,7 @@ const channelSchema = new mongoose.Schema(
   {
     basicInfo: {
       name: { type: String, required: true },
-      userName: { type: String, unique: true },
+      userName: { type: String },
       description: { type: String },
       channelPhoto: { type: String },
     },

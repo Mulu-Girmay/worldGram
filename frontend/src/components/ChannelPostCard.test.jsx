@@ -66,7 +66,8 @@ describe("ChannelPostCard", () => {
     );
 
     await user.click(screen.getByTitle("React"));
-    await user.click(screen.getByLabelText("React with 👍"));
+    const thumbsUpButtons = screen.getAllByLabelText("React with 👍");
+    await user.click(thumbsUpButtons[thumbsUpButtons.length - 1]);
 
     await waitFor(() => {
       expect(onReact).toHaveBeenCalledWith(
