@@ -36,114 +36,119 @@ const PublicOnlyRoute = ({ children }) => {
 const App = () => {
   return (
     <BrowserRouter>
-      <Routes>
-        <Route
-          index
-          element={
-            <PublicOnlyRoute>
-              <Login />
-            </PublicOnlyRoute>
-          }
-        />
-        <Route
-          path="/signup"
-          element={
-            <PublicOnlyRoute>
-              <Signup />
-            </PublicOnlyRoute>
-          }
-        />
-        <Route
-          path="/login"
-          element={
-            <PublicOnlyRoute>
-              <Login />
-            </PublicOnlyRoute>
-          }
-        />
-        <Route path="/join-channel" element={<JoinChannel />} />
-        <Route path="/join-group" element={<JoinGroup />} />
-        <Route
-          path="/home"
-          element={
-            <ProtectedRoute>
-              <HomePage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/sidebar"
-          element={
-            <ProtectedRoute>
-              <SideBar />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/channel"
-          element={
-            <ProtectedRoute>
-              <Channel />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/chat"
-          element={
-            <ProtectedRoute>
-              <Chat />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/story"
-          element={
-            <ProtectedRoute>
-              <Storycontent />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/newchannel"
-          element={
-            <ProtectedRoute>
-              <NewChannelForm />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/newgroup"
-          element={
-            <ProtectedRoute>
-              <NewGroupForm />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/myprofile"
-          element={
-            <ProtectedRoute>
-              <MyProfile />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/settings"
-          element={
-            <ProtectedRoute>
-              <Settings />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/contacts"
-          element={
-            <ProtectedRoute>
-              <Contacts />
-            </ProtectedRoute>
-          }
-        />
-      </Routes>
+      <a href="#app-content" className="skip-link">
+        Skip to main content
+      </a>
+      <div id="app-content" tabIndex={-1} aria-label="Application content">
+        <Routes>
+          <Route
+            index
+            element={
+              <PublicOnlyRoute>
+                <Login />
+              </PublicOnlyRoute>
+            }
+          />
+          <Route
+            path="/signup"
+            element={
+              <PublicOnlyRoute>
+                <Signup />
+              </PublicOnlyRoute>
+            }
+          />
+          <Route
+            path="/login"
+            element={
+              <PublicOnlyRoute>
+                <Login />
+              </PublicOnlyRoute>
+            }
+          />
+          <Route path="/join-channel" element={<JoinChannel />} />
+          <Route path="/join-group" element={<JoinGroup />} />
+          <Route
+            path="/home"
+            element={
+              <ProtectedRoute>
+                <HomePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/sidebar"
+            element={
+              <ProtectedRoute>
+                <SideBar />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/channel"
+            element={
+              <ProtectedRoute>
+                <Channel />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/chat"
+            element={
+              <ProtectedRoute>
+                <Chat />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/story"
+            element={
+              <ProtectedRoute>
+                <Storycontent />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/newchannel"
+            element={
+              <ProtectedRoute>
+                <NewChannelForm />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/newgroup"
+            element={
+              <ProtectedRoute>
+                <NewGroupForm />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/myprofile"
+            element={
+              <ProtectedRoute>
+                <MyProfile />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/settings"
+            element={
+              <ProtectedRoute>
+                <Settings />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/contacts"
+            element={
+              <ProtectedRoute>
+                <Contacts />
+              </ProtectedRoute>
+            }
+          />
+        </Routes>
+      </div>
     </BrowserRouter>
   );
 };

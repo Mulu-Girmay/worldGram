@@ -123,6 +123,7 @@ const GroupList = ({ group, onOpenChat = null, unreadCount = 0 }) => {
       type="button"
       className="w-full flex items-center gap-3 rounded-xl border border-transparent bg-transparent px-2 py-2 text-left transition hover:border-[var(--border-color)] hover:bg-white"
       onClick={handleOpenGroupChat}
+      aria-label={`Open group ${group?.basicInfo?.groupName || "group"}`}
     >
       <div className="grid h-11 w-11 place-items-center rounded-full border border-[var(--border-color)] bg-[var(--surface-muted)] text-[#2f5b2f]">
         <Users size={16} />

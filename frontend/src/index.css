@@ -43,6 +43,37 @@ body {
     var(--primary-color);
 }
 
+.skip-link {
+  position: absolute;
+  left: 0.75rem;
+  top: 0.75rem;
+  z-index: 300;
+  transform: translateY(-180%);
+  border: 1px solid rgba(111, 166, 58, 0.35);
+  border-radius: 9999px;
+  background: #ffffff;
+  color: #2f5b2f;
+  padding: 0.65rem 1rem;
+  font-weight: 700;
+  box-shadow: 0 8px 24px rgba(74, 127, 74, 0.18);
+  transition: transform 160ms ease-out;
+}
+
+.skip-link:focus,
+.skip-link:focus-visible {
+  transform: translateY(0);
+  outline: none;
+}
+
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+[role="button"]:focus-visible,
+a:focus-visible {
+  outline: 2px solid #4a7f4a;
+  outline-offset: 2px;
+}
+
 @keyframes micro-pop-in {
   from {
     opacity: 0;
@@ -119,4 +150,8 @@ body {
 
 .typing-dot:nth-child(4) {
   animation-delay: 0.45s;
+}
+
+#app-content:focus {
+  outline: none;
 }

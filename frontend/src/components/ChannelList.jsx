@@ -28,6 +28,7 @@ const ChannelList = ({ channel, onSelect = null, unreadCount = 0 }) => {
     <button
       type="button"
       onClick={handleChannel}
+      aria-label={`Open channel ${channelName}`}
       className="w-full flex items-center gap-3 rounded-xl border border-transparent bg-transparent px-2 py-2 text-left transition hover:border-[var(--border-color)] hover:bg-white"
     >
       {photo ? (

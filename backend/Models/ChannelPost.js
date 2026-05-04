@@ -1,4 +1,13 @@
 const mongoose = require("mongoose");
+const channelPostMediaSchema = new mongoose.Schema(
+  {
+    url: { type: String },
+    type: { type: String },
+    size: { type: Number },
+  },
+  { _id: false },
+);
+
 const channelPostSchema = new mongoose.Schema(
   {
     channelId: {
@@ -13,7 +22,7 @@ const channelPostSchema = new mongoose.Schema(
       title: { type: String, trim: true },
     },
     text: { type: String },
-    media: [{ url: String, type: String, size: Number }],
+    media: [channelPostMediaSchema],
     views: {
       viewNumber: { type: Number, default: 0 },
       viewers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
@@ -32,7 +41,7 @@ const channelPostSchema = new mongoose.Schema(
       },
       snapshot: {
         text: String,
-        media: [{ url: String, type: String, size: Number }],
+        media: [channelPostMediaSchema],
         mediaType: String,
         fileName: String,
         fileSize: Number,

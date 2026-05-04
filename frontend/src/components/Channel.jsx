@@ -895,20 +895,19 @@ const Channel = () => {
         <div className="pointer-events-none absolute -right-10 -top-8 h-28 w-28 rounded-full bg-[#6fa63a]/15 blur-2xl" />
         <div className="pointer-events-none absolute -bottom-10 -left-8 h-32 w-32 rounded-full bg-[#4a7f4a]/10 blur-2xl" />
 
-        <div
-          role={currentChannel?._id ? "button" : undefined}
-          tabIndex={currentChannel?._id ? 0 : undefined}
+        <button
+          type="button"
           onClick={() => {
             if (currentChannel?._id) setShowChannelSettings(true);
           }}
-          onKeyDown={(e) => {
-            if (!currentChannel?._id) return;
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
-              setShowChannelSettings(true);
-            }
-          }}
-          className={`relative mb-4 flex items-center justify-between rounded-2xl border border-[#6fa63a]/25 bg-white/65 px-3 py-2 ${
+          aria-haspopup="dialog"
+          aria-expanded={showChannelSettings}
+          aria-label={
+            currentChannel?._id
+              ? `Open ${currentChannel?.basicInfo?.name || "channel"} settings`
+              : "Channel settings"
+          }
+          className={`relative mb-4 flex w-full items-center justify-between rounded-2xl border border-[#6fa63a]/25 bg-white/65 px-3 py-2 text-left ${
             currentChannel?._id ? "cursor-pointer hover:bg-white/80" : ""
           }`}
         >
@@ -949,7 +948,7 @@ const Channel = () => {
           <p className="rounded-full bg-[#6fa63a]/15 px-2.5 py-1 text-xs font-medium text-[#2f5b2f]">
             {channelSubscriberCount} subscribers
           </p>
-        </div>
+        </button>
 
         <div className="relative max-h-[520px] space-y-3 overflow-y-auto pr-1">
           {postsStatus === "loading" && postsLocal.length === 0 && (

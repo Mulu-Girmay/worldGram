@@ -28,6 +28,7 @@ const MessageContextMenu = ({
   const [isMounted, setIsMounted] = useState(isOpen);
   const [isClosing, setIsClosing] = useState(false);
   const closeTimerRef = useRef(null);
+  const menuRef = useRef(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -58,6 +59,41 @@ const MessageContextMenu = ({
     [],
   );
 
+  useEffect(() => {
+    if (!isMounted || isClosing) return;
+    const firstButton = menuRef.current?.querySelector("button");
+    firstButton?.focus?.();
+  }, [isMounted, isClosing]);
+
+  const handleDialogKeyDown = (event) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      onClose();
+      return;
+    }
+
+    if (event.key !== "Tab") return;
+
+    const focusable = Array.from(
+      menuRef.current?.querySelectorAll(
+        'button:not([disabled]), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+      ) || [],
+    );
+    if (!focusable.length) return;
+
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    const active = document.activeElement;
+
+    if (event.shiftKey && active === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && active === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  };
+
   if (!isMounted) return null;
 
   const handleAction = (action) => {
@@ -75,6 +111,11 @@ const MessageContextMenu = ({
       />
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div
+          ref={menuRef}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="message-options-title"
+          onKeyDown={handleDialogKeyDown}
           className={`relative w-full max-w-sm rounded-2xl bg-white shadow-2xl transition-all duration-150 ease-out ${
             isClosing
               ? "pointer-events-none translate-y-2 scale-95 opacity-0"
@@ -90,7 +131,7 @@ const MessageContextMenu = ({
           </button>
 
           <div className="p-6">
-            <h3 className="mb-4 text-lg font-semibold text-gray-800">
+            <h3 id="message-options-title" className="mb-4 text-lg font-semibold text-gray-800">
               Message Options
             </h3>
 

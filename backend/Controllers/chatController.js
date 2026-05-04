@@ -800,9 +800,20 @@ exports.sendMediaMessage = async (req, res) => {
               : "file"
           : "text",
         text: text || null,
-        mediaURL: req.file
-          ? `/${req.file.destination.replace(/\\\\/g, "/")}/${req.file.filename}`
-          : null,
+        mediaURL: (() => {
+          if (!req.file) return null;
+          const candidate = req.file.filename || null;
+          if (
+            typeof candidate === "string" &&
+            /^https?:\/\//i.test(candidate)
+          ) {
+            return candidate;
+          }
+          if (req.file.destination && req.file.filename) {
+            return `/${req.file.destination.replace(/\\\\/g, "/")}/${req.file.filename}`;
+          }
+          return candidate;
+        })(),
         fileName: req.file ? req.file.originalname : null,
         fileSize: req.file ? req.file.size : null,
       },

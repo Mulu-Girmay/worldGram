@@ -481,6 +481,7 @@ const ChannelPostCard = ({
             key={`${post?._id}-${reaction}`}
             type="button"
             onClick={() => handleReactSelect(reaction)}
+            aria-label={`React with ${reaction}`}
             className="rounded-full border border-[#6fa63a]/35 bg-[#f8fdf3] px-2 py-0.5 text-xs text-[rgba(23,3,3,0.85)] transition-all duration-150 hover:-translate-y-0.5 hover:scale-105 hover:bg-[#eef8e8] active:scale-95"
           >
             {reaction}

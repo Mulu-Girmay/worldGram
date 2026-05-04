@@ -64,6 +64,7 @@ const ContentList = ({ chat, onSelect = null, unreadCount = 0 }) => {
     <button
       type="button"
       onClick={handleChat}
+      aria-label={`Open chat with ${displayName}`}
       className="w-full flex items-center gap-3 rounded-xl border border-transparent bg-transparent px-2 py-2 text-left transition hover:border-[var(--border-color)] hover:bg-white"
     >
       {avatarUrl ? (

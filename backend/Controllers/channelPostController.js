@@ -89,6 +89,26 @@ exports.addPost = async (req, res) => {
     const channelId = req.params.id;
     const channel = await Channel.findById(channelId);
 
+    // TEMP DEBUG: log incoming file and permission state to diagnose channel-only upload failures
+    try {
+      console.info("addPost debug: incoming", {
+        userId,
+        channelId,
+        hasFile: Boolean(req.file),
+        file: req.file
+          ? {
+              filename: req.file.filename,
+              originalname: req.file.originalname,
+              mimetype: req.file.mimetype,
+              size: req.file.size,
+              path: req.file.path || null,
+            }
+          : null,
+      });
+    } catch (dbgErr) {
+      console.error("addPost debug log failed:", dbgErr?.message || dbgErr);
+    }
+
     if (!channel) return res.status(404).json({ err: "Channel not found" });
     if (!hasAdminPermission(channel, userId, "canPostMessages")) {
       return res
@@ -107,11 +127,64 @@ exports.addPost = async (req, res) => {
           ]
         : [];
 
+    // TEMP DEBUG: inspect media variable before saving
+    try {
+      console.info("addPost debug: mediaVar", {
+        type: typeof media,
+        isArray: Array.isArray(media),
+        json: (() => {
+          try {
+            return JSON.stringify(media);
+          } catch (e) {
+            return String(media);
+          }
+        })(),
+      });
+    } catch (dbgErr) {
+      console.error("addPost media debug failed:", dbgErr?.message || dbgErr);
+    }
+
+    // Normalize media to ensure it's an array of plain objects (not stringified)
+    let normalizedMedia = [];
+    try {
+      if (Array.isArray(media)) {
+        normalizedMedia = media.map((item) => {
+          if (typeof item === "string") {
+            try {
+              return JSON.parse(item);
+            } catch (e) {
+              try {
+                return JSON.parse(item.replace(/'/g, '"'));
+              } catch (e2) {
+                return item;
+              }
+            }
+          }
+          return item;
+        });
+      } else if (typeof media === "string") {
+        try {
+          normalizedMedia = JSON.parse(media);
+        } catch (e) {
+          try {
+            normalizedMedia = JSON.parse(media.replace(/'/g, '"'));
+          } catch (e2) {
+            normalizedMedia = [media];
+          }
+        }
+      } else {
+        normalizedMedia = media || [];
+      }
+    } catch (normErr) {
+      console.error("media normalization failed:", normErr?.message || normErr);
+      normalizedMedia = media || [];
+    }
+
     const newPost = new ChannelPost({
       channelId,
       authorId: userId,
       text: String(text || "").trim() || null,
-      media,
+      media: normalizedMedia,
       isSilent: Boolean(isSilent),
       authorSignature: {
         show: Boolean(channel?.settings?.showAuthorSignatures),

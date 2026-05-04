@@ -233,6 +233,8 @@ const HomePage = () => {
                 key={item.id}
                 type="button"
                 onClick={() => setActiveFilter(item.id)}
+                aria-pressed={activeFilter === item.id}
+                aria-label={`Show ${item.label.toLowerCase()} conversations`}
                 className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
                   activeFilter === item.id
                     ? "bg-[#4a7f4a] text-white"

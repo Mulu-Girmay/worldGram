@@ -712,20 +712,19 @@ const Chat = ({
             )}
           </div>
         )}
-        <div
-          role={isGroupChat ? "button" : undefined}
-          tabIndex={isGroupChat ? 0 : undefined}
+        <button
+          type="button"
           onClick={() => {
             if (isGroupChat && resolvedGroupId) setShowGroupSettings(true);
           }}
-          onKeyDown={(e) => {
-            if (!isGroupChat || !resolvedGroupId) return;
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
-              setShowGroupSettings(true);
-            }
-          }}
-          className={`flex items-center gap-3 rounded-xl border border-[#6fa63a]/20 bg-white/60 px-3 py-2 ${
+          aria-haspopup="dialog"
+          aria-expanded={showGroupSettings}
+          aria-label={
+            isGroupChat
+              ? `Open ${otherName || "group"} settings`
+              : `Open conversation with ${otherName || "user"}`
+          }
+          className={`flex w-full items-center gap-3 rounded-xl border border-[#6fa63a]/20 bg-white/60 px-3 py-2 text-left ${
             isGroupChat ? "cursor-pointer hover:bg-white/80" : ""
           }`}
         >
@@ -748,7 +747,7 @@ const Chat = ({
               {isGroupChat ? "Tap to open group profile settings" : otherStatus}
             </p>
           </div>
-        </div>
+        </button>
 
         {typingUsers.length > 0 && !isGroupChat && (
           <div className="inline-flex items-center gap-1 rounded-full border border-[#6fa63a]/25 bg-white/85 px-3 py-1 text-[11px] text-[#2f5b2f]">
