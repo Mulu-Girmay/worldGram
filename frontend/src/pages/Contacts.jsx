@@ -351,6 +351,7 @@ const Contacts = () => {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search contacts or users"
+              aria-label="Search contacts or users"
               className="ml-auto min-w-[220px] rounded-lg border border-[#6fa63a]/25 bg-white px-3 py-2 text-sm outline-none focus:border-[#4a7f4a]"
             />
           </div>
@@ -464,6 +465,8 @@ const Contacts = () => {
                       <img
                         src={profileUrl}
                         alt={entry.displayName}
+                        loading="lazy"
+                        decoding="async"
                         className="h-9 w-9 rounded-full border border-[#6fa63a]/20 object-cover"
                       />
                     ) : (
@@ -555,6 +558,8 @@ const Contacts = () => {
                       <img
                         src={profileUrl}
                         alt={displayName}
+                        loading="lazy"
+                        decoding="async"
                         className="h-9 w-9 rounded-full border border-[#6fa63a]/20 object-cover"
                       />
                     ) : (

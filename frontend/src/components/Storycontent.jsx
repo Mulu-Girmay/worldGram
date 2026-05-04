@@ -78,20 +78,20 @@ const Storycontent = () => {
     const id = String(value?._id || value || "");
     if (id && id === currentUserId) return "You";
     return "Unknown user";
-  };
-
-  const toStoryErrorMessage = (raw) => {
-    const text = String(raw || "").toLowerCase();
-    if (!text) return "Something went wrong. Please try again.";
-    if (text.includes("not allowed")) return "You can't view this story.";
-    if (text.includes("not found")) return "This story is no longer available.";
-    if (text.includes("network"))
-      return "Network issue. Check your connection.";
-    return String(raw);
-  };
-
-  const currentUserId = String(currentUser?._id || currentUser?.id || "");
-  const storyAuthorId = String(
+              {currentStory?.mediaType === "video" ? (
+                <video
+                  src={mediaSrc}
+                  controls
+                  autoPlay
+                  className="h-[65vh] w-full object-contain"
+                />
+              ) : (
+                <img
+                  src={mediaSrc}
+                  alt={currentStory?.caption || "Story media"}
+                  decoding="async"
+                  className="h-[65vh] w-full object-contain"
+                />
     currentStory?.authorId?._id || currentStory?.authorId || "",
   );
   const isOwner =

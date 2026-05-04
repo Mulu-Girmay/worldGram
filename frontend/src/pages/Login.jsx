@@ -81,8 +81,11 @@ const Login = () => {
               id="phone"
               name="phoneNumber"
               placeholder="0909090909"
+              autoComplete="tel"
+              required
               value={formValues.phoneNumber}
               onChange={handleChange}
+              aria-describedby="login-form-error"
             />
           </div>
           <div className="grid gap-1.5">
@@ -97,12 +100,17 @@ const Login = () => {
               type="password"
               id="pass"
               name="password"
+              autoComplete="current-password"
+              required
               value={formValues.password}
               onChange={handleChange}
+              aria-describedby="login-form-error"
             />
           </div>
           {(formError || error) && (
-            <p className="text-sm text-red-600">{formError || error}</p>
+            <p id="login-form-error" className="text-sm text-red-600" role="alert">
+              {formError || error}
+            </p>
           )}
 
           <button

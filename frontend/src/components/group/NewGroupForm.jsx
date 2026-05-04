@@ -101,18 +101,25 @@ const NewGroupForm = () => {
 
         <div className="mb-4 flex items-center justify-between border-b border-[#6fa63a]/25 pb-3">
           <div className="flex items-center gap-2">
-            <ArrowLeft
-              className="flex   items-center justify-center rounded-xl bg-[#6fa63a]/10 text-[#4a7f4a]"
-              aria-label="dot menu"
-              size={15}
+            <button
+              type="button"
               onClick={handleBack}
-            />{" "}
+              aria-label="Go back"
+              className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#6fa63a]/10 text-[#4a7f4a] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#6fa63a]/15 active:scale-95"
+            >
+              <ArrowLeft size={15} />
+            </button>
             <p className="text-sm font-semibold tracking-wide text-[#2f5b2f]">
               New group Setup
             </p>
           </div>
           <div className="flex justify-end">
-            <button type="submit" form="new-group-form" disabled={isLoading}>
+            <button
+              type="submit"
+              form="new-group-form"
+              disabled={isLoading}
+              aria-label="Create group"
+            >
               <Check size={20} className="text-[#4a7f4a]" />
             </button>
           </div>
@@ -142,32 +149,50 @@ const NewGroupForm = () => {
               id="groupMedia"
               type="file"
               name="media"
+              aria-label="Choose group cover image"
               className="hidden"
               onChange={handleFileChange}
             />
+            <label className="sr-only" htmlFor="group-name">
+              Group name
+            </label>
             <input
               type="text"
+              id="group-name"
               name="name"
               value={formValues.name}
               onChange={handleChange}
               placeholder="group name"
+              autoComplete="organization"
+              required
               className="rounded-2xl h-10 mt-10 w-40 border border-[#6fa63a]/35 bg-white/85 px-3 py-3 text-sm outline-none transition focus:border-[#4a7f4a] focus:ring-2 focus:ring-[#6fa63a]/20"
             />
           </div>
+          <label className="sr-only" htmlFor="group-username">
+            Group username
+          </label>
           <input
             type="text"
+            id="group-username"
             name="userName"
             value={formValues.userName}
             onChange={handleChange}
             placeholder="group username"
+            autoComplete="username"
+            required
             className="rounded-2xl border border-[#6fa63a]/35 bg-white/85 px-4 py-3 text-sm outline-none transition focus:border-[#4a7f4a] focus:ring-2 focus:ring-[#6fa63a]/20"
           />
+          <label className="sr-only" htmlFor="group-description">
+            Group description
+          </label>
           <textarea
+            id="group-description"
             name="description"
             value={formValues.description}
             onChange={handleChange}
             rows="3"
             placeholder="Describe what this group is about..."
+            aria-label="Group description"
             className="resize-none rounded-2xl border border-[#6fa63a]/35 bg-white/85 px-4 py-3 text-sm outline-none transition focus:border-[#4a7f4a] focus:ring-2 focus:ring-[#6fa63a]/20"
           />
 

@@ -64,6 +64,8 @@ const Story = ({ story }) => {
             <img
               src={mediaSrc}
               alt={caption || "Story media"}
+              loading="lazy"
+              decoding="async"
               className="h-full w-full object-cover"
             />
           )

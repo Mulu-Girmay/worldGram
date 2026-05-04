@@ -190,6 +190,8 @@ const Nav = () => {
                         <img
                           src={mediaSrc}
                           alt={story?.caption || "Story"}
+                          loading="lazy"
+                          decoding="async"
                           className="h-full w-full object-cover"
                         />
                       )
@@ -219,6 +221,7 @@ const Nav = () => {
         <input
           type="text"
           placeholder="Search"
+          aria-label="Search conversations and stories"
           className="w-full rounded-xl border border-[var(--border-color)] bg-white py-2 pl-9 pr-3 text-sm outline-none transition-all duration-200 focus:border-[#4a7f4a] focus:ring-2 focus:ring-[#6fa63a]/20"
         />
       </div>

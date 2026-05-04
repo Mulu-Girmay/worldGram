@@ -917,6 +917,8 @@ const Channel = () => {
                 <img
                   src={resolveMediaSrc(currentChannel.basicInfo.photo)}
                   alt={currentChannel?.basicInfo?.name || "Channel"}
+                  loading="lazy"
+                  decoding="async"
                   className="h-full w-full object-cover"
                   onError={(e) => {
                     e.target.style.display = "none";
@@ -1063,6 +1065,8 @@ const Channel = () => {
                   <img
                     src={resolveMediaSrc(currentChannel.basicInfo.photo)}
                     alt={currentChannel?.basicInfo?.name || "Channel"}
+                    loading="lazy"
+                    decoding="async"
                     className="h-full w-full object-cover"
                     onError={(e) => {
                       e.target.style.display = "none";
@@ -1544,6 +1548,8 @@ const Channel = () => {
                         <img
                           src={photoSrc}
                           alt={ch?.basicInfo?.name || "Channel"}
+                          loading="lazy"
+                          decoding="async"
                           className="h-full w-full object-cover"
                         />
                       ) : (

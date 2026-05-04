@@ -35,6 +35,8 @@ const ChannelList = ({ channel, onSelect = null, unreadCount = 0 }) => {
         <img
           src={photo}
           alt={channelName}
+          loading="lazy"
+          decoding="async"
           className="h-11 w-11 rounded-full border border-[var(--border-color)] object-cover"
         />
       ) : (

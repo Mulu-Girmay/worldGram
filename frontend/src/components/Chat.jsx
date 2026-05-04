@@ -732,6 +732,8 @@ const Chat = ({
             <img
               src={otherProfile}
               alt={otherName}
+                    loading="lazy"
+                    decoding="async"
               className="h-10 w-10 rounded-full border border-[#6fa63a]/25 object-cover"
             />
           ) : (
@@ -844,6 +846,8 @@ const Chat = ({
                       <img
                         src={senderProfile}
                         alt={senderName}
+                        loading="lazy"
+                        decoding="async"
                         className="h-8 w-8 rounded-full border border-[#6fa63a]/25 object-cover"
                       />
                     ) : (
@@ -1082,6 +1086,8 @@ const Chat = ({
                   <img
                     src={resolveProfileUrl(otherProfile)}
                     alt={otherName}
+                    loading="lazy"
+                    decoding="async"
                     className="h-28 w-28 rounded-full border border-[#6fa63a]/30 object-cover"
                   />
                 ) : (

@@ -79,12 +79,14 @@ const NewChannelForm = () => {
 
         <div className="mb-4 flex items-center justify-between border-b border-[#6fa63a]/25 pb-3">
           <div className="flex items-center gap-2">
-            <ArrowLeft
-              className="flex   items-center justify-center rounded-xl bg-[#6fa63a]/10 text-[#4a7f4a]"
-              aria-label="dot menu"
-              size={15}
+            <button
+              type="button"
               onClick={handleBack}
-            />
+              aria-label="Go back"
+              className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#6fa63a]/10 text-[#4a7f4a] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#6fa63a]/15 active:scale-95"
+            >
+              <ArrowLeft size={15} />
+            </button>
             <p className="text-sm font-semibold tracking-wide text-[#2f5b2f]">
               New Channel Setup
             </p>
@@ -94,6 +96,7 @@ const NewChannelForm = () => {
               type="submit"
               form="new-channel-form"
               disabled={isLoading}
+              aria-label="Create channel"
               className="disabled:opacity-60"
             >
               <Check size={20} className="text-[#4a7f4a]" />
@@ -107,20 +110,32 @@ const NewChannelForm = () => {
           onSubmit={handleSubmit}
         >
           <div className="grid gap-3 md:grid-cols-2">
+            <label className="sr-only" htmlFor="channel-name">
+              Channel name
+            </label>
             <input
               onChange={handleChange}
               type="text"
+              id="channel-name"
               name="name"
               value={formValues.name}
               placeholder="Channel name"
+              autoComplete="organization"
+              required
               className="rounded-2xl border border-[#6fa63a]/35 bg-white/85 px-4 py-3 text-sm outline-none transition focus:border-[#4a7f4a] focus:ring-2 focus:ring-[#6fa63a]/20"
             />
+            <label className="sr-only" htmlFor="channel-username">
+              Channel username
+            </label>
             <input
               onChange={handleChange}
               type="text"
+              id="channel-username"
               name="userName"
               value={formValues.userName}
               placeholder="Username"
+              autoComplete="username"
+              required
               className="rounded-2xl border border-[#6fa63a]/35 bg-white/85 px-4 py-3 text-sm outline-none transition focus:border-[#4a7f4a] focus:ring-2 focus:ring-[#6fa63a]/20"
             />
           </div>
@@ -146,16 +161,22 @@ const NewChannelForm = () => {
             type="file"
             name="media"
             accept="image/*"
+            aria-label="Choose channel cover image"
             className="hidden"
             onChange={handleFileChange}
           />
 
+          <label className="sr-only" htmlFor="channel-description">
+            Channel description
+          </label>
           <textarea
+            id="channel-description"
             value={formValues.description}
             onChange={handleChange}
             name="description"
             rows="3"
             placeholder="Describe what this channel is about..."
+            aria-label="Channel description"
             className="resize-none rounded-2xl border border-[#6fa63a]/35 bg-white/85 px-4 py-3 text-sm outline-none transition focus:border-[#4a7f4a] focus:ring-2 focus:ring-[#6fa63a]/20"
           />
 

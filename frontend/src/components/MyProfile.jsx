@@ -605,6 +605,8 @@ const MyProfile = () => {
               <img
                 src={profileUrl}
                 alt={displayName}
+                loading="lazy"
+                decoding="async"
                 className="h-full w-full rounded-full border border-[#6fa63a]/35 object-cover bg-white"
               />
             ) : (
@@ -666,6 +668,7 @@ const MyProfile = () => {
                   value={phoneDraft}
                   onChange={(e) => setPhoneDraft(e.target.value)}
                   placeholder="Enter phone number"
+                  aria-label="Phone number"
                   className="w-full rounded-md border border-[#6fa63a]/30 px-2 py-1 text-sm outline-none focus:border-[#4a7f4a]"
                 />
                 <button
@@ -1015,6 +1018,8 @@ const MyProfile = () => {
                         avatarPreview || resolveProfileUrl(editForm.profileUrl)
                       }
                       alt="Profile preview"
+                      loading="lazy"
+                      decoding="async"
                       className="h-20 w-20 rounded-full border border-[#6fa63a]/35 object-cover"
                     />
                   ) : (

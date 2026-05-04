@@ -537,6 +537,8 @@ const GroupManagePanel = ({ groupId }) => {
                     <img
                       src={avatar}
                       alt={fullName}
+                      loading="lazy"
+                      decoding="async"
                       className="h-7 w-7 rounded-full border border-[#6fa63a]/25 object-cover"
                     />
                   ) : (

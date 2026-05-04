@@ -291,6 +291,7 @@ const SideBar = () => {
               value={searchValue}
               onChange={(e) => setSearchValue(e.target.value)}
               placeholder="Search users"
+              aria-label="Search contacts"
               className="mb-2 w-full rounded-lg border border-[#6fa63a]/20 bg-white px-2 py-1.5 text-xs outline-none focus:border-[#6fa63a]/50"
             />
 

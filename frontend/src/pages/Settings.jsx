@@ -365,6 +365,8 @@ const Settings = () => {
                         <img
                           src={avatarUrl}
                           alt={displayName}
+                          loading="lazy"
+                          decoding="async"
                           className="h-9 w-9 rounded-full border border-[#6fa63a]/20 object-cover"
                         />
                       ) : (

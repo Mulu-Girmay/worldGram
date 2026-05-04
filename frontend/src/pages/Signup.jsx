@@ -92,6 +92,8 @@ const Signup = () => {
               id="firstName"
               name="firstName"
               placeholder="Abebe"
+              autoComplete="given-name"
+              required
               value={formValues.firstName}
               onChange={handleChange}
             />
@@ -109,6 +111,8 @@ const Signup = () => {
               id="lastName"
               name="lastName"
               placeholder="Kebede"
+              autoComplete="family-name"
+              required
               value={formValues.lastName}
               onChange={handleChange}
             />
@@ -126,6 +130,8 @@ const Signup = () => {
               id="username"
               name="username"
               placeholder="abe21"
+              autoComplete="username"
+              required
               value={formValues.username}
               onChange={handleChange}
             />
@@ -143,6 +149,8 @@ const Signup = () => {
               id="phoneNumber"
               name="phoneNumber"
               placeholder="0909090909"
+              autoComplete="tel"
+              required
               value={formValues.phoneNumber}
               onChange={handleChange}
             />
@@ -159,12 +167,16 @@ const Signup = () => {
               type="password"
               id="password"
               name="password"
+              autoComplete="new-password"
+              required
               value={formValues.password}
               onChange={handleChange}
             />
           </div>
           {(formError || error) && (
-            <p className="text-sm text-red-600">{formError || error}</p>
+            <p className="text-sm text-red-600" role="alert">
+              {formError || error}
+            </p>
           )}
 
           <button
