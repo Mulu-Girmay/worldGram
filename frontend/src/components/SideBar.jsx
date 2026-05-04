@@ -40,6 +40,7 @@ import { createChat, listChats } from "../Redux/chatRedux/chatThunk";
 import { setCurrentChat } from "../Redux/chatRedux/chatSlice";
 import { resolveProfileUrl, toInitials } from "../utils/media";
 import { useToast } from "./ToastProvider";
+import LoadingStream from "./LoadingStream";
 
 const normalizeId = (value) => {
   if (!value) return "";
@@ -297,9 +298,11 @@ const SideBar = () => {
 
             <div className="max-h-56 space-y-1 overflow-y-auto pr-1">
               {contactsStatus === "loading" && (
-                <p className="px-1 py-1 text-xs text-[rgba(23,3,3,0.65)]">
-                  Loading contacts...
-                </p>
+                <LoadingStream
+                  label="Loading contacts"
+                  lines={2}
+                  className="rounded-lg border border-[#6fa63a]/20 bg-white/75 p-2"
+                />
               )}
 
               {contactsStatus === "failed" && (
@@ -374,9 +377,11 @@ const SideBar = () => {
               </p>
 
               {usersStatus === "loading" && (
-                <p className="px-1 py-1 text-xs text-[rgba(23,3,3,0.65)]">
-                  Loading users...
-                </p>
+                <LoadingStream
+                  label="Loading users"
+                  lines={2}
+                  className="rounded-lg border border-[#6fa63a]/20 bg-white/75 p-2"
+                />
               )}
 
               {usersStatus === "failed" && (

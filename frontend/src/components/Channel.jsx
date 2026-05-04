@@ -62,6 +62,7 @@ import {
 } from "../Redux/channelRedux/channelSelector";
 import { selectUser } from "../Redux/userRedux/authSelector";
 import ChannelPostCard from "./ChannelPostCard";
+import LoadingStream from "./LoadingStream";
 
 const Channel = () => {
   const dispatch = useDispatch();
@@ -954,10 +955,11 @@ const Channel = () => {
 
         <div className="relative max-h-[520px] space-y-3 overflow-y-auto pr-1">
           {postsStatus === "loading" && postsLocal.length === 0 && (
-            <div className="space-y-2">
-              <div className="h-20 rounded-xl bg-white/60 animate-pulse" />
-              <div className="h-20 rounded-xl bg-white/60 animate-pulse" />
-            </div>
+            <LoadingStream
+              label="Loading channel posts"
+              lines={4}
+              className="rounded-xl border border-[#6fa63a]/20 bg-white/75 p-3"
+            />
           )}
           {postsStatus === "succeeded" && postsLocal.length === 0 && (
             <p className="text-sm">No posts yet.</p>
@@ -968,7 +970,11 @@ const Channel = () => {
             </p>
           )}
           {isOwnerOrAdmin && postsStatus === "loading" && (
-            <p>Loading posts...</p>
+            <LoadingStream
+              label="Preparing channel feed"
+              lines={2}
+              className="rounded-xl border border-[#6fa63a]/20 bg-white/75 p-3"
+            />
           )}
           {(postsStatus === "succeeded" || postsLocal.length > 0) &&
             (isOwnerOrAdmin ? (
@@ -1510,9 +1516,11 @@ const Channel = () => {
 
             <div className="mt-3 max-h-72 overflow-y-auto space-y-2 pr-1">
               {myChannelsStatus === "loading" && (
-                <p className="text-sm text-[rgba(23,3,3,0.7)]">
-                  Loading channels...
-                </p>
+                <LoadingStream
+                  label="Loading channels"
+                  lines={2}
+                  className="rounded-lg border border-[#6fa63a]/20 bg-white/75 p-2"
+                />
               )}
 
               {myChannelsStatus !== "loading" &&

@@ -112,6 +112,16 @@ a:focus-visible {
   }
 }
 
+@keyframes loading-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+
+  100% {
+    background-position: -200% 0;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -150,6 +160,19 @@ a:focus-visible {
 
 .typing-dot:nth-child(4) {
   animation-delay: 0.45s;
+}
+
+.loading-stream-line {
+  background: linear-gradient(
+    90deg,
+    rgba(111, 166, 58, 0.1) 0%,
+    rgba(111, 166, 58, 0.18) 30%,
+    rgba(74, 127, 74, 0.22) 50%,
+    rgba(111, 166, 58, 0.18) 70%,
+    rgba(111, 166, 58, 0.1) 100%
+  );
+  background-size: 200% 100%;
+  animation: loading-shimmer 1.35s linear infinite;
 }
 
 #app-content:focus {

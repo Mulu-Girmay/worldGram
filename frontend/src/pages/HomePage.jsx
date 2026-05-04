@@ -5,6 +5,7 @@ import ChannelList from "../components/ChannelList";
 import GroupList from "../components/GroupList";
 import Chat from "../components/Chat";
 import Channel from "../components/Channel";
+import LoadingStream from "../components/LoadingStream";
 import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import {
@@ -253,9 +254,11 @@ const HomePage = () => {
             </div>
 
             {chatsStatus === "loading" && (
-              <p className="px-2 py-2 text-xs text-[var(--text-muted)]">
-                Loading chats...
-              </p>
+              <LoadingStream
+                label="Loading chats"
+                lines={3}
+                className="mb-2 rounded-xl border border-[var(--border-color)] bg-white/80 p-3"
+              />
             )}
             {chatsStatus === "failed" && (
               <p className="px-2 py-2 text-xs text-red-600">{chatsError}</p>
@@ -289,9 +292,11 @@ const HomePage = () => {
             </div>
 
             {groupsStatus === "loading" && (
-              <p className="px-2 py-2 text-xs text-[var(--text-muted)]">
-                Loading groups...
-              </p>
+              <LoadingStream
+                label="Loading groups"
+                lines={3}
+                className="mb-2 rounded-xl border border-[var(--border-color)] bg-white/80 p-3"
+              />
             )}
             {groupsStatus === "failed" && (
               <p className="px-2 py-2 text-xs text-red-600">{groupsError}</p>
@@ -331,9 +336,11 @@ const HomePage = () => {
             </div>
 
             {channelStatus === "loading" && (
-              <p className="px-2 py-2 text-xs text-[var(--text-muted)]">
-                Loading channels...
-              </p>
+              <LoadingStream
+                label="Loading channels"
+                lines={3}
+                className="mb-2 rounded-xl border border-[var(--border-color)] bg-white/80 p-3"
+              />
             )}
             {channelStatus === "failed" && (
               <p className="px-2 py-2 text-xs text-red-600">{channelError}</p>

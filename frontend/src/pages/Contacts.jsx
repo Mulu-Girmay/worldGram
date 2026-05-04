@@ -31,6 +31,7 @@ import { setCurrentChat } from "../Redux/chatRedux/chatSlice";
 import { selectUser } from "../Redux/userRedux/authSelector";
 import { resolveProfileUrl, toInitials } from "../utils/media";
 import { useToast } from "../components/ToastProvider";
+import LoadingStream from "../components/LoadingStream";
 
 const normalizeId = (value) => {
   if (!value) return "";
@@ -424,9 +425,11 @@ const Contacts = () => {
             </div>
 
             {contactsStatus === "loading" && (
-              <p className="text-xs text-[rgba(23,3,3,0.62)]">
-                Loading contacts...
-              </p>
+              <LoadingStream
+                label="Loading contacts"
+                lines={3}
+                className="rounded-xl border border-[#6fa63a]/20 bg-white/75 p-3"
+              />
             )}
 
             {contactsStatus === "failed" && (
@@ -529,9 +532,11 @@ const Contacts = () => {
             </p>
 
             {usersStatus === "loading" && (
-              <p className="text-xs text-[rgba(23,3,3,0.62)]">
-                Loading users...
-              </p>
+              <LoadingStream
+                label="Loading users"
+                lines={3}
+                className="rounded-xl border border-[#6fa63a]/20 bg-white/75 p-3"
+              />
             )}
 
             {usersStatus === "failed" && (

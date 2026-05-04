@@ -41,6 +41,7 @@ import Story from "./Story";
 import { resolveMediaUrl, resolveProfileUrl, toInitials } from "../utils/media";
 import { getMessagesApi, listChatsApi } from "../api/chatApi";
 import { useToast } from "./ToastProvider";
+import LoadingStream from "./LoadingStream";
 
 const mediaItemsBase = [
   { icon: ImageIcon, key: "photosVideos", label: "Photos & Videos" },
@@ -791,9 +792,11 @@ const MyProfile = () => {
           className="mb-3 w-full rounded-lg border border-[#6fa63a]/25 bg-white px-3 py-2 text-sm outline-none focus:border-[#4a7f4a]"
         />
         {sharedMediaStatus === "loading" && (
-          <p className="mb-2 text-xs text-[rgba(23,3,3,0.62)]">
-            Syncing your shared media...
-          </p>
+          <LoadingStream
+            label="Syncing your shared media"
+            lines={3}
+            className="mb-2 rounded-xl border border-[#6fa63a]/20 bg-white/75 p-3"
+          />
         )}
         <div className="grid gap-2 sm:grid-cols-2">
           {mediaItemsBase.map(({ icon: Icon, label, key }) => (
@@ -903,7 +906,11 @@ const MyProfile = () => {
         />
 
         {userStoriesStatus === "loading" && (
-          <p className="text-xs text-[rgba(23,3,3,0.62)]">Loading stories...</p>
+          <LoadingStream
+            label="Loading your stories"
+            lines={3}
+            className="rounded-xl border border-[#6fa63a]/20 bg-white/75 p-3"
+          />
         )}
         {userStoriesStatus !== "loading" && userStories.length === 0 && (
           <p className="text-xs text-[rgba(23,3,3,0.62)]">
@@ -934,9 +941,11 @@ const MyProfile = () => {
           </button>
         </div>
         {highlightsStatus === "loading" && (
-          <p className="text-xs text-[rgba(23,3,3,0.62)]">
-            Loading highlights...
-          </p>
+          <LoadingStream
+            label="Loading highlights"
+            lines={2}
+            className="rounded-xl border border-[#6fa63a]/20 bg-white/75 p-3"
+          />
         )}
         {highlightsStatus !== "loading" && highlights.length === 0 && (
           <p className="text-xs text-[rgba(23,3,3,0.62)]">

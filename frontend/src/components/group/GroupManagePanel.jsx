@@ -26,6 +26,7 @@ import {
   updateGroupTopic,
   updatePermissions,
 } from "../../Redux/groupRedux/groupThunk";
+import LoadingStream from "../LoadingStream";
 import {
   selectCurrentGroup,
   selectGroupError,
@@ -514,7 +515,11 @@ const GroupManagePanel = ({ groupId }) => {
       <div className="rounded-xl border border-[#6fa63a]/20 bg-white/70 p-2">
         <p className="text-xs font-semibold mb-1">Members</p>
         {membersStatus === "loading" && (
-          <p className="text-xs text-[rgba(23,3,3,0.62)]">Loading members...</p>
+          <LoadingStream
+            label="Loading members"
+            lines={2}
+            className="rounded-lg border border-[#6fa63a]/20 bg-white/75 p-2"
+          />
         )}
         {membersStatus !== "loading" && displayMembers.length === 0 && (
           <p className="text-xs text-[rgba(23,3,3,0.62)]">No members</p>
@@ -686,7 +691,11 @@ const GroupManagePanel = ({ groupId }) => {
           className="w-full rounded-lg border border-[#6fa63a]/35 bg-white px-2 py-1.5 text-xs outline-none"
         />
         {topicsStatus === "loading" && (
-          <p className="text-xs">Loading topics...</p>
+          <LoadingStream
+            label="Loading topics"
+            lines={2}
+            className="rounded-lg border border-[#6fa63a]/20 bg-white/75 p-2"
+          />
         )}
         <div className="space-y-1 max-h-24 overflow-y-auto">
           {topics.map((topic) => (
@@ -854,7 +863,11 @@ const GroupManagePanel = ({ groupId }) => {
       <div className="space-y-1">
         <p className="text-xs font-semibold">Recent actions (48h)</p>
         {recentActionsStatus === "loading" && (
-          <p className="text-xs">Loading...</p>
+          <LoadingStream
+            label="Loading recent actions"
+            lines={2}
+            className="rounded-lg border border-[#6fa63a]/20 bg-white/75 p-2"
+          />
         )}
         <div className="max-h-24 overflow-y-auto space-y-1">
           {recentActions.slice(0, 20).map((action) => (

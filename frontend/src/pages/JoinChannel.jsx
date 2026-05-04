@@ -9,6 +9,7 @@ import {
   findChannel,
   joinChannelByInviteToken,
 } from "../Redux/channelRedux/channelThunk";
+import LoadingStream from "../components/LoadingStream";
 
 const JoinChannel = () => {
   const dispatch = useDispatch();
@@ -81,9 +82,16 @@ const JoinChannel = () => {
         <h1 className="mt-2 text-2xl font-bold">Join channel</h1>
         <p className="mt-2 text-sm text-[rgba(23,3,3,0.68)]">
           {status === "loading"
-            ? "Joining the channel..."
+            ? null
             : message || "Open the invite link to join."}
         </p>
+        {status === "loading" && (
+          <LoadingStream
+            label="Joining the channel"
+            lines={3}
+            className="mt-4 rounded-2xl border border-[#6fa63a]/20 bg-white/80 p-4"
+          />
+        )}
 
         {status === "needs-auth" && (
           <div className="mt-4 rounded-2xl border border-[#6fa63a]/20 bg-white/80 p-4">

@@ -30,6 +30,7 @@ import { selectUser } from "../Redux/userRedux/authSelector";
 import { resolveMediaUrl } from "../utils/media";
 import Reaction from "./Reaction";
 import { useToast } from "./ToastProvider";
+import LoadingStream from "./LoadingStream";
 
 const QUICK_REACTIONS = [
   "\u{1F44D}",
@@ -443,9 +444,11 @@ const Storycontent = () => {
 
         <div className="relative overflow-hidden rounded-2xl border border-[#6fa63a]/25 bg-black/85">
           {currentStoryStatus === "loading" && (
-            <div className="grid h-[65vh] place-items-center text-sm text-white/80">
-              Loading story...
-            </div>
+            <LoadingStream
+              label="Loading story"
+              lines={4}
+              className="grid h-[65vh] place-items-center rounded-2xl border border-white/10 bg-white/5 p-6"
+            />
           )}
 
           {currentStoryStatus !== "loading" && !currentStory && (

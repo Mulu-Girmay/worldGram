@@ -27,6 +27,7 @@ import {
 import { listRegisteredUsers } from "../Redux/contactRedux/contactThunk";
 import { resolveProfileUrl, toInitials } from "../utils/media";
 import { useToast } from "../components/ToastProvider";
+import LoadingStream from "../components/LoadingStream";
 
 const PRIVACY_OPTIONS = [
   { value: "everyone", label: "Everyone" },
@@ -263,6 +264,16 @@ const Settings = () => {
               );
             })}
           </div>
+
+          {usersStatus === "loading" && (
+            <div className="mt-3">
+              <LoadingStream
+                label="Loading users"
+                lines={3}
+                className="rounded-xl border border-[#6fa63a]/20 bg-white/75 p-3"
+              />
+            </div>
+          )}
 
           <div className="mt-4 flex flex-wrap items-center gap-2">
             <button

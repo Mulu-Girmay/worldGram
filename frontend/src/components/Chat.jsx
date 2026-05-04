@@ -37,6 +37,8 @@ import {
   listGroupTopics,
   setGroupViewMode,
 } from "../Redux/groupRedux/groupThunk";
+import LoadingStream from "./LoadingStream";
+import LoadingStream from "./LoadingStream";
 import {
   selectCurrentGroup,
   selectGroupTopics,
@@ -765,9 +767,11 @@ const Chat = ({
           className="h-[60vh] space-y-2 overflow-y-auto rounded-2xl border border-[#6fa63a]/25 bg-[#f3f9ee] p-3"
         >
           {messagesStatus === "loading" && (
-            <p className="text-xs text-[rgba(23,3,3,0.6)]">
-              Loading messages...
-            </p>
+            <LoadingStream
+              label="Loading messages"
+              lines={3}
+              className="rounded-2xl border border-[#6fa63a]/20 bg-white/75 p-3"
+            />
           )}
 
           {messagesStatus !== "loading" && filteredMessages.length === 0 && (
