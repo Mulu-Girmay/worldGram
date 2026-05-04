@@ -20,6 +20,7 @@ import {
   updateAdminPermissionsApi,
   updateChannelApi,
 } from "../../api/channelApi";
+import { shouldFetchWithCache } from "../../utils/cache";
 
 export const listChannel = createAsyncThunk(
   "listChannel",
@@ -32,6 +33,17 @@ export const listChannel = createAsyncThunk(
         err.response?.data || { message: "fetching channels failed" },
       );
     }
+  },
+  {
+    condition: (params = {}, { getState }) => {
+      if (params?.cursor || params?.force) return true;
+      const { channelStatus, channelFetchedAt } = getState().channel || {};
+      return shouldFetchWithCache({
+        status: channelStatus,
+        fetchedAt: channelFetchedAt,
+        force: params?.force,
+      });
+    },
   },
 );
 export const myChannel = createAsyncThunk(
@@ -46,6 +58,17 @@ export const myChannel = createAsyncThunk(
       );
     }
   },
+  {
+    condition: (params = {}, { getState }) => {
+      if (params?.cursor || params?.force) return true;
+      const { myChannelStatus, myChannelsFetchedAt } = getState().channel || {};
+      return shouldFetchWithCache({
+        status: myChannelStatus,
+        fetchedAt: myChannelsFetchedAt,
+        force: params?.force,
+      });
+    },
+  },
 );
 export const findChannel = createAsyncThunk(
   "findChannel",
@@ -58,6 +81,18 @@ export const findChannel = createAsyncThunk(
         err.response?.data || { message: "fetching  channel failed" },
       );
     }
+  },
+  {
+    condition: (id, { getState }) => {
+      if (!id) return false;
+      const { currentChannel, findStatus, currentChannelFetchedAt } =
+        getState().channel || {};
+      if (String(currentChannel?._id || "") !== String(id)) return true;
+      return shouldFetchWithCache({
+        status: findStatus,
+        fetchedAt: currentChannelFetchedAt,
+      });
+    },
   },
 );
 export const subscribeChannel = createAsyncThunk(

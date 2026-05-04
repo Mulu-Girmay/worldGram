@@ -10,6 +10,7 @@ import {
   updateStoryApi,
   viewStoryApi,
 } from "../../api/storyApi";
+import { shouldFetchWithCache } from "../../utils/cache";
 
 export const addStory = createAsyncThunk(
   "story/addStory",
@@ -66,6 +67,18 @@ export const getStoryById = createAsyncThunk(
       );
     }
   },
+  {
+    condition: (storyId, { getState }) => {
+      if (!storyId) return false;
+      const { currentStory, currentStoryStatus, currentStoryFetchedAt } =
+        getState().story || {};
+      if (String(currentStory?._id || "") !== String(storyId)) return true;
+      return shouldFetchWithCache({
+        status: currentStoryStatus,
+        fetchedAt: currentStoryFetchedAt,
+      });
+    },
+  },
 );
 
 export const listStories = createAsyncThunk(
@@ -79,6 +92,17 @@ export const listStories = createAsyncThunk(
         err.response?.data || { message: "failed to list stories" },
       );
     }
+  },
+  {
+    condition: (params = {}, { getState }) => {
+      if (params?.cursor || params?.force) return true;
+      const { storiesStatus, storiesFetchedAt } = getState().story || {};
+      return shouldFetchWithCache({
+        status: storiesStatus,
+        fetchedAt: storiesFetchedAt,
+        force: params?.force,
+      });
+    },
   },
 );
 

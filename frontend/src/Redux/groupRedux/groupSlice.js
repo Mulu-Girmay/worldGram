@@ -42,6 +42,9 @@ const initialState = {
   initialized: false,
   nextCursor: null,
   myNextCursor: null,
+  groupsFetchedAt: 0,
+  myGroupsFetchedAt: 0,
+  currentGroupFetchedAt: 0,
   lastMessage: null,
   groupsStatus: "idle",
   myGroupsStatus: "idle",
@@ -95,6 +98,7 @@ const groupSlice = createSlice({
           state.groups = items;
         }
         state.nextCursor = action.payload?.nextCursor || null;
+        state.groupsFetchedAt = Date.now();
         state.initialized = true;
       })
       .addCase(listGroups.rejected, (state, action) => {
@@ -122,6 +126,7 @@ const groupSlice = createSlice({
           state.myGroups = items;
         }
         state.myNextCursor = action.payload?.nextCursor || null;
+        state.myGroupsFetchedAt = Date.now();
       })
       .addCase(listMyGroups.rejected, (state, action) => {
         state.myGroupsStatus = "failed";
@@ -139,6 +144,7 @@ const groupSlice = createSlice({
       .addCase(findGroup.fulfilled, (state, action) => {
         state.currentGroupStatus = "succeeded";
         state.currentGroup = action.payload || null;
+        state.currentGroupFetchedAt = Date.now();
       })
       .addCase(findGroup.rejected, (state, action) => {
         state.currentGroupStatus = "failed";

@@ -36,9 +36,12 @@ const initialState = {
   removeAdminStatus: "idle",
   initialized: false,
   nextCursor: null,
+  channelFetchedAt: 0,
   myChannels: [],
   myNextCursor: null,
+  myChannelsFetchedAt: 0,
   currentChannel: null,
+  currentChannelFetchedAt: 0,
   lastMessage: null,
   unreadCountByChannel: {},
   unreadStatus: "idle",
@@ -86,6 +89,7 @@ const channelSlice = createSlice({
         }
 
         state.nextCursor = payloadData?.nextCursor || null;
+        state.channelFetchedAt = Date.now();
         state.initialized = true;
       })
       .addCase(listChannel.rejected, (state, action) => {
@@ -98,6 +102,7 @@ const channelSlice = createSlice({
         state.initialized = true;
       })
 
+        state.myChannelsFetchedAt = Date.now();
       // myChannel (user-owned/admin channels)
       .addCase(myChannel.pending, (state) => {
         state.myChannelStatus = "loading";
@@ -132,6 +137,7 @@ const channelSlice = createSlice({
       .addCase(findChannel.fulfilled, (state, action) => {
         state.findStatus = "succeeded";
         state.currentChannel = action.payload || null;
+        state.currentChannelFetchedAt = Date.now();
       })
       .addCase(findChannel.rejected, (state, action) => {
         state.findStatus = "failed";

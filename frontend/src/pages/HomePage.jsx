@@ -3,8 +3,6 @@ import Nav from "../components/Nav";
 import ContentList from "../components/ContentList";
 import ChannelList from "../components/ChannelList";
 import GroupList from "../components/GroupList";
-import Chat from "../components/Chat";
-import Channel from "../components/Channel";
 import LoadingStream from "../components/LoadingStream";
 import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
@@ -37,6 +35,9 @@ import { selectStoriesStatus } from "../Redux/storyRedux/storySelector";
 import { setCurrentChat } from "../Redux/chatRedux/chatSlice";
 import { getUnreadCount } from "../Redux/chatRedux/chatThunk";
 import { setCurrentChannel } from "../Redux/channelRedux/channelSlice";
+
+const Chat = React.lazy(() => import("../components/Chat"));
+const Channel = React.lazy(() => import("../components/Channel"));
 
 const LIST_REFRESH_MS = 2 * 60 * 1000;
 const UNREAD_REFRESH_MS = 30 * 1000;
@@ -247,7 +248,7 @@ const HomePage = () => {
             ))}
           </div>
 
-          <div className="mt-3 min-h-0 flex-1 overflow-y-auto rounded-xl border border-[var(--border-color)] bg-white/75 p-2">
+          <div className="mt-3 min-h-0 flex-1 overflow-y-auto overscroll-contain rounded-xl border border-[var(--border-color)] bg-white/75 p-2">
             <div className="my-2 border-t border-[var(--border-color)]" />
             <div className="mb-2 px-2 text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">
               Conversations
@@ -372,13 +373,37 @@ const HomePage = () => {
 
         <main className="hidden min-h-0 bg-[var(--surface-color)] shadow-[0_12px_30px_rgba(74,127,74,0.12)] md:flex md:flex-col md:rounded-2xl md:border md:border-[var(--border-color)]">
           {selectedPane.type === "chat" && selectedPane.id ? (
-            <div className="min-h-0 flex-1 overflow-y-auto">
-              <Chat chatId={selectedPane.id} />
-            </div>
+            <React.Suspense
+              fallback={
+                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4">
+                  <LoadingStream
+                    label="Loading chat"
+                    lines={4}
+                    className="rounded-2xl border border-[var(--border-color)] bg-white/75 p-4"
+                  />
+                </div>
+              }
+            >
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+                <Chat chatId={selectedPane.id} />
+              </div>
+            </React.Suspense>
           ) : selectedPane.type === "channel" && selectedPane.id ? (
-            <div className="min-h-0 flex-1 overflow-y-auto p-4">
-              <Channel />
-            </div>
+            <React.Suspense
+              fallback={
+                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4">
+                  <LoadingStream
+                    label="Loading channel"
+                    lines={4}
+                    className="rounded-2xl border border-[var(--border-color)] bg-white/75 p-4"
+                  />
+                </div>
+              }
+            >
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4">
+                <Channel />
+              </div>
+            </React.Suspense>
           ) : (
             <>
               <div className="border-b border-[var(--border-color)] px-6 py-4">

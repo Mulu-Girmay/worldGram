@@ -22,7 +22,9 @@ const initialState = {
   chats: [],
   chatsStatus: "idle",
   nextCursor: null,
+  chatsFetchedAt: 0,
   currentChat: null,
+  currentChatFetchedAt: 0,
   currentChatStatus: "idle",
   messages: [],
   messagesStatus: "idle",
@@ -158,6 +160,7 @@ const chatSlice = createSlice({
           state.chats = items;
         }
         state.nextCursor = action.payload?.nextCursor || null;
+        state.chatsFetchedAt = Date.now();
       })
       .addCase(listChats.rejected, (state, action) => {
         state.chatsStatus = "failed";
@@ -176,6 +179,7 @@ const chatSlice = createSlice({
       .addCase(getChatById.fulfilled, (state, action) => {
         state.currentChatStatus = "succeeded";
         state.currentChat = action.payload || null;
+        state.currentChatFetchedAt = Date.now();
         if (action.payload?._id) {
           state.chats = replaceChatIfExists(state.chats, action.payload);
         }

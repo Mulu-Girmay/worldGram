@@ -1,21 +1,23 @@
-import React from "react";
-import Signup from "./pages/Signup";
-import Login from "./pages/Login";
-import HomePage from "./pages/HomePage";
-import SideBar from "./components/SideBar";
-import Channel from "./components/Channel";
-import Chat from "./components/Chat";
+import React, { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { selectIsAuthenticated } from "./Redux/userRedux/authSelector";
-import Storycontent from "./components/Storycontent";
-import NewChannelForm from "./components/Channel/NewChannelForm";
-import NewGroupForm from "./components/group/NewGroupForm";
-import MyProfile from "./components/MyProfile";
-import JoinChannel from "./pages/JoinChannel";
-import JoinGroup from "./pages/JoinGroup";
-import Settings from "./pages/Settings";
-import Contacts from "./pages/Contacts";
+import LoadingStream from "./components/LoadingStream";
+
+const Signup = lazy(() => import("./pages/Signup"));
+const Login = lazy(() => import("./pages/Login"));
+const HomePage = lazy(() => import("./pages/HomePage"));
+const SideBar = lazy(() => import("./components/SideBar"));
+const Channel = lazy(() => import("./components/Channel"));
+const Chat = lazy(() => import("./components/Chat"));
+const Storycontent = lazy(() => import("./components/Storycontent"));
+const NewChannelForm = lazy(() => import("./components/Channel/NewChannelForm"));
+const NewGroupForm = lazy(() => import("./components/group/NewGroupForm"));
+const MyProfile = lazy(() => import("./components/MyProfile"));
+const JoinChannel = lazy(() => import("./pages/JoinChannel"));
+const JoinGroup = lazy(() => import("./pages/JoinGroup"));
+const Settings = lazy(() => import("./pages/Settings"));
+const Contacts = lazy(() => import("./pages/Contacts"));
 
 const ProtectedRoute = ({ children }) => {
   const isAuthenticated = useSelector(selectIsAuthenticated);
@@ -33,6 +35,16 @@ const PublicOnlyRoute = ({ children }) => {
   return children;
 };
 
+const AppLoader = () => (
+  <div className="min-h-screen grid place-items-center px-4">
+    <LoadingStream
+      label="Loading application"
+      lines={4}
+      className="w-full max-w-sm rounded-2xl border border-[var(--border-color)] bg-white/75 p-4 shadow-[0_10px_24px_rgba(74,127,74,0.12)]"
+    />
+  </div>
+);
+
 const App = () => {
   return (
     <BrowserRouter>
@@ -40,7 +52,8 @@ const App = () => {
         Skip to main content
       </a>
       <div id="app-content" tabIndex={-1} aria-label="Application content">
-        <Routes>
+        <Suspense fallback={<AppLoader />}>
+          <Routes>
           <Route
             index
             element={
@@ -147,7 +160,8 @@ const App = () => {
               </ProtectedRoute>
             }
           />
-        </Routes>
+          </Routes>
+        </Suspense>
       </div>
     </BrowserRouter>
   );

@@ -34,6 +34,7 @@ import {
   updateSlowModeApi,
   updateTopicApi,
 } from "../../api/groupApi";
+import { shouldFetchWithCache } from "../../utils/cache";
 
 export const listGroups = createAsyncThunk(
   "group/listGroups",
@@ -46,6 +47,17 @@ export const listGroups = createAsyncThunk(
         err.response?.data || { message: "fetching groups failed" },
       );
     }
+  },
+  {
+    condition: (params = {}, { getState }) => {
+      if (params?.cursor || params?.force) return true;
+      const { groupsStatus, groupsFetchedAt } = getState().group || {};
+      return shouldFetchWithCache({
+        status: groupsStatus,
+        fetchedAt: groupsFetchedAt,
+        force: params?.force,
+      });
+    },
   },
 );
 
@@ -61,6 +73,17 @@ export const listMyGroups = createAsyncThunk(
       );
     }
   },
+  {
+    condition: (params = {}, { getState }) => {
+      if (params?.cursor || params?.force) return true;
+      const { myGroupsStatus, myGroupsFetchedAt } = getState().group || {};
+      return shouldFetchWithCache({
+        status: myGroupsStatus,
+        fetchedAt: myGroupsFetchedAt,
+        force: params?.force,
+      });
+    },
+  },
 );
 
 export const findGroup = createAsyncThunk(
@@ -75,6 +98,18 @@ export const findGroup = createAsyncThunk(
         err.response?.data || { message: "fetching group failed" },
       );
     }
+  },
+  {
+    condition: (id, { getState }) => {
+      if (!id) return false;
+      const { currentGroup, currentGroupStatus, currentGroupFetchedAt } =
+        getState().group || {};
+      if (String(currentGroup?._id || "") !== String(id)) return true;
+      return shouldFetchWithCache({
+        status: currentGroupStatus,
+        fetchedAt: currentGroupFetchedAt,
+      });
+    },
   },
 );
 

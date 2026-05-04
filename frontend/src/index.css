@@ -178,3 +178,8 @@ a:focus-visible {
 #app-content:focus {
   outline: none;
 }
+
+.scroll-panel {
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}

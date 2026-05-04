@@ -17,6 +17,7 @@ import {
   sendMessageApi,
   updateChatSettingsApi,
 } from "../../api/chatApi";
+import { shouldFetchWithCache } from "../../utils/cache";
 
 export const createChat = createAsyncThunk(
   "chat/createChat",
@@ -58,6 +59,17 @@ export const listChats = createAsyncThunk(
       return rejectWithValue(err.response?.data || { message: "fetch chats failed" });
     }
   },
+  {
+    condition: (params = {}, { getState }) => {
+      if (params?.cursor || params?.force) return true;
+      const { chatsStatus, chatsFetchedAt } = getState().chat || {};
+      return shouldFetchWithCache({
+        status: chatsStatus,
+        fetchedAt: chatsFetchedAt,
+        force: params?.force,
+      });
+    },
+  },
 );
 
 export const getChatById = createAsyncThunk(
@@ -69,6 +81,18 @@ export const getChatById = createAsyncThunk(
     } catch (err) {
       return rejectWithValue(err.response?.data || { message: "fetch chat failed" });
     }
+  },
+  {
+    condition: (chatId, { getState }) => {
+      if (!chatId) return false;
+      const { currentChat, currentChatStatus, currentChatFetchedAt } =
+        getState().chat || {};
+      if (String(currentChat?._id || "") !== String(chatId)) return true;
+      return shouldFetchWithCache({
+        status: currentChatStatus,
+        fetchedAt: currentChatFetchedAt,
+      });
+    },
   },
 );
 

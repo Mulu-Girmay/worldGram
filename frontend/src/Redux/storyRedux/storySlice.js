@@ -21,6 +21,8 @@ const initialState = {
   initialized: false,
   nextCursor: null,
   userNextCursor: null,
+  storiesFetchedAt: 0,
+  currentStoryFetchedAt: 0,
   storiesStatus: "idle",
   userStoriesStatus: "idle",
   highlightsStatus: "idle",
@@ -60,6 +62,7 @@ const storySlice = createSlice({
           state.stories = items;
         }
         state.nextCursor = action.payload?.nextCursor || null;
+        state.storiesFetchedAt = Date.now();
         state.initialized = true;
       })
       .addCase(listStories.rejected, (state, action) => {
@@ -123,6 +126,7 @@ const storySlice = createSlice({
       .addCase(getStoryById.fulfilled, (state, action) => {
         state.currentStoryStatus = "succeeded";
         state.currentStory = action.payload || null;
+        state.currentStoryFetchedAt = Date.now();
       })
       .addCase(getStoryById.rejected, (state, action) => {
         state.currentStoryStatus = "failed";

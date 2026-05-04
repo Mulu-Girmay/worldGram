@@ -6,6 +6,7 @@ import {
   removeContactApi,
   updateContactApi,
 } from "../../api/contactApi";
+import { shouldFetchWithCache } from "../../utils/cache";
 
 export const listRegisteredUsers = createAsyncThunk(
   "contact/listRegisteredUsers",
@@ -18,6 +19,17 @@ export const listRegisteredUsers = createAsyncThunk(
         err.response?.data || { message: "fetching users failed" },
       );
     }
+  },
+  {
+    condition: (params = {}, { getState }) => {
+      if (params?.cursor || params?.force) return true;
+      const { usersStatus, usersFetchedAt } = getState().contact || {};
+      return shouldFetchWithCache({
+        status: usersStatus,
+        fetchedAt: usersFetchedAt,
+        force: params?.force,
+      });
+    },
   },
 );
 
@@ -32,6 +44,17 @@ export const listContacts = createAsyncThunk(
         err.response?.data || { message: "fetching contacts failed" },
       );
     }
+  },
+  {
+    condition: (params = {}, { getState }) => {
+      if (params?.cursor || params?.force) return true;
+      const { contactsStatus, contactsFetchedAt } = getState().contact || {};
+      return shouldFetchWithCache({
+        status: contactsStatus,
+        fetchedAt: contactsFetchedAt,
+        force: params?.force,
+      });
+    },
   },
 );
 
