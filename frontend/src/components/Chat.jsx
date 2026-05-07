@@ -16,6 +16,8 @@ import {
 } from "../Redux/chatRedux/chatSelector";
 import { selectUser } from "../Redux/userRedux/authSelector";
 import {
+  deleteMessage,
+  editMessage,
   getChatById,
   getMessages,
   markChatRead,
@@ -40,6 +42,7 @@ import {
   setGroupViewMode,
 } from "../Redux/groupRedux/groupThunk";
 import LoadingStream from "./LoadingStream";
+import MessageContextMenu from "./MessageContextMenu";
 import {
   selectCurrentGroup,
   selectGroupTopics,
@@ -135,7 +138,10 @@ const Chat = ({
   const [replyTarget, setReplyTarget] = useState(null);
   const [reactionBusyMap, setReactionBusyMap] = useState({});
   const [profileTab, setProfileTab] = useState("media");
-  const groups = useSelector(selectGroups);
+  const [contextMenuMessage, setContextMenuMessage] = useState(null);
+  const [isContextMenuOpen, setIsContextMenuOpen] = useState(false);
+  const [editingMessageId, setEditingMessageId] = useState(null);
+  const [editingText, setEditingText] = useState("");
   const currentGroup = useSelector(selectCurrentGroup);
   const groupTopics = useSelector(selectGroupTopics);
   const [selectedTopicId, setSelectedTopicId] = useState("");
@@ -610,8 +616,93 @@ const Chat = ({
     }
   };
 
+  const handleOpenMessageContextMenu = (message) => {
+    setContextMenuMessage(message);
+    setIsContextMenuOpen(true);
+  };
+
+  const handleEditMessage = (message) => {
+    setEditingMessageId(message?._id);
+    setEditingText(message?.content?.text || "");
+    setIsContextMenuOpen(false);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!resolvedChatId || !editingMessageId || !editingText.trim()) return;
+    const result = await dispatch(
+      editMessage({
+        chatId: resolvedChatId,
+        messageId: editingMessageId,
+        payload: { text: editingText.trim() },
+      }),
+    );
+    if (editMessage.fulfilled.match(result)) {
+      toast.success("Message edited");
+      setEditingMessageId(null);
+      setEditingText("");
+    } else {
+      toast.error(
+        result.payload?.err ||
+          result.payload?.message ||
+          "Failed to edit message",
+      );
+    }
+  };
+
+  const handleDeleteMessage = async (message) => {
+    if (!resolvedChatId || !message?._id) return;
+    if (!window.confirm("Delete this message?")) return;
+    const result = await dispatch(
+      deleteMessage({ chatId: resolvedChatId, messageId: message._id }),
+    );
+    if (deleteMessage.fulfilled.match(result)) {
+      dispatch(setMessageDeleted({ messageId: message._id }));
+      toast.success("Message deleted");
+      setIsContextMenuOpen(false);
+    } else {
+      toast.error(
+        result.payload?.err ||
+          result.payload?.message ||
+          "Failed to delete message",
+      );
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[var(--primary-color)]">
+      <MessageContextMenu
+        isOpen={isContextMenuOpen}
+        onClose={() => setIsContextMenuOpen(false)}
+        message={contextMenuMessage}
+        canEdit={
+          contextMenuMessage &&
+          normalizeId(contextMenuMessage?.identity?.senderId) ===
+            normalizeId(currentUser?._id)
+        }
+        canDelete={
+          contextMenuMessage &&
+          normalizeId(contextMenuMessage?.identity?.senderId) ===
+            normalizeId(currentUser?._id)
+        }
+        onEdit={() => handleEditMessage(contextMenuMessage)}
+        onDelete={() => handleDeleteMessage(contextMenuMessage)}
+        onCopy={() => {
+          navigator.clipboard.writeText(
+            contextMenuMessage?.content?.text || "",
+          );
+          toast.success("Text copied");
+        }}
+        onReply={() =>
+          setReplyTarget({
+            _id: contextMenuMessage?._id,
+            text: contextMenuMessage?.content?.text || "Media message",
+            sender: "User",
+          })
+        }
+        onForward={() => toast.info("Forward feature coming soon")}
+        onPin={() => toast.info("Pin feature coming soon")}
+        onShare={() => toast.info("Share feature coming soon")}
+      />
       <ProfileNav
         title={otherName}
         subtitle={subtitleText}
@@ -750,8 +841,8 @@ const Chat = ({
             <img
               src={otherProfile}
               alt={otherName}
-                    loading="lazy"
-                    decoding="async"
+              loading="lazy"
+              decoding="async"
               className="h-10 w-10 rounded-full border border-[#6fa63a]/25 object-cover"
             />
           ) : (
@@ -858,7 +949,7 @@ const Chat = ({
             return (
               <div
                 key={message?._id || `${senderId}-${message?.createdAt}`}
-                className={`flex ${isOwn ? "justify-end" : "justify-start"}`}
+                className={`flex gap-2 ${isOwn ? "justify-end" : "justify-start"}`}
               >
                 {!isOwn && (
                   <div className="mr-2 mt-1">
@@ -878,123 +969,209 @@ const Chat = ({
                   </div>
                 )}
                 <div
-                  className={`max-w-[78%] rounded-2xl px-3 py-2 text-sm shadow-sm ${
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    handleOpenMessageContextMenu(message);
+                  }}
+                  onTouchStart={(e) => {
+                    const touch = e.touches[0];
+                    const startTime = Date.now();
+                    const startX = touch.clientX;
+                    const startY = touch.clientY;
+                    const longPressTimer = setTimeout(() => {
+                      handleOpenMessageContextMenu(message);
+                    }, 500);
+                    const handleTouchEnd = () => {
+                      clearTimeout(longPressTimer);
+                      e.currentTarget?.removeEventListener(
+                        "touchend",
+                        handleTouchEnd,
+                      );
+                      e.currentTarget?.removeEventListener(
+                        "touchmove",
+                        handleTouchMove,
+                      );
+                    };
+                    const handleTouchMove = (moveEvent) => {
+                      const move = moveEvent.touches[0];
+                      if (
+                        Math.abs(move.clientX - startX) > 10 ||
+                        Math.abs(move.clientY - startY) > 10
+                      ) {
+                        clearTimeout(longPressTimer);
+                      }
+                    };
+                    e.currentTarget?.addEventListener(
+                      "touchend",
+                      handleTouchEnd,
+                    );
+                    e.currentTarget?.addEventListener(
+                      "touchmove",
+                      handleTouchMove,
+                    );
+                  }}
+                  className={`relative max-w-[78%] rounded-2xl px-3 py-2 text-sm shadow-sm ${
                     isOwn
                       ? "rounded-br-sm bg-[var(--btn-color)] text-white"
                       : "rounded-bl-sm bg-white text-[rgba(23,3,3,0.87)]"
                   }`}
                 >
-                  {!isOwn && (
-                    <p className="mb-1 text-xs font-semibold text-[#355f35]">
-                      {senderName}
-                    </p>
-                  )}
-                  {repliedToId && (
-                    <div
-                      className={`mb-1 rounded-lg border px-2 py-1 text-[11px] ${
-                        isOwn
-                          ? "border-white/30 bg-white/10 text-white/90"
-                          : "border-[#6fa63a]/30 bg-[#f3f9ee] text-[rgba(23,3,3,0.75)]"
-                      }`}
-                    >
-                      Replying to: {repliedToText || "Original message"}
-                    </div>
-                  )}
-                  {text ? (
-                    <p className="break-words">{text}</p>
-                  ) : (
-                    <p className="break-words italic opacity-70">(no text)</p>
-                  )}
-                  {mediaSrc && (
-                    <div className="mt-2 overflow-hidden rounded-xl border border-black/10">
-                      {mediaIsVideo ? (
-                        <video
-                          src={mediaSrc}
-                          controls
-                          className="max-h-72 w-full object-cover"
-                        />
-                      ) : (
-                        <img
-                          src={mediaSrc}
-                          alt="media"
-                          className="max-h-72 w-full object-cover"
-                        />
-                      )}
-                    </div>
-                  )}
-                  <div className="mt-1 flex items-center justify-end gap-2">
+                  {isOwn && (
                     <button
                       type="button"
-                      onClick={() =>
-                        setReplyTarget({
-                          _id: message?._id,
-                          text:
-                            text || (mediaURL ? "Media message" : "(no text)"),
-                          sender: senderName,
-                        })
-                      }
-                      className={`text-[10px] underline-offset-2 hover:underline ${
-                        isOwn ? "text-white/80" : "text-[#355f35]"
-                      }`}
+                      onClick={() => handleOpenMessageContextMenu(message)}
+                      className="absolute -top-1 right-1 rounded-full p-1 opacity-50 transition hover:opacity-100"
                     >
-                      Reply
+                      <span className="text-lg">•••</span>
                     </button>
-                    {isOwn && (
-                      <span className="text-[10px] text-white/70">
-                        {readStatus}
-                      </span>
-                    )}
-                    <p
-                      className={`text-[10px] ${
-                        isOwn ? "text-white/70" : "text-[rgba(23,3,3,0.52)]"
+                  )}
+                  {editingMessageId === message?._id ? (
+                    <div className="space-y-2">
+                      <textarea
+                        value={editingText}
+                        onChange={(e) => setEditingText(e.target.value)}
+                        className="w-full rounded border border-[#6fa63a]/30 bg-white p-2 text-sm text-[rgba(23,3,3,0.87)] outline-none"
+                        rows="2"
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={handleSaveEdit}
+                          className="flex-1 rounded bg-[#4a7f4a] px-2 py-1 text-xs text-white hover:bg-[#355f35]"
+                        >
+                          Save
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingMessageId(null);
+                            setEditingText("");
+                          }}
+                          className="flex-1 rounded border border-[#6fa63a]/30 px-2 py-1 text-xs hover:bg-[#f3f9ee]"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      {!isOwn && (
+                        <p className="mb-1 text-xs font-semibold text-[#355f35]">
+                          {senderName}
+                        </p>
+                      )}
+                      {repliedToId && (
+                        <div
+                          className={`mb-1 rounded-lg border px-2 py-1 text-[11px] ${
+                            isOwn
+                              ? "border-white/30 bg-white/10 text-white/90"
+                              : "border-[#6fa63a]/30 bg-[#f3f9ee] text-[rgba(23,3,3,0.75)]"
+                          }`}
+                        >
+                          Replying to: {repliedToText || "Original message"}
+                        </div>
+                      )}
+                      {message?.state?.isDeleted ? (
+                        <p className="italic opacity-60">Message deleted</p>
+                      ) : text ? (
+                        <p className="break-words">{text}</p>
+                      ) : (
+                        <p className="break-words italic opacity-70">
+                          (no text)
+                        </p>
+                      )}
+                      {mediaSrc && !message?.state?.isDeleted && (
+                        <div className="mt-2 overflow-hidden rounded-xl border border-black/10">
+                          {mediaIsVideo ? (
+                            <video
+                              src={mediaSrc}
+                              controls
+                              className="max-h-72 w-full object-cover"
+                            />
+                          ) : (
+                            <img
+                              src={mediaSrc}
+                              alt="media"
+                              className="max-h-72 w-full object-cover"
+                            />
+                          )}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+                <div className="mt-1 flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setReplyTarget({
+                        _id: message?._id,
+                        text:
+                          text || (mediaURL ? "Media message" : "(no text)"),
+                        sender: senderName,
+                      })
+                    }
+                    className={`text-[10px] underline-offset-2 hover:underline ${
+                      isOwn ? "text-white/80" : "text-[#355f35]"
+                    }`}
+                  >
+                    Reply
+                  </button>
+                  {isOwn && (
+                    <span className="text-[10px] text-white/70">
+                      {readStatus}
+                    </span>
+                  )}
+                  <p
+                    className={`text-[10px] ${
+                      isOwn ? "text-white/70" : "text-[rgba(23,3,3,0.52)]"
+                    }`}
+                  >
+                    {formatTime(message?.createdAt)}
+                  </p>
+                </div>
+                <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                  {QUICK_REACTIONS.map((emoji) => (
+                    <button
+                      key={`${message?._id}-${emoji}`}
+                      type="button"
+                      onClick={() => handleReactMessage(message, emoji)}
+                      disabled={Boolean(reactionBusyMap[message?._id])}
+                      className={`rounded-full border px-2 py-0.5 text-xs transition ${
+                        currentUserReaction === emoji
+                          ? isOwn
+                            ? "border-white/70 bg-white/15 text-white"
+                            : "border-[#4a7f4a] bg-[#eef8e8] text-[#2f5b2f]"
+                          : isOwn
+                            ? "border-white/30 bg-white/10 text-white/90 hover:bg-white/20"
+                            : "border-[#6fa63a]/35 bg-[#f8fdf3] text-[rgba(23,3,3,0.85)] hover:bg-[#eef8e8]"
+                      } disabled:opacity-60`}
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                  <Reaction
+                    initial={currentUserReaction}
+                    onSelect={(emoji) => handleReactMessage(message, emoji)}
+                    triggerClassName={`rounded-full border px-2 py-0.5 text-xs ${
+                      isOwn
+                        ? "border-white/30 bg-white/10 text-white"
+                        : "border-[#6fa63a]/35 bg-[#f8fdf3] text-[rgba(23,3,3,0.85)]"
+                    }`}
+                    popupClassName="border-[#6fa63a]/35"
+                  />
+                  {visibleMessageReactions.map((reaction) => (
+                    <span
+                      key={`${message?._id}-${reaction?.emoji}`}
+                      className={`rounded-full border px-2 py-0.5 text-[10px] ${
+                        isOwn
+                          ? "border-white/25 bg-white/10 text-white/90"
+                          : "border-[#6fa63a]/35 bg-[#f8fdf3] text-[rgba(23,3,3,0.78)]"
                       }`}
                     >
-                      {formatTime(message?.createdAt)}
-                    </p>
-                  </div>
-                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                    {QUICK_REACTIONS.map((emoji) => (
-                      <button
-                        key={`${message?._id}-${emoji}`}
-                        type="button"
-                        onClick={() => handleReactMessage(message, emoji)}
-                        disabled={Boolean(reactionBusyMap[message?._id])}
-                        className={`rounded-full border px-2 py-0.5 text-xs transition ${
-                          currentUserReaction === emoji
-                            ? isOwn
-                              ? "border-white/70 bg-white/15 text-white"
-                              : "border-[#4a7f4a] bg-[#eef8e8] text-[#2f5b2f]"
-                            : isOwn
-                              ? "border-white/30 bg-white/10 text-white/90 hover:bg-white/20"
-                              : "border-[#6fa63a]/35 bg-[#f8fdf3] text-[rgba(23,3,3,0.85)] hover:bg-[#eef8e8]"
-                        } disabled:opacity-60`}
-                      >
-                        {emoji}
-                      </button>
-                    ))}
-                    <Reaction
-                      initial={currentUserReaction}
-                      onSelect={(emoji) => handleReactMessage(message, emoji)}
-                      triggerClassName={`rounded-full border px-2 py-0.5 text-xs ${
-                        isOwn
-                          ? "border-white/30 bg-white/10 text-white"
-                          : "border-[#6fa63a]/35 bg-[#f8fdf3] text-[rgba(23,3,3,0.85)]"
-                      }`}
-                      popupClassName="border-[#6fa63a]/35"
-                    />
-                    {visibleMessageReactions.map((reaction) => (
-                      <span
-                        key={`${message?._id}-${reaction?.emoji}`}
-                        className={`rounded-full border px-2 py-0.5 text-[10px] ${
-                          isOwn
-                            ? "border-white/25 bg-white/10 text-white/90"
-                            : "border-[#6fa63a]/35 bg-[#f8fdf3] text-[rgba(23,3,3,0.78)]"
-                        }`}
-                      >
-                        {reaction?.emoji} {Number(reaction?.count || 0)}
-                      </span>
-                    ))}
-                  </div>
+                      {reaction?.emoji} {Number(reaction?.count || 0)}
+                    </span>
+                  ))}
                 </div>
               </div>
             );
